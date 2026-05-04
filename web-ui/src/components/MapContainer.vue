@@ -17,48 +17,90 @@ let polyline: any = null
 let startMarker: any = null
 let endMarker: any = null
 
-const initMap = () => {
-  if (!mapContainer.value || !window.AMap) return
+// ========== 动态加载高德地图（不依赖 index.html） ==========
+const loadAMap = (): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    // 如果已经加载过，直接返回
+    if (window.AMap) {
+      resolve(window.AMap)
+      return
+    }
 
-  map = new window.AMap.Map(mapContainer.value, {
-    zoom: 12,
-    center: props.startPoint.length === 2 ? props.startPoint : [116.397, 39.903]
-  })
+    window._AMapSecurityConfig = {
+      securityJsCode: 'ac829f0a4df12dfdcb2440e8bb9c2338'
+    }
 
-  // 等待地图加载完成再绘制
-  map.on('complete', () => {
-    updateRoute()
+    const script = document.createElement('script')
+    script.type = 'text/javascript'
+    script.src = 'https://webapi.amap.com/maps?v=2.0&key=145fda194168c12fa8ed56b309cdd6c9'
+    script.async = true
+
+    script.onerror = () => {
+      reject(new Error('高德地图加载失败，请检查 Key 是否正确、网络是否正常'))
+    }
+
+    script.onload = () => {
+      // 轮询等待 AMap 挂载到 window（最多等 5 秒）
+      let attempts = 0
+      const check = setInterval(() => {
+        attempts++
+        if (window.AMap) {
+          clearInterval(check)
+          resolve(window.AMap)
+        } else if (attempts >= 50) {
+          clearInterval(check)
+          reject(new Error('高德地图加载超时'))
+        }
+      }, 100)
+    }
+
+    document.head.appendChild(script)
   })
+}
+
+const initMap = async () => {
+  if (!mapContainer.value) return
+
+  try {
+    const AMap = await loadAMap()
+
+    map = new AMap.Map(mapContainer.value, {
+      zoom: 12,
+      center: props.startPoint?.length === 2 ? props.startPoint : [116.397, 39.903]
+    })
+
+    // 地图加载完成后绘制路线
+    map.on('complete', () => {
+      updateRoute()
+    })
+  } catch (err: any) {
+    console.error('地图初始化失败:', err)
+    // 加载失败时在页面上显示红色提示，方便排查
+    if (mapContainer.value) {
+      mapContainer.value.innerHTML = `
+        <div style="display:flex;justify-content:center;align-items:center;height:100%;color:#F56C6C;font-size:14px;">
+          地图加载失败：${err.message}
+        </div>`
+    }
+  }
 }
 
 const clearLayers = () => {
-  if (polyline) {
-    map.remove(polyline)
-    polyline = null
-  }
-  if (startMarker) {
-    map.remove(startMarker)
-    startMarker = null
-  }
-  if (endMarker) {
-    map.remove(endMarker)
-    endMarker = null
-  }
+  if (!map) return
+  if (polyline) { map.remove(polyline); polyline = null }
+  if (startMarker) { map.remove(startMarker); startMarker = null }
+  if (endMarker) { map.remove(endMarker); endMarker = null }
 }
 
 const updateRoute = () => {
-  if (!map) return
+  if (!map || !props.path || props.path.length === 0) return
 
   clearLayers()
 
-  // 无数据时不绘制
-  if (!props.path || props.path.length === 0) {
-    log.warn('MapContainer: path 为空，不绘制路线')
-    return
-  }
+  const AMap = window.AMap
 
   // 绘制路线
-  polyline = new window.AMap.Polyline({
+  polyline = new AMap.Polyline({
     path: props.path,
     strokeColor: '#409EFF',
     strokeWeight: 6,
@@ -69,26 +111,26 @@ const updateRoute = () => {
   map.add(polyline)
 
   // 起点标记
-  if (props.startPoint && props.startPoint.length === 2) {
-    startMarker = new window.AMap.Marker({
+  if (props.startPoint?.length === 2) {
+    startMarker = new AMap.Marker({
       position: props.startPoint,
       label: {
         content: '<div style="background:#409EFF;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">起点</div>',
         direction: 'top',
-        offset: new window.AMap.Pixel(0, -5)
+        offset: new AMap.Pixel(0, -5)
       }
     })
     map.add(startMarker)
   }
 
   // 终点标记
-  if (props.endPoint && props.endPoint.length === 2) {
-    endMarker = new window.AMap.Marker({
+  if (props.endPoint?.length === 2) {
+    endMarker = new AMap.Marker({
       position: props.endPoint,
       label: {
         content: '<div style="background:#F56C6C;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">终点</div>',
         direction: 'top',
-        offset: new window.AMap.Pixel(0, -5)
+        offset: new AMap.Pixel(0, -5)
       }
     })
     map.add(endMarker)
@@ -102,32 +144,21 @@ const updateRoute = () => {
 }
 
 onMounted(() => {
-  // 确保高德 JS API 已加载
-  if (window.AMap) {
-    initMap()
-  } else {
-    // 如果异步加载，轮询等待
-    const timer = setInterval(() => {
-      if (window.AMap) {
-        clearInterval(timer)
-        initMap()
-      }
-    }, 200)
-  }
+  initMap()
 })
 
-// 关键：深度监听 path 变化，重新绘制
-watch(() => props.path, (newPath) => {
-  console.log('MapContainer path 变化:', newPath?.length, '个点')
-  if (!map) {
-    initMap()
-  } else {
-    updateRoute()
-  }
-}, { deep: true, immediate: true })
+// 监听数据变化，重新绘制
+watch(() => props.path, () => {
+  if (map) updateRoute()
+}, { deep: true })
 
-watch(() => props.startPoint, () => updateRoute(), { deep: true })
-watch(() => props.endPoint, () => updateRoute(), { deep: true })
+watch(() => props.startPoint, () => {
+  if (map) updateRoute()
+}, { deep: true })
+
+watch(() => props.endPoint, () => {
+  if (map) updateRoute()
+}, { deep: true })
 
 onUnmounted(() => {
   if (map) {
