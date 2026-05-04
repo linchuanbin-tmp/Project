@@ -1,0 +1,49 @@
+# === Spring Boot / Maven ===
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.jar
+*.war
+*.class
+*.log
+.mvn/
+mvnw
+mvnw.cmd
+
+# === IDE ===
+.idea/
+*.iws
+*.iml
+*.ipr
+.classpath
+.project
+.settings/
+.factorypath
+.apt_generated
+.springBeans
+.sts4-cache
+.vscode/
+/nbproject/private/
+/nbbuild/
+/nbdist/
+/.nb-gradle/
+
+# === Vue / Node / Vite ===
+node_modules/
+dist/
+.vite/
+*.local
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === 敏感配置===
+application-local.yml
+application-dev.yml
+application-prod.yml
+.env
+.env.*
+!.env.example

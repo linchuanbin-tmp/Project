@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false  # 我们暂不开启服务发现自动路由
+      routes:
+        # 用户中心路由
+        - id: user-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                key-resolver: "#{@ipKeyResolver}"
+
+        # 任务中心路由
+        - id: task-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/task/**
+          filters:
+            - StripPrefix=1
+
+        # Tool Agent路由
+        - id: tool-agent
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/tool/**
+          filters:
+            - StripPrefix=1
+
+  redis:
+    host: localhost
+    port: 6379
+    password:
+    database: 0
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG

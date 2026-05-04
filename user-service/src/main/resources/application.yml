@@ -1,0 +1,31 @@
+server:
+  port: 8081
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 添加 allowPublicKeyRetrieval=true 参数
+    url: jdbc:mysql://localhost:3306/agent_platform?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+
+# JWT配置
+jwt:
+  secret: your-secret-key-here-change-in-production  # 生产环境要改掉！
+  expiration: 86400000  # 24小时，单位毫秒
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  mapper-locations: classpath*:/mapper/**/*.xml

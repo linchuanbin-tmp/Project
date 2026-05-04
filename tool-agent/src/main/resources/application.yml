@@ -1,0 +1,23 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: tool-agent
+
+# DeepSeek API 配置（MaaS 平台）
+ai:
+  deepseek:
+    api-key: 2a62ecda76e5be506cbf442160539507:OWVkYWYzZTE2NDBkNmNjOThjNzNmMzYx
+    base-url: https://maas-api.cn-huabei-1.xf-yun.com/v2
+    model: xopdeepseekv32
+    timeout: 6000
+
+# 高德地图
+amap:
+  key: f5a3d5e1af9c992f925692aae7b04115
+
+logging:
+  level:
+    com.agent.tool: DEBUG
+    org.springframework.web.reactive.function.client: DEBUG  # 方便看 HTTP 请求日志
