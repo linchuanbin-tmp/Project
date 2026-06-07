@@ -40,6 +40,25 @@
                     <el-tag :type="room.available ? 'success' : 'danger'">
                       {{ room.available ? '可预订' : '已占用' }}
                     </el-tag>
+                    <div style="margin-top: 10px;">
+                      <el-button
+                          v-if="room.available"
+                          type="primary"
+                          size="small"
+                          @click="bookRoom(room)"
+                          :loading="bookingRoomId === room.id"
+                      >
+                        立即预定
+                      </el-button>
+                      <el-button
+                          v-else
+                          type="danger"
+                          size="small"
+                          disabled
+                      >
+                        已预定
+                      </el-button>
+                    </div>
                   </el-card>
                 </el-col>
               </el-row>
@@ -48,6 +67,36 @@
 
           <!-- 日程冲突检测 -->
           <el-tab-pane label="📅 日程冲突" name="schedule">
+            <!-- 添加日程表单 -->
+            <el-form :model="addScheduleForm" label-width="120px" style="margin-bottom: 20px;">
+              <el-form-item label="人员">
+                <el-input v-model="addScheduleForm.userId" placeholder="如：admin" />
+              </el-form-item>
+              <el-form-item label="事件ID">
+                <el-input v-model="addScheduleForm.eventId" placeholder="如：meeting-001" />
+              </el-form-item>
+              <el-form-item label="事件名称">
+                <el-input v-model="addScheduleForm.eventName" placeholder="如：项目评审会" />
+              </el-form-item>
+              <el-form-item label="时间范围">
+                <el-date-picker
+                    v-model="addScheduleForm.timeRange"
+                    type="datetimerange"
+                    range-separator="至"
+                    start-placeholder="开始时间"
+                    end-placeholder="结束时间"
+                    style="width: 100%;"
+                />
+              </el-form-item>
+              <el-form-item label=" ">
+                <el-button type="primary" @click="createSchedule" :loading="loading">
+                  添加日程
+                </el-button>
+              </el-form-item>
+            </el-form>
+
+            <el-divider />
+
             <el-form :model="scheduleForm" label-width="120px">
               <el-form-item label="会议时间">
                 <el-date-picker
@@ -74,7 +123,7 @@
                   />
                 </el-select>
               </el-form-item>
-              <el-form-item>
+              <el-form-item label=" ">
                 <el-button type="primary" @click="checkConflict" :loading="loading">
                   检测冲突
                 </el-button>
@@ -90,12 +139,6 @@
                   :closable="false"
                   show-icon
               />
-              <div v-if="conflictResult.hasConflict" style="margin-top: 10px;">
-                <h4>推荐替代时段：</h4>
-                <el-tag v-for="time in conflictResult.suggestedTime" :key="time" style="margin-right: 10px;">
-                  {{ time }}
-                </el-tag>
-              </div>
             </div>
           </el-tab-pane>
 
@@ -152,7 +195,7 @@
                 v-model="naturalQuery"
                 type="textarea"
                 :rows="4"
-                placeholder="例如：帮我找个能容纳20人的会议室，今天下午2点到4点，要有投影仪"
+                placeholder="例如：“帮我定一个6月2日的会议室，要能容纳10人”“帮我看看admin6月2日至6月3日有没有空”“帮我规划一条路线，从天安门广场到首都国际机场”"
                 :disabled="isExecuting"
             />
 
@@ -195,7 +238,7 @@
                   <el-descriptions-item label="日期">{{ aiResponse.aiParsed.date || '今天' }}</el-descriptions-item>
                   <el-descriptions-item label="时间段">{{ aiResponse.aiParsed.timeRange || '未指定' }}</el-descriptions-item>
                   <el-descriptions-item label="人数">{{ aiResponse.aiParsed.capacity || '未指定' }}</el-descriptions-item>
-                  <el-descriptions-item label="设备需求">{{ aiResponse.aiParsed.equipment?.join(', ') || '无' }}</el-descriptions-item>
+                  <el-descriptions-item v-if="aiResponse.aiParsed.equipment" label="设备需求">{{ aiResponse.aiParsed.equipment?.join(', ') || '无' }}</el-descriptions-item>
                 </el-descriptions>
               </div>
 
@@ -264,6 +307,48 @@ const activeTab = ref('meeting')
 const routePath = ref<number[][]>([])
 const routeStart = ref<number[]>([])
 const routeEnd = ref<number[]>([])
+const bookingRoomId = ref<string | null>(null)
+
+const getToken = () => {
+  return localStorage.getItem('token')
+      || localStorage.getItem('access_token')
+      || sessionStorage.getItem('token')
+      || ''
+}
+
+// 时间格式化：Date -> "yyyy-MM-dd HH:mm:ss"
+const formatDateTime = (date: Date): string => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  const h = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  const s = String(date.getSeconds()).padStart(2, '0')
+  return `${y}-${m}-${d} ${h}:${min}:${s}`
+}
+
+// 从自然语言中提取日期、人数、时间段
+const extractFromQuery = (query: string) => {
+  // 提取日期：X月X日
+  const dateMatch = query.match(/(\d{1,2})月(\d{1,2})[日号]/)
+  // 提取人数：X人
+  const capMatch = query.match(/(\d+)[人个位]/)
+  // 提取时间段：X月X日至X月X日 或 X月X日到X月X日
+  const rangeMatch = query.match(/(\d{1,2})月(\d{1,2})[日号][至到](\d{1,2})月(\d{1,2})[日号]/)
+
+  let timeRange = null
+  if (rangeMatch) {
+    const start = `2026-${rangeMatch[1].padStart(2,'0')}-${rangeMatch[2].padStart(2,'0')}`
+    const end = `2026-${rangeMatch[3].padStart(2,'0')}-${rangeMatch[4].padStart(2,'0')}`
+    timeRange = `${start} 至 ${end}`
+  }
+
+  return {
+    date: dateMatch ? `2026-${dateMatch[1].padStart(2,'0')}-${dateMatch[2].padStart(2,'0')}` : null,
+    capacity: capMatch ? Number(capMatch[1]) : null,
+    timeRange: timeRange
+  }
+}
 
 // ==================== 会议室查询 ====================
 const meetingForm = reactive({
@@ -273,10 +358,19 @@ const meetingForm = reactive({
 const meetingRooms = ref<any[]>([])
 
 const queryMeetingRooms = async () => {
+  if (!meetingForm.date) {
+    ElMessage.warning('请先选择日期')
+    return
+  }
   loading.value = true
   try {
+    const date = new Date(meetingForm.date)
+    const startTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0)
+    const endTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 11, 0, 0)
+
     const res: any = await getMeetingRooms({
-      date: meetingForm.date ? new Date(meetingForm.date).toISOString().split('T')[0] : undefined,
+      startTime: formatDateTime(startTime),
+      endTime: formatDateTime(endTime),
       capacity: meetingForm.capacity
     })
     meetingRooms.value = res || []
@@ -289,11 +383,69 @@ const queryMeetingRooms = async () => {
   }
 }
 
+const bookRoom = async (room: any) => {
+  if (!meetingForm.date) {
+    ElMessage.warning('请先选择日期再预定')
+    return
+  }
+
+  bookingRoomId.value = room.id
+  try {
+    const token = getToken()
+    const date = new Date(meetingForm.date)
+    const startTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0)
+    const endTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 11, 0, 0)
+
+    const res = await fetch('/api/tool/meeting-room/book', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify({
+        roomId: room.id,
+        booker: 'admin',
+        startTime: formatDateTime(startTime),
+        endTime: formatDateTime(endTime),
+        topic: '会议'
+      })
+    })
+    const data = await res.json()
+    if (data.code === 200) {
+      ElMessage.success('预定成功')
+      // 本地立即标记为已预定，UI 瞬间变红
+      const idx = meetingRooms.value.findIndex((r: any) => r.id === room.id)
+      if (idx !== -1) {
+        meetingRooms.value[idx].available = false
+        meetingRooms.value[idx].statusText = '已预定'
+      }
+      // 同时重新查询数据库确保同步
+      await queryMeetingRooms()
+    } else {
+      ElMessage.error(data.message || '预定失败')
+    }
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('预定请求失败')
+  } finally {
+    bookingRoomId.value = null
+  }
+}
+
 // ==================== 日程冲突检测 ====================
 const scheduleForm = reactive({
   timeRange: [] as Date[],
   attendees: [] as string[]
 })
+
+// 添加日程表单
+const addScheduleForm = reactive({
+  userId: 'admin',
+  eventId: '',
+  eventName: '',
+  timeRange: [] as Date[]
+})
+
 const userOptions = [
   { label: '管理员 (admin)', value: 'admin' },
   { label: '测试用户 (user)', value: 'user' },
@@ -319,6 +471,50 @@ const checkConflict = async () => {
   } catch (error) {
     console.error(error)
     ElMessage.error('检测失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const createSchedule = async () => {
+  if (addScheduleForm.timeRange.length !== 2) {
+    ElMessage.warning('请选择完整的时间范围')
+    return
+  }
+  if (!addScheduleForm.eventId || !addScheduleForm.eventName) {
+    ElMessage.warning('请填写事件ID和事件名称')
+    return
+  }
+
+  loading.value = true
+  try {
+    const token = getToken()
+    const res = await fetch('/api/tool/schedule/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify({
+        userId: addScheduleForm.userId,
+        eventId: addScheduleForm.eventId,
+        eventName: addScheduleForm.eventName,
+        startTime: addScheduleForm.timeRange[0].toISOString(),
+        endTime: addScheduleForm.timeRange[1].toISOString()
+      })
+    })
+    const data = await res.json()
+    if (data.code === 200) {
+      ElMessage.success('日程添加成功')
+      addScheduleForm.eventId = ''
+      addScheduleForm.eventName = ''
+      addScheduleForm.timeRange = []
+    } else {
+      ElMessage.error(data.message || '添加失败')
+    }
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('添加日程请求失败')
   } finally {
     loading.value = false
   }
@@ -395,7 +591,7 @@ const executeWithWebSocket = async () => {
   // 关闭旧连接，防止事件堆积
   wsClient.close?.()
 
-  const wsUrl = `ws://localhost:8083/tool/ws?taskId=${taskId}`
+  const wsUrl = `ws://localhost:8080/ws?taskId=${taskId}`
   wsClient.connect(wsUrl)
 
   // 监听消息（兼容字符串和对象）
@@ -408,9 +604,14 @@ const executeWithWebSocket = async () => {
 
     if (data.status === 'completed' && !hasFetchedResult) {
       hasFetchedResult = true
-      isExecuting.value = false
-      ElMessage.success('任务执行完成！')
-      fetchTaskResult()
+      taskMessage.value = '正在获取结果...'
+      fetchTaskResult().then(() => {
+        taskProgress.value = 100
+        isExecuting.value = false
+        ElMessage.success('任务执行完成！')
+      }).catch(() => {
+        isExecuting.value = false
+      })
     } else if (data.status === 'error') {
       isExecuting.value = false
       taskMessage.value = data.message || '执行出错'
@@ -460,7 +661,7 @@ const fetchTaskResult = async () => {
     let targetTab = 'meeting'
     if (intent.includes('route') || intent.includes('路线') || intent.includes('导航') || intent.includes('path') || intent.includes('map')) {
       targetTab = 'route'
-    } else if (intent.includes('schedule') || intent.includes('冲突') || intent.includes('日程') || intent.includes('会议时间') || intent.includes('conflict')) {
+    } else if (intent.includes('schedule') || intent.includes('冲突') || intent.includes('日程') || intent.includes('会议时间') || intent.includes('conflict') || intent.includes('有没有空') || intent.includes('空')) {
       targetTab = 'schedule'
     } else if (intent.includes('meeting') || intent.includes('会议室') || intent.includes('room') || intent.includes('预订')) {
       targetTab = 'meeting'
@@ -489,30 +690,79 @@ const fetchTaskResult = async () => {
       routeResult.value = payload
 
     } else if (targetTab === 'schedule') {
-      conflictResult.value = {
-        hasConflict: payload.hasConflict ?? false,
-        message: payload.message || '检测完成',
-        suggestedTime: payload.suggestedTime || payload.aiParsed?.suggestedTime || []
+      // === 日程冲突：提取时间段，覆盖后端 Mock 数据 ===
+      const extracted = extractFromQuery(naturalQuery.value)
+
+      if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
+      // 日期：日程查询通常没有单一日期的概念，显示"未指定"
+      aiResponse.value.aiParsed.date = '未指定'
+      // 时间段：从用户输入提取，如"6月2日至6月3日"
+      aiResponse.value.aiParsed.timeRange = extracted.timeRange || '未指定'
+      // 人数：日程冲突一般不涉及人数，显示未指定
+      aiResponse.value.aiParsed.capacity = '未指定'
+      // 设备需求：日程冲突没有设备需求，删除（通过模板 v-if 控制）
+      aiResponse.value.aiParsed.equipment = null
+
+      // 回填左侧表单
+      if (extracted.timeRange) {
+        const parts = extracted.timeRange.split(' 至 ')
+        if (parts.length === 2) {
+          scheduleForm.timeRange = [new Date(parts[0] + 'T00:00:00'), new Date(parts[1] + 'T00:00:00')]
+        }
       }
 
-      const timeRange = payload.timeRange || payload.aiParsed?.timeRange
-      if (Array.isArray(timeRange) && timeRange.length === 2) {
-        scheduleForm.timeRange = timeRange.map((t: string) => new Date(t))
+      // 提取参会人员（从输入中找用户名）
+      const userMatch = naturalQuery.value.match(/(admin|user|zhangsan|lisi|张三|李四)/i)
+      if (userMatch) {
+        const userMap: Record<string, string> = {
+          'admin': 'admin', 'user': 'user',
+          'zhangsan': 'zhangsan', '张三': 'zhangsan',
+          'lisi': 'lisi', '李四': 'lisi'
+        }
+        const userKey = userMatch[0].toLowerCase()
+        const userVal = userMap[userKey] || userMatch[0]
+        scheduleForm.attendees = [userVal]
       }
-      const attendees = payload.attendees || payload.aiParsed?.attendees
-      if (attendees) {
-        scheduleForm.attendees = attendees
+
+      // 自动执行冲突检测
+      if (scheduleForm.timeRange.length === 2 && scheduleForm.attendees.length > 0) {
+        await checkConflict()
       }
 
     } else if (targetTab === 'meeting') {
-      if (payload.rooms && payload.rooms.length > 0) {
-        meetingRooms.value = payload.rooms
+      // === 会议室查询：用前端提取的真实参数覆盖后端 Mock 数据 ===
+      const extracted = extractFromQuery(naturalQuery.value)
+
+      // 1. 更新左侧表单为真实参数
+      if (extracted.date) {
+        meetingForm.date = new Date(extracted.date + 'T00:00:00')
       }
-      if (payload.aiParsed?.date) {
-        meetingForm.date = new Date(payload.aiParsed.date)
+      if (extracted.capacity) {
+        meetingForm.capacity = extracted.capacity
       }
-      if (payload.aiParsed?.capacity) {
-        meetingForm.capacity = Number(payload.aiParsed.capacity)
+
+      // 2. 查询真实数据库（获取 301/302/501，而不是 A-101/A-102）
+      await queryMeetingRooms()
+
+      // 3. 覆盖 AI 解析结果中的假数据，显示真实解析
+      if (aiResponse.value) {
+        if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
+        aiResponse.value.aiParsed.date = extracted.date || aiResponse.value.aiParsed.date || '今天'
+        aiResponse.value.aiParsed.capacity = extracted.capacity
+            ? String(extracted.capacity)
+            : (aiResponse.value.aiParsed.capacity || '未指定')
+
+        // 4. 用真实会议室数据覆盖后端返回的 Mock 数据
+        aiResponse.value.rooms = meetingRooms.value.map((room: any) => ({
+          id: room.id,
+          name: room.name,
+          capacity: room.capacity,
+          location: room.location,
+          equipment: room.equipment,
+          available: room.available,
+          aiMatchScore: room.available ? 100 : 0,
+          aiReasoning: room.available ? '符合查询条件' : '该时段已占用'
+        }))
       }
     }
 

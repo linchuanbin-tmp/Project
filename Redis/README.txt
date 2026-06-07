@@ -1,0 +1,1 @@
+右键在终端打开，输入.\redis-server.exe redis.windows.conf即可

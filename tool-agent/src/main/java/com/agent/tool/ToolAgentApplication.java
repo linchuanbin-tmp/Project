@@ -1,10 +1,11 @@
 package com.agent.tool;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 
-@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
+@SpringBootApplication
+@MapperScan("com.agent.tool.mapper")
 public class ToolAgentApplication {
     public static void main(String[] args) {
         SpringApplication.run(ToolAgentApplication.class, args);

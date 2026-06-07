@@ -9,7 +9,7 @@ spring:
     gateway:
       discovery:
         locator:
-          enabled: false  # 我们暂不开启服务发现自动路由
+          enabled: false
       routes:
         # 用户中心路由
         - id: user-service
@@ -32,13 +32,21 @@ spring:
           filters:
             - StripPrefix=1
 
-        # Tool Agent路由
+        # Tool Agent HTTP 路由
         - id: tool-agent
           uri: http://localhost:8083
           predicates:
             - Path=/api/tool/**
           filters:
             - StripPrefix=1
+
+        # Tool Agent WebSocket 路由（关键修改）
+        - id: tool-ws
+          uri: ws://localhost:8083
+          predicates:
+            - Path=/ws/**
+          filters:
+            - SetPath=/tool/ws
 
   redis:
     host: localhost
