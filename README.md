@@ -297,14 +297,4 @@ VITE v4.x.x  ready in xxx ms
 | TypeScript | 5.1.6 |
 | Axios | 1.15.0 |
 | npm | 11.6.1 |
-------------------------------------------------------------------------------------------------------------------------
 
-## 八、成员分工
-
-| 成员 | 职责 | 问题类型 |
-|----------|----------|--------------|
-| Lin Chuanbin | Full-stack + Tool Agent | 前端、会议室/日程/路线功能、部署 |
-| Xia Xin | 前端 + DevOps | Vue、Docker、页面样式 |
-| Yao Jiacheng | 后端 | 用户中心、任务中心、数据库 |
-| Zhang Zhaoming | Code Agent | ONNX、SQL 生成 |
-| Huang Siyuan | RAG Agent | Milvus、向量检索 |
