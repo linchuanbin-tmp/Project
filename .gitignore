@@ -47,3 +47,6 @@ application-prod.yml
 .env
 .env.*
 !.env.example
+
+# === Docker ===
+docker-compose.override.yml

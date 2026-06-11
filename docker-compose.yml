@@ -1,0 +1,64 @@
+# =============================================================
+# 半容器化方案：仅运行基础设施（MySQL + Redis）
+# Spring Boot 后端 和 Vue 前端 仍在本地启动，方便热重载调试
+# 启动命令: docker compose up -d
+# 停止命令: docker compose down
+# =============================================================
+
+services:
+
+  # ─────────────────────────────────────────────
+  # MySQL 8.0
+  # ─────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0.33
+    container_name: agent_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: agent_platform
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      # 数据持久化
+      - mysql_data:/var/lib/mysql
+      # 自动初始化：容器首次启动时执行
+      - ./docker/init/agent_platform_backup_utf8.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # 注意：不挂载 mysql.cnf，避免 Windows 上的文件权限报错
+      # 所有配置参数已通过下方 command 传入
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────
+  # Redis 7.x（兼容项目要求的 5.0+ 接口）
+  # ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: agent_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
