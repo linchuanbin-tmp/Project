@@ -1,6 +1,5 @@
 /**
- * WebSocket 客户端封装
- * 用于 Tool Agent 任务进度实时推送
+ * WebSocket client wrapper for real-time task progress updates.
  */
 class WebSocketClient {
     private ws: WebSocket | null = null
@@ -11,8 +10,8 @@ class WebSocketClient {
     private listeners: Map<string, Function[]> = new Map()
 
     /**
-     * 建立连接
-     * @param url WebSocket 地址，例如：ws://localhost:8083/tool/ws?taskId=xxx
+     * Open a WebSocket connection.
+     * @param url e.g. ws://localhost:8083/tool/ws?taskId=xxx
      */
     connect(url: string) {
         this.url = url
@@ -22,7 +21,7 @@ class WebSocketClient {
             this.ws = new WebSocket(url)
 
             this.ws.onopen = () => {
-                console.log('✅ WebSocket 连接成功')
+                console.log('[WS] Connected')
                 this.reconnectAttempts = 0
                 this.emit('open', null)
             }
@@ -30,7 +29,7 @@ class WebSocketClient {
             this.ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data)
-                    console.log('📨 WebSocket 收到消息:', data)
+                    console.log('[WS] Message received:', data)
                     this.emit('message', data)
                 } catch (e) {
                     this.emit('message', event.data)
@@ -38,34 +37,34 @@ class WebSocketClient {
             }
 
             this.ws.onclose = () => {
-                console.log('❌ WebSocket 连接关闭')
+                console.log('[WS] Connection closed')
                 this.emit('close', null)
                 this.attemptReconnect()
             }
 
             this.ws.onerror = (error) => {
-                console.error('💥 WebSocket 错误', error)
+                console.error('[WS] Error:', error)
                 this.emit('error', error)
             }
         } catch (error) {
-            console.error('WebSocket 连接失败', error)
+            console.error('[WS] Failed to connect:', error)
         }
     }
 
     /**
-     * 发送消息
+     * Send a message.
      */
     send(data: any) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             const payload = typeof data === 'string' ? data : JSON.stringify(data)
             this.ws.send(payload)
         } else {
-            console.error('WebSocket 未连接，无法发送消息')
+            console.error('[WS] Cannot send: not connected')
         }
     }
 
     /**
-     * 关闭连接
+     * Close the connection.
      */
     close() {
         if (this.reconnectTimer) {
@@ -79,7 +78,7 @@ class WebSocketClient {
     }
 
     /**
-     * 注册事件监听
+     * Register an event listener.
      */
     on(event: 'open' | 'message' | 'close' | 'error', callback: Function) {
         if (!this.listeners.has(event)) {
@@ -89,7 +88,7 @@ class WebSocketClient {
     }
 
     /**
-     * 移除事件监听
+     * Remove an event listener.
      */
     off(event: string, callback: Function) {
         const callbacks = this.listeners.get(event)
@@ -109,7 +108,7 @@ class WebSocketClient {
     private attemptReconnect() {
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++
-            console.log(`🔄 WebSocket 尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`)
+            console.log(`[WS] Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`)
             this.reconnectTimer = window.setTimeout(() => {
                 this.connect(this.url)
             }, 2000)
@@ -117,5 +116,4 @@ class WebSocketClient {
     }
 }
 
-// 单例导出
 export const wsClient = new WebSocketClient()

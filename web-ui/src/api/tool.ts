@@ -1,11 +1,11 @@
 import request from '@utils/request'
 
-// 获取会议室列表
+// Fetch available meeting rooms
 export const getMeetingRooms = (params?: { date?: string; capacity?: number }) => {
     return request.get('/tool/meeting-rooms', { params })
 }
 
-// 检查日程冲突
+// Check schedule conflict for given attendees
 export const checkScheduleConflict = (data: {
     startTime: string
     endTime: string
@@ -14,7 +14,7 @@ export const checkScheduleConflict = (data: {
     return request.post('/tool/check-conflict', data)
 }
 
-// 规划路线
+// Plan a route between two locations
 export const planRoute = (params: {
     from: string
     to: string
@@ -23,7 +23,7 @@ export const planRoute = (params: {
     return request.get('/tool/route', { params })
 }
 
-// 统一工具执行接口（AI 助手用）
+// Unified tool execution endpoint (used by the AI assistant)
 export const executeTool = (data: {
     toolType: string
     parameters: Record<string, any>

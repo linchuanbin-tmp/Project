@@ -1,23 +1,23 @@
 <template>
   <div class="tool-container">
-    <el-page-header @back="router.back()" title="工具调用 Agent" />
+    <el-page-header @back="router.back()" title="Tool Call Agent" />
 
     <el-row :gutter="20" style="margin-top: 20px;">
-      <!-- 左侧：功能选择 -->
+      <!-- Left panel: feature tabs -->
       <el-col :xs="24" :sm="24" :md="16">
         <el-tabs v-model="activeTab" type="border-card" class="tool-tabs">
-          <!-- 会议室查询 -->
-          <el-tab-pane label="🏢 会议室查询" name="meeting">
+          <!-- Meeting room booking -->
+          <el-tab-pane label="Meeting rooms" name="meeting">
             <el-form :model="meetingForm" label-width="100px">
-              <el-form-item label="选择日期">
+              <el-form-item label="Date">
                 <el-date-picker
                     v-model="meetingForm.date"
                     type="date"
-                    placeholder="选择日期"
+                    placeholder="Select date"
                     style="width: 100%;"
                 />
               </el-form-item>
-              <el-form-item label="容纳人数">
+              <el-form-item label="Capacity">
                 <el-input-number v-model="meetingForm.capacity" :min="1" :max="100" />
               </el-form-item>
               <el-form-item>
@@ -30,15 +30,15 @@
             <el-divider />
 
             <div v-if="meetingRooms.length > 0">
-              <h4>查询结果：</h4>
+              <h4>Results</h4>
               <el-row :gutter="10">
                 <el-col :span="12" v-for="room in meetingRooms" :key="room.id">
                   <el-card :class="{ 'room-available': room.available, 'room-occupied': !room.available }" shadow="hover">
                     <h5>{{ room.name }} ({{ room.id }})</h5>
-                    <p>容量: {{ room.capacity }}人 | 位置: {{ room.location }}</p>
-                    <p>设备: {{ room.equipment.join(', ') }}</p>
+                    <p>Capacity: {{ room.capacity }} · {{ room.location }}</p>
+                    <p>Equipment: {{ room.equipment.join(', ') }}</p>
                     <el-tag :type="room.available ? 'success' : 'danger'">
-                      {{ room.available ? '可预订' : '已占用' }}
+                      {{ room.available ? 'Available' : 'Occupied' }}
                     </el-tag>
                     <div style="margin-top: 10px;">
                       <el-button
@@ -65,26 +65,26 @@
             </div>
           </el-tab-pane>
 
-          <!-- 日程冲突检测 -->
-          <el-tab-pane label="📅 日程冲突" name="schedule">
-            <!-- 添加日程表单 -->
+          <!-- Schedule conflict detection -->
+          <el-tab-pane label="Schedule check" name="schedule">
+            <!-- Add schedule event form -->
             <el-form :model="addScheduleForm" label-width="120px" style="margin-bottom: 20px;">
-              <el-form-item label="人员">
-                <el-input v-model="addScheduleForm.userId" placeholder="如：admin" />
+              <el-form-item label="User">
+                <el-input v-model="addScheduleForm.userId" placeholder="e.g. admin" />
               </el-form-item>
-              <el-form-item label="事件ID">
-                <el-input v-model="addScheduleForm.eventId" placeholder="如：meeting-001" />
+              <el-form-item label="Event ID">
+                <el-input v-model="addScheduleForm.eventId" placeholder="e.g. meeting-001" />
               </el-form-item>
-              <el-form-item label="事件名称">
-                <el-input v-model="addScheduleForm.eventName" placeholder="如：项目评审会" />
+              <el-form-item label="Event name">
+                <el-input v-model="addScheduleForm.eventName" placeholder="e.g. Project review" />
               </el-form-item>
-              <el-form-item label="时间范围">
+              <el-form-item label="Time range">
                 <el-date-picker
                     v-model="addScheduleForm.timeRange"
                     type="datetimerange"
-                    range-separator="至"
-                    start-placeholder="开始时间"
-                    end-placeholder="结束时间"
+                    range-separator="to"
+                    start-placeholder="Start"
+                    end-placeholder="End"
                     style="width: 100%;"
                 />
               </el-form-item>
@@ -98,19 +98,19 @@
             <el-divider />
 
             <el-form :model="scheduleForm" label-width="120px">
-              <el-form-item label="会议时间">
+              <el-form-item label="Meeting time">
                 <el-date-picker
                     v-model="scheduleForm.timeRange"
                     type="datetimerange"
-                    range-separator="至"
-                    start-placeholder="开始时间"
-                    end-placeholder="结束时间"
+                    range-separator="to"
+                    start-placeholder="Start"
+                    end-placeholder="End"
                 />
               </el-form-item>
-              <el-form-item label="参会人员">
+              <el-form-item label="Attendees">
                 <el-select
                     v-model="scheduleForm.attendees"
-                    placeholder="选择参会人员"
+                    placeholder="Select attendees"
                     multiple
                     clearable
                     style="width: 100%;"
@@ -142,20 +142,20 @@
             </div>
           </el-tab-pane>
 
-          <!-- 路线规划 -->
-          <el-tab-pane label="🗺️ 路线规划" name="route">
+          <!-- Route planning -->
+          <el-tab-pane label="Route planning" name="route">
             <el-form :model="routeForm" label-width="100px">
-              <el-form-item label="出发地">
-                <el-input v-model="routeForm.from" placeholder="例如：公司" />
+              <el-form-item label="From">
+                <el-input v-model="routeForm.from" placeholder="e.g. Office" />
               </el-form-item>
-              <el-form-item label="目的地">
-                <el-input v-model="routeForm.to" placeholder="例如：机场" />
+              <el-form-item label="To">
+                <el-input v-model="routeForm.to" placeholder="e.g. Airport" />
               </el-form-item>
-              <el-form-item label="出行方式">
+              <el-form-item label="Mode">
                 <el-radio-group v-model="routeForm.mode">
-                  <el-radio label="driving">驾车</el-radio>
-                  <el-radio label="transit">公交</el-radio>
-                  <el-radio label="walking">步行</el-radio>
+                  <el-radio label="driving">Drive</el-radio>
+                  <el-radio label="transit">Transit</el-radio>
+                  <el-radio label="walking">Walk</el-radio>
                 </el-radio-group>
               </el-form-item>
               <el-form-item>
@@ -175,18 +175,18 @@
               />
             </div>
 
-            <el-empty v-else description="输入出发地和目的地，点击规划路线查看地图" />
+            <el-empty v-else description="Enter origin and destination to view the route on map" />
           </el-tab-pane>
         </el-tabs>
       </el-col>
 
-      <!-- 右侧：AI 助手模式 + WebSocket 实时进度 -->
+      <!-- Right panel: AI assistant with real-time progress -->
       <el-col :xs="24" :sm="24" :md="8">
         <el-card>
           <template #header>
             <div class="card-header">
-              <span>🤖 AI 助手模式</span>
-              <el-tag v-if="isExecuting" type="warning" effect="dark">执行中</el-tag>
+              <span>AI Assistant</span>
+              <el-tag v-if="isExecuting" type="warning" effect="dark">Running</el-tag>
             </div>
           </template>
 
@@ -206,10 +206,10 @@
                 :loading="isExecuting"
                 :disabled="!naturalQuery.trim()"
             >
-              {{ isExecuting ? '执行中...' : '发送给 AI 助手' }}
+              {{ isExecuting ? 'Processing...' : 'Send to AI' }}
             </el-button>
 
-            <!-- 实时进度显示 -->
+            <!-- Real-time progress bar -->
             <div v-if="taskStatus" class="progress-section">
               <el-divider />
               <div class="progress-info">
@@ -226,30 +226,30 @@
               />
             </div>
 
-            <!-- AI 助手模式卡片内，进度条下方 -->
+            <!-- AI result (shown after task completes) -->
             <div v-if="aiResponse" class="ai-result">
               <el-divider />
-              <h4>🤖 AI 解析结果</h4>
+              <h4>AI analysis</h4>
 
-              <!-- 意图解析 -->
+              <!-- Parsed intent from AI -->
               <div v-if="aiResponse.aiParsed">
                 <el-descriptions :column="1" border size="small">
-                  <el-descriptions-item label="意图">{{ aiResponse.aiParsed.intent || '查询' }}</el-descriptions-item>
-                  <el-descriptions-item label="日期">{{ aiResponse.aiParsed.date || '今天' }}</el-descriptions-item>
-                  <el-descriptions-item label="时间段">{{ aiResponse.aiParsed.timeRange || '未指定' }}</el-descriptions-item>
-                  <el-descriptions-item label="人数">{{ aiResponse.aiParsed.capacity || '未指定' }}</el-descriptions-item>
-                  <el-descriptions-item v-if="aiResponse.aiParsed.equipment" label="设备需求">{{ aiResponse.aiParsed.equipment?.join(', ') || '无' }}</el-descriptions-item>
+                  <el-descriptions-item label="Intent">{{ aiResponse.aiParsed.intent || '查询' }}</el-descriptions-item>
+                  <el-descriptions-item label="Date">{{ aiResponse.aiParsed.date || '今天' }}</el-descriptions-item>
+                  <el-descriptions-item label="Time range">{{ aiResponse.aiParsed.timeRange || '未指定' }}</el-descriptions-item>
+                  <el-descriptions-item label="Capacity">{{ aiResponse.aiParsed.capacity || '未指定' }}</el-descriptions-item>
+                  <el-descriptions-item v-if="aiResponse.aiParsed.equipment" label="Equipment">{{ aiResponse.aiParsed.equipment?.join(', ') || '无' }}</el-descriptions-item>
                 </el-descriptions>
               </div>
 
-              <!-- 推荐结果 -->
+              <!-- Recommended meeting rooms -->
               <div v-if="aiResponse.rooms" style="margin-top: 10px;">
-                <h5>推荐会议室：</h5>
+                <h5>Recommended rooms</h5>
                 <el-card v-for="room in aiResponse.rooms" :key="room.id" class="room-card" shadow="hover">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span><strong>{{ room.name }}</strong> ({{ room.id }})</span>
                     <el-tag :type="room.available ? 'success' : 'danger'">
-                      {{ room.available ? '可预订' : '已占用' }}
+                      {{ room.available ? 'Available' : 'Occupied' }}
                     </el-tag>
                   </div>
                   <p style="margin: 5px 0; color: #666; font-size: 12px;">
@@ -261,16 +261,16 @@
                 </el-card>
               </div>
 
-              <!-- 路线规划结果 -->
+              <!-- Route planning result -->
               <div v-if="aiResponse.distance">
                 <el-descriptions :column="2" border>
-                  <el-descriptions-item label="距离">{{ aiResponse.distance }}</el-descriptions-item>
-                  <el-descriptions-item label="时间">{{ aiResponse.duration }}</el-descriptions-item>
-                  <el-descriptions-item label="路况">{{ aiResponse.trafficStatus }}</el-descriptions-item>
+                  <el-descriptions-item label="Distance">{{ aiResponse.distance }}</el-descriptions-item>
+                  <el-descriptions-item label="Duration">{{ aiResponse.duration }}</el-descriptions-item>
+                  <el-descriptions-item label="Traffic">{{ aiResponse.trafficStatus }}</el-descriptions-item>
                 </el-descriptions>
               </div>
 
-              <!-- 日程冲突结果 -->
+              <!-- Schedule conflict result -->
               <div v-if="aiResponse.hasConflict !== undefined">
                 <el-alert
                     :title="aiResponse.message"
@@ -279,9 +279,9 @@
                 />
               </div>
 
-              <!-- 原始JSON（调试用，可折叠） -->
+              <!-- Raw JSON response (collapsible) -->
               <el-collapse style="margin-top: 10px;">
-                <el-collapse-item title="原始响应数据">
+                <el-collapse-item title="Raw response">
                   <pre style="font-size: 11px; background: #f5f7fa; padding: 8px;">{{ JSON.stringify(aiResponse, null, 2) }}</pre>
                 </el-collapse-item>
               </el-collapse>
@@ -316,7 +316,7 @@ const getToken = () => {
       || ''
 }
 
-// 时间格式化：Date -> "yyyy-MM-dd HH:mm:ss"
+// Format Date to "yyyy-MM-dd HH:mm:ss"
 const formatDateTime = (date: Date): string => {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -329,11 +329,11 @@ const formatDateTime = (date: Date): string => {
 
 // 从自然语言中提取日期、人数、时间段
 const extractFromQuery = (query: string) => {
-  // 提取日期：X月X日
+  // Extract date
   const dateMatch = query.match(/(\d{1,2})月(\d{1,2})[日号]/)
-  // 提取人数：X人
+  // Extract capacity
   const capMatch = query.match(/(\d+)[人个位]/)
-  // 提取时间段：X月X日至X月X日 或 X月X日到X月X日
+  // Extract time range
   const rangeMatch = query.match(/(\d{1,2})月(\d{1,2})[日号][至到](\d{1,2})月(\d{1,2})[日号]/)
 
   let timeRange = null
@@ -350,7 +350,7 @@ const extractFromQuery = (query: string) => {
   }
 }
 
-// ==================== 会议室查询 ====================
+// --- Meeting room queries ---
 const meetingForm = reactive({
   date: '',
   capacity: 10
@@ -413,13 +413,12 @@ const bookRoom = async (room: any) => {
     const data = await res.json()
     if (data.code === 200) {
       ElMessage.success('预定成功')
-      // 本地立即标记为已预定，UI 瞬间变红
+      // Optimistic UI update
       const idx = meetingRooms.value.findIndex((r: any) => r.id === room.id)
       if (idx !== -1) {
         meetingRooms.value[idx].available = false
         meetingRooms.value[idx].statusText = '已预定'
       }
-      // 同时重新查询数据库确保同步
       await queryMeetingRooms()
     } else {
       ElMessage.error(data.message || '预定失败')
@@ -432,7 +431,7 @@ const bookRoom = async (room: any) => {
   }
 }
 
-// ==================== 日程冲突检测 ====================
+// --- Schedule conflict detection ---
 const scheduleForm = reactive({
   timeRange: [] as Date[],
   attendees: [] as string[]
@@ -520,7 +519,7 @@ const createSchedule = async () => {
   }
 }
 
-// ==================== 路线规划 ====================
+// --- Route planning ---
 const routeForm = reactive({
   from: '公司',
   to: '机场',
@@ -562,7 +561,7 @@ const planRoute = async () => {
   }
 }
 
-// ==================== WebSocket AI 助手 ====================
+// --- WebSocket AI assistant ---
 const naturalQuery = ref('')
 const aiResponse = ref<any>(null)
 
@@ -588,7 +587,7 @@ const executeWithWebSocket = async () => {
   taskMessage.value = '正在连接服务器...'
   aiResponse.value = null
 
-  // 关闭旧连接，防止事件堆积
+  // Close any existing connection before opening a new one
   wsClient.close?.()
 
   const wsUrl = `ws://localhost:8080/ws?taskId=${taskId}`
@@ -604,7 +603,7 @@ const executeWithWebSocket = async () => {
 
     if (data.status === 'completed' && !hasFetchedResult) {
       hasFetchedResult = true
-      taskMessage.value = '正在获取结果...'
+      taskMessage.value = 'Fetching result...'
       fetchTaskResult().then(() => {
         taskProgress.value = 100
         isExecuting.value = false
@@ -626,7 +625,7 @@ const executeWithWebSocket = async () => {
   })
 
   wsClient.on('open', () => {
-    taskMessage.value = '已连接，正在发送任务...'
+    taskMessage.value = 'Connected, sending task...'
     wsClient.send(JSON.stringify({
       taskType: 'AI',
       query: naturalQuery.value,
@@ -643,18 +642,15 @@ const fetchTaskResult = async () => {
       naturalLanguage: naturalQuery.value
     })
 
-    // 解包后端统一返回结构 Result<T>
+    // Unwrap backend Result<T> wrapper
     const payload = res?.data ?? res
     aiResponse.value = payload
-    console.log('AI原始响应:', res)
-    console.log('AI解析结果:', payload)
-
     if (!payload) {
       ElMessage.warning('AI 返回结果为空，请检查后端 /tool/execute 接口')
       return
     }
 
-    // 根据意图自动跳转 Tab 并回填数据
+    // Auto-switch tab based on detected intent
     const intentRaw = payload.aiParsed?.intent || payload.intent || ''
     const intent = intentRaw.toLowerCase()
 
@@ -690,20 +686,16 @@ const fetchTaskResult = async () => {
       routeResult.value = payload
 
     } else if (targetTab === 'schedule') {
-      // === 日程冲突：提取时间段，覆盖后端 Mock 数据 ===
+      // Schedule conflict: extract time range from user input
       const extracted = extractFromQuery(naturalQuery.value)
 
       if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
-      // 日期：日程查询通常没有单一日期的概念，显示"未指定"
-      aiResponse.value.aiParsed.date = '未指定'
-      // 时间段：从用户输入提取，如"6月2日至6月3日"
-      aiResponse.value.aiParsed.timeRange = extracted.timeRange || '未指定'
-      // 人数：日程冲突一般不涉及人数，显示未指定
-      aiResponse.value.aiParsed.capacity = '未指定'
-      // 设备需求：日程冲突没有设备需求，删除（通过模板 v-if 控制）
+      aiResponse.value.aiParsed.date = 'N/A'
+      aiResponse.value.aiParsed.timeRange = extracted.timeRange || 'N/A'
+      aiResponse.value.aiParsed.capacity = 'N/A'
       aiResponse.value.aiParsed.equipment = null
 
-      // 回填左侧表单
+      // Pre-fill form from extracted data
       if (extracted.timeRange) {
         const parts = extracted.timeRange.split(' 至 ')
         if (parts.length === 2) {
@@ -711,7 +703,7 @@ const fetchTaskResult = async () => {
         }
       }
 
-      // 提取参会人员（从输入中找用户名）
+      // Extract attendees from user query
       const userMatch = naturalQuery.value.match(/(admin|user|zhangsan|lisi|张三|李四)/i)
       if (userMatch) {
         const userMap: Record<string, string> = {
@@ -724,16 +716,15 @@ const fetchTaskResult = async () => {
         scheduleForm.attendees = [userVal]
       }
 
-      // 自动执行冲突检测
+      // Automatically run conflict check
       if (scheduleForm.timeRange.length === 2 && scheduleForm.attendees.length > 0) {
         await checkConflict()
       }
 
     } else if (targetTab === 'meeting') {
-      // === 会议室查询：用前端提取的真实参数覆盖后端 Mock 数据 ===
       const extracted = extractFromQuery(naturalQuery.value)
 
-      // 1. 更新左侧表单为真实参数
+      // Update form with extracted parameters
       if (extracted.date) {
         meetingForm.date = new Date(extracted.date + 'T00:00:00')
       }
@@ -741,18 +732,16 @@ const fetchTaskResult = async () => {
         meetingForm.capacity = extracted.capacity
       }
 
-      // 2. 查询真实数据库（获取 301/302/501，而不是 A-101/A-102）
       await queryMeetingRooms()
 
-      // 3. 覆盖 AI 解析结果中的假数据，显示真实解析
+      // Merge real data into AI response
       if (aiResponse.value) {
         if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
-        aiResponse.value.aiParsed.date = extracted.date || aiResponse.value.aiParsed.date || '今天'
+        aiResponse.value.aiParsed.date = extracted.date || aiResponse.value.aiParsed.date || 'Today'
         aiResponse.value.aiParsed.capacity = extracted.capacity
             ? String(extracted.capacity)
             : (aiResponse.value.aiParsed.capacity || '未指定')
 
-        // 4. 用真实会议室数据覆盖后端返回的 Mock 数据
         aiResponse.value.rooms = meetingRooms.value.map((room: any) => ({
           id: room.id,
           name: room.name,
@@ -761,7 +750,7 @@ const fetchTaskResult = async () => {
           equipment: room.equipment,
           available: room.available,
           aiMatchScore: room.available ? 100 : 0,
-          aiReasoning: room.available ? '符合查询条件' : '该时段已占用'
+          aiReasoning: room.available ? 'Matches criteria' : 'Unavailable for this period'
         }))
       }
     }
@@ -780,72 +769,20 @@ onUnmounted(() => {
 
 <style scoped>
 .tool-container {
-  padding: 20px;
+  padding: 4px 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-
-.tool-tabs {
-  min-height: 600px;
-}
-
-.room-available {
-  border: 1px solid #67C23A;
-  margin-bottom: 10px;
-}
-
-.room-occupied {
-  border: 1px solid #F56C6C;
-  opacity: 0.7;
-  margin-bottom: 10px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: bold;
-}
-
-.chat-mode {
-  display: flex;
-  flex-direction: column;
-}
-
-.progress-section {
-  margin-top: 15px;
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.status-label {
-  color: #606266;
-}
-
-.progress-percent {
-  font-weight: bold;
-  color: #409EFF;
-}
-
-.ai-response {
-  margin-top: 15px;
-}
-
-.ai-response h4 {
-  margin: 0 0 10px 0;
-  color: #303133;
-}
-
-.ai-response pre {
-  margin: 0;
-  padding: 10px;
-  background: #f5f7fa;
-  border-radius: 4px;
-  font-size: 12px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
+.tool-tabs { min-height: 600px; }
+.room-available { border: 1.5px solid #bbf7d0; margin-bottom: 10px; border-radius: 10px; }
+.room-occupied { border: 1.5px solid #fecaca; opacity: 0.75; margin-bottom: 10px; border-radius: 10px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; color: #111827; }
+.chat-mode { display: flex; flex-direction: column; }
+.progress-section { margin-top: 14px; }
+.progress-info { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
+.status-label { color: #6b7280; }
+.progress-percent { font-weight: 600; color: #111827; }
+.ai-result { margin-top: 14px; }
+.ai-result h4 { margin: 0 0 10px 0; font-size: 13.5px; font-weight: 600; color: #111827; }
+.ai-result h5 { margin: 10px 0 6px; font-size: 13px; font-weight: 600; color: #374151; }
+.room-card { margin-bottom: 8px; border-radius: 10px; }
 </style>

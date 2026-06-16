@@ -9,6 +9,12 @@ const routes = [
         meta: { public: true }
     },
     {
+        path: '/register',
+        name: 'Register',
+        component: () => import('@views/register/index.vue'),
+        meta: { public: true }
+    },
+    {
         path: '/',
         name: 'Layout',
         component: () => import('@layouts/MainLayout.vue'),
@@ -18,25 +24,25 @@ const routes = [
                 path: 'dashboard',
                 name: 'Dashboard',
                 component: () => import('@views/dashboard/index.vue'),
-                meta: { title: '首页' }
+                meta: { title: 'Dashboard' }
             },
             {
                 path: 'tool',
                 name: 'ToolAgent',
                 component: () => import('@views/tool/index.vue'),
-                meta: { title: '工具调用' }
+                meta: { title: 'Tool Call' }
             },
             {
                 path: 'code',
                 name: 'CodeAgent',
                 component: () => import('@views/code/index.vue'),
-                meta: { title: 'SQL生成' }
+                meta: { title: 'SQL Generator' }
             },
             {
                 path: 'rag',
                 name: 'RagAgent',
                 component: () => import('@views/rag/index.vue'),
-                meta: { title: '知识问答' }
+                meta: { title: 'Knowledge Q&A' }
             }
         ]
     }
@@ -47,17 +53,14 @@ const router = createRouter({
     routes
 })
 
-// 路由守卫
 router.beforeEach((to, _from, next) => {
     const userStore = useUserStore()
 
-    // 检查是否需要登录（没有标记 public 的都需要登录）
     const isPublicRoute = to.meta.public === true
 
     if (!isPublicRoute && !userStore.isLoggedIn) {
         next('/login')
     } else if (to.path === '/login' && userStore.isLoggedIn) {
-        // 已登录用户访问登录页，重定向到首页
         next('/')
     } else {
         next()

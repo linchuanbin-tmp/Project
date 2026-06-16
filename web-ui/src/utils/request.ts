@@ -3,16 +3,15 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@stores/modules/user'
 import router from '@router/index'
 
-// 创建axios实例
 const request = axios.create({
-    baseURL: '/api',  // 对应vite配置的代理
-    timeout: 60000,   // 60秒超时（AI请求可能较慢）
+    baseURL: '/api',  // proxied via Vite config
+    timeout: 60000,   // 60s timeout for potentially slow AI requests
     headers: {
         'Content-Type': 'application/json'
     }
 })
 
-// 请求拦截器
+// Request interceptor
 request.interceptors.request.use(
     (config) => {
         const userStore = useUserStore()
@@ -26,20 +25,19 @@ request.interceptors.request.use(
     }
 )
 
-// 响应拦截器
+// Response interceptor
 request.interceptors.response.use(
     (response) => {
         const res = response.data
 
-        // 如果后端返回的code不为200，视为错误
         if (res.code !== 200) {
-            ElMessage.error(res.message || '请求失败')
+            ElMessage.error(res.message || 'Request failed')
 
-            // 401: Token过期或未登录
+            // 401: Token expired or not authenticated
             if (res.code === 401) {
-                ElMessageBox.confirm('登录状态已过期，是否重新登录？', '提示', {
-                    confirmButtonText: '重新登录',
-                    cancelButtonText: '取消',
+                ElMessageBox.confirm('Session expired. Please log in again.', 'Notice', {
+                    confirmButtonText: 'Log in',
+                    cancelButtonText: 'Cancel',
                     type: 'warning'
                 }).then(() => {
                     const userStore = useUserStore()
@@ -53,7 +51,7 @@ request.interceptors.response.use(
         return res.data
     },
     (error) => {
-        ElMessage.error(error.message || '网络错误')
+        ElMessage.error(error.message || 'Network error')
         return Promise.reject(error)
     }
 )

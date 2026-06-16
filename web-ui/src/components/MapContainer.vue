@@ -17,7 +17,7 @@ let polyline: any = null
 let startMarker: any = null
 let endMarker: any = null
 
-// ========== 动态加载高德地图（不依赖 index.html） ==========
+// Dynamically load AMap SDK (avoids polluting index.html)
 const loadAMap = (): Promise<any> => {
   return new Promise((resolve, reject) => {
     // 如果已经加载过，直接返回
@@ -40,7 +40,7 @@ const loadAMap = (): Promise<any> => {
     }
 
     script.onload = () => {
-      // 轮询等待 AMap 挂载到 window（最多等 5 秒）
+      // Poll until AMap is available on window (up to 5s)
       let attempts = 0
       const check = setInterval(() => {
         attempts++
