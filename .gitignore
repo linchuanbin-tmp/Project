@@ -50,3 +50,5 @@ application-prod.yml
 
 # === Docker ===
 docker-compose.override.yml
+
+docs/

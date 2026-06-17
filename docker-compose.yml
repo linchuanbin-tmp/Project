@@ -1,53 +1,46 @@
-# =============================================================
-# 半容器化方案：仅运行基础设施（MySQL + Redis）
-# Spring Boot 后端 和 Vue 前端 仍在本地启动，方便热重载调试
-# 启动命令: docker compose up -d
-# 停止命令: docker compose down
-# =============================================================
+# ============================================================
+# Agent Platform — 全量 Docker Compose
+# 用法：docker compose up -d
+# 切换本地/云服务器：只改根目录的 .env 文件
+# ============================================================
 
 services:
 
-  # ─────────────────────────────────────────────
-  # MySQL 8.0
-  # ─────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────
+  # 基础设施
+  # ─────────────────────────────────────────────────────────
   mysql:
     image: mysql:8.0.33
     container_name: agent_mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: 123456
-      MYSQL_DATABASE: agent_platform
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
       MYSQL_CHARACTER_SET_SERVER: utf8mb4
       MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
     ports:
-      - "3306:3306"
+      - "${MYSQL_EXPOSED_PORT}:3306"
     volumes:
-      # 数据持久化
       - mysql_data:/var/lib/mysql
-      # 自动初始化：容器首次启动时执行
       - ./docker/init/agent_platform_backup_utf8.sql:/docker-entrypoint-initdb.d/init.sql:ro
-      # 注意：不挂载 mysql.cnf，避免 Windows 上的文件权限报错
-      # 所有配置参数已通过下方 command 传入
     command: >
       --default-authentication-plugin=mysql_native_password
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
+      --default-time-zone=+08:00
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
-  # ─────────────────────────────────────────────
-  # Redis 7.x（兼容项目要求的 5.0+ 接口）
-  # ─────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: agent_redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_EXPOSED_PORT}:6379"
     volumes:
       - redis_data:/data
     command: redis-server --save 60 1 --loglevel warning
@@ -56,6 +49,112 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+
+  # ─────────────────────────────────────────────────────────
+  # 后端微服务
+  # ─────────────────────────────────────────────────────────
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    container_name: agent_user_service
+    restart: unless-stopped
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+    ports:
+      - "${USER_SERVICE_PORT}:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  task-service:
+    build:
+      context: .
+      dockerfile: task-service/Dockerfile
+    container_name: agent_task_service
+    restart: unless-stopped
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - TOOL_SERVICE_URI=${TOOL_SERVICE_URI}
+    ports:
+      - "${TASK_SERVICE_PORT}:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  tool-agent:
+    build:
+      context: .
+      dockerfile: tool-agent/Dockerfile
+    container_name: agent_tool_agent
+    restart: unless-stopped
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
+      - AI_DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - AI_DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL}
+      - AI_DEEPSEEK_MODEL=${DEEPSEEK_MODEL}
+      - AMAP_KEY=${AMAP_KEY}
+    ports:
+      - "${TOOL_AGENT_PORT}:8083"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: gateway-service/Dockerfile
+    container_name: agent_gateway
+    restart: unless-stopped
+    environment:
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
+      - USER_SERVICE_URI=${USER_SERVICE_URI}
+      - TASK_SERVICE_URI=${TASK_SERVICE_URI}
+      - TOOL_SERVICE_URI=${TOOL_SERVICE_URI}
+    ports:
+      - "${GATEWAY_PORT}:8080"
+    depends_on:
+      - user-service
+      - task-service
+      - tool-agent
+
+  # ─────────────────────────────────────────────────────────
+  # 前端
+  # ─────────────────────────────────────────────────────────
+  web-ui:
+    build:
+      context: ./web-ui
+      dockerfile: Dockerfile
+    container_name: agent_web_ui
+    restart: unless-stopped
+    environment:
+      - GATEWAY_URL=${GATEWAY_URL}
+    ports:
+      - "${FRONTEND_PORT}:3000"
+    depends_on:
+      - gateway-service
 
 volumes:
   mysql_data:
