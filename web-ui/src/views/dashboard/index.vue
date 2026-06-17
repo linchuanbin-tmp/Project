@@ -85,7 +85,7 @@ const services = [
 <style scoped>
 .dashboard {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  max-width: 860px;
+  max-width: 1200px;
   padding-top: 16px;
 }
 
