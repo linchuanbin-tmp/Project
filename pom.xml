@@ -22,6 +22,8 @@
     <modules>
         <module>gateway-service</module>
         <module>user-service</module>
+        <module>task-service</module>
+        <module>tool-agent</module>
     </modules>
 
     <properties>
@@ -29,6 +31,7 @@
         <spring-cloud.version>2022.0.4</spring-cloud.version>
         <mybatis-plus.version>3.5.5</mybatis-plus.version>
         <mysql.version>8.0.33</mysql.version>
+        <lombok.version>1.18.36</lombok.version>
     </properties>
 
     <dependencyManagement>
@@ -60,7 +63,7 @@
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
-                <version>1.18.30</version>
+                <version>1.18.36</version>
                 <optional>true</optional>
             </dependency>
         </dependencies>
@@ -69,6 +72,20 @@
     <build>
         <pluginManagement>
             <plugins>
+                <!-- Lombok 注解处理器显式配置，确保 mvn 命令行编译时生效 -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>

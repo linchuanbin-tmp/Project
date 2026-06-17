@@ -6,7 +6,7 @@
 
       <!-- Logo & collapse toggle -->
       <div class="sidebar-logo">
-        <span v-if="!collapsed" class="logo-text">BankAgent</span>
+        <span v-if="!collapsed" class="logo-text" @click="router.push('/')">BankAgent</span>
         <button class="collapse-btn" @click="collapsed = !collapsed">
           <PanelLeftClose v-if="!collapsed" :size="16" :stroke-width="1.6" />
           <PanelLeftOpen v-else :size="16" :stroke-width="1.6" />
@@ -40,6 +40,15 @@
           <template #title>Knowledge Q&A</template>
           <BookOpen :size="16" :stroke-width="1.6" />
         </el-menu-item>
+
+        <!-- Admin section -->
+        <template v-if="userStore.userInfo?.roles?.includes('ROLE_ADMIN')">
+          <div v-if="!collapsed" class="menu-section-title">Administration</div>
+          <el-menu-item index="/admin/users">
+            <template #title>User Management</template>
+            <Users :size="16" :stroke-width="1.6" />
+          </el-menu-item>
+        </template>
       </el-menu>
 
       <!-- Bottom: settings & user -->
@@ -56,12 +65,16 @@
         <el-dropdown @command="handleCommand" trigger="click" placement="top-start">
           <div class="bottom-item user-item" :class="{ 'icon-only': collapsed }">
             <div class="user-avatar">
-              {{ (userStore.userInfo?.username || 'U').charAt(0).toUpperCase() }}
+              {{ (userStore.userInfo?.realName === '管理员' ? 'Administrator' : (userStore.userInfo?.realName || userStore.userInfo?.username || 'U')).charAt(0).toUpperCase() }}
             </div>
             <template v-if="!collapsed">
               <div class="user-meta">
-                <span class="user-name">{{ userStore.userInfo?.username || 'User' }}</span>
-                <span class="user-role">Administrator</span>
+                <span class="user-name">
+                  {{ userStore.userInfo?.realName === '管理员' ? 'Administrator' : (userStore.userInfo?.realName || userStore.userInfo?.username || 'User') }}
+                </span>
+                <span class="user-role">
+                  {{ userStore.userInfo?.roles?.includes('ROLE_ADMIN') ? 'Administrator' : 'Employee' }}
+                </span>
               </div>
               <ChevronDown :size="12" :stroke-width="1.8" class="user-chevron" />
             </template>
@@ -94,7 +107,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@stores/modules/user'
 import {
   Home, Wrench, FileText, BookOpen,
-  Settings, ChevronDown,
+  Settings, ChevronDown, Users,
   PanelLeftClose, PanelLeftOpen
 } from 'lucide-vue-next'
 
@@ -134,7 +147,6 @@ const handleCommand = (command: string) => {
   align-items: center;
   justify-content: space-between;
   padding: 0 12px 0 18px;
-  border-bottom: 1px solid #f5f5f5;
   flex-shrink: 0;
 }
 
@@ -149,6 +161,12 @@ const handleCommand = (command: string) => {
   color: #111827;
   letter-spacing: -0.5px;
   white-space: nowrap;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.logo-text:hover {
+  opacity: 0.8;
 }
 
 .collapse-btn {

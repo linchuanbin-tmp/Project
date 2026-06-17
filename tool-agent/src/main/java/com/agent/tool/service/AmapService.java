@@ -103,18 +103,19 @@ public class AmapService {
         String location = geocode(address);
         if (location != null && !location.isEmpty()) return location;
 
+        // Try POI text search first for POIs like "HKU", "Tiananmen Square", "Hong Kong Airport"
+        location = placeTextSearch(address);
+        if (location != null && !location.isEmpty()) {
+            log.info("地理编码通过POI搜索成功: {}", address);
+            return location;
+        }
+
         if (!address.startsWith("北京") && !address.startsWith("上海") && !address.startsWith("广州")) {
             location = geocode("北京" + address);
             if (location != null && !location.isEmpty()) {
                 log.info("地理编码加前缀重试成功: {}", "北京" + address);
                 return location;
             }
-        }
-
-        location = placeTextSearch(address);
-        if (location != null && !location.isEmpty()) {
-            log.info("地理编码通过POI搜索成功: {}", address);
-            return location;
         }
 
         log.warn("地理编码全部失败: {}", address);
@@ -223,6 +224,7 @@ public class AmapService {
                 s.put("instruction", step.path("instruction").asText(""));
                 s.put("distance", formatDistance(step.path("distance").asText("0")));
                 s.put("duration", formatDuration(step.path("duration").asText("0")));
+                s.put("polyline", step.path("polyline").asText(""));
                 steps.add(s);
             }
         }

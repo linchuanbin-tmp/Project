@@ -15,7 +15,7 @@ spring:
         - id: user-service
           uri: ${USER_SERVICE_URI:http://localhost:8081}
           predicates:
-            - Path=/api/user/**
+            - Path=/api/user/**,/api/admin/**
           filters:
             - StripPrefix=1
             - name: RequestRateLimiter
