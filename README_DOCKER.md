@@ -1,77 +1,43 @@
-# Docker 半容器化开发方案（Alternative 方案）
+# 🐳 Docker 部署与本地开发指南
 
-> 本文档是原版 `README.md` 的**替代部署方案**，仅替换其中"环境安装"和"数据库/Redis 启动"部分。  
-> **Java / Maven / Node.js 的安装与后端前端的启动方式与原 README 完全一致，无需重复配置。**
+本项目提供了两种基于 Docker 的本地运行方案，您可以根据开发和部署测试的不同阶段进行选择：
 
----
+1. **方案 A：半容器化开发方案 (推荐日常开发)**
+   * **MySQL + Redis** 跑在 Docker 容器中。
+   * **前端和后端微服务** 直接在本地运行。
+   * **优点**：支持前端和 Java 后端的热重载、方便断点调试和快速修改。
 
-## 核心思路
-
-| 组件 | 运行方式 | 原因 |
-|------|---------|------|
-| **MySQL** | Docker 容器 | 免安装，版本锁定，自动导入数据 |
-| **Redis** | Docker 容器 | 免安装，一行命令启动 |
-| **gateway-service** | 本地 `mvn spring-boot:run` | 保留热重载，方便调试 |
-| **user-service** | 本地 `mvn spring-boot:run` | 同上 |
-| **tool-agent** | 本地 `mvn spring-boot:run` | 同上 |
-| **web-ui** | 本地 `npm run dev` | 同上 |
-
-你只需要安装 **Docker Desktop**，不再需要手动安装和配置 MySQL、Redis。
+2. **方案 B：全量容器化部署方案 (推荐环境演示与测试)**
+   * **MySQL + Redis + 4个后端微服务 + 前端 Nginx** 全部打包并在 Docker 容器中运行。
+   * **优点**：一键傻瓜式启动所有服务，完全不受本地 Java、Node、Maven 等环境和版本影响。
 
 ---
 
-## 一、前置要求
+## ⚙️ 一、前置准备
 
-| 依赖 | 版本 | 用途 | 验证命令 |
-|------|------|------|----------|
-| Java | 17 | Spring Boot 3.x | `java -version` |
-| Maven | 3.9+ | 后端构建 | `mvn -v` |
-| Node.js | 18.16+ | 前端构建 | `node -v` |
-| **Docker Desktop** | **4.0+** | **运行 MySQL + Redis** | `docker -v` |
-
-> ✅ 不再需要本地安装 MySQL 和 Redis
+1. **Docker Desktop** (版本 4.0+) 必须已安装并启动。
+2. 确保本地没有占用以下端口的进程：
+   * `3306` (MySQL)
+   * `6379` (Redis)
+   * `80` (Nginx 前端接入)
+   * `8080`/`8081`/`8082`/`8083` (后端微服务及网关)
 
 ---
 
-## 二、新增文件说明
+## 🚀 二、方案 A：半容器化开发方案（推荐日常开发调试）
 
-```
-项目根目录/
-├── docker-compose.yml                    # ⭐ 一键启动 MySQL + Redis
-├── docker/
-│   ├── config/
-│   │   └── mysql.cnf                     # MySQL 字符集 + 时区配置
-│   └── init/
-│       └── agent_platform_backup_utf8.sql # UTF-8 版初始化 SQL（原文件为 UTF-16LE）
-└── README_DOCKER.md                      # 本文档
-```
+基础设施使用 Docker 容器，免去手动安装 MySQL 和 Redis 的繁琐，前端和后端保持在本地宿主机运行，便于开发调试。
 
----
-
-## 三、快速开始
-
-### 第 1 步：启动基础设施
-
+### 第 1 步：启动 MySQL & Redis
+在项目根目录下执行：
 ```bash
-# 在项目根目录执行
-docker compose up -d
+docker compose up -d mysql redis
 ```
+*MySQL 容器启动后，会自动创建 `agent_platform` 数据库，并导入完整的表结构及初始数据。*
 
-预期输出：
-```
-✔ Container agent_mysql  Started
-✔ Container agent_redis  Started
-```
-
-**MySQL 会自动完成：**
-- 创建数据库 `agent_platform`（utf8mb4 字符集）
-- 导入表结构和测试数据（`meeting_room`, `meeting_schedule`, `sys_user`）
-- 创建默认用户 `admin / 123456`
-
-### 第 2 步：验证服务就绪
-
+### 第 2 步：验证基础设施状态
 ```bash
-# 验证 MySQL（等待约 20-30 秒首次启动）
+# 验证 MySQL（等待大约 15 秒首次初始化完成）
 docker exec agent_mysql mysqladmin ping -u root -p123456
 
 # 验证 Redis
@@ -79,89 +45,91 @@ docker exec agent_redis redis-cli ping
 # 应返回: PONG
 ```
 
-### 第 3 步：启动后端（与原 README 完全一致）
+### 第 3 步：在本地启动后端微服务
+> ⚠️ **注意**：本地运行时，Maven 可能会默认使用系统的高版本 JDK（例如 JDK 21+ 或 JDK 26），导致 Lombok 兼容报错。请强制指定使用 **JDK 17** 运行。
 
-按顺序在**三个独立终端**中执行：
-
+在三个独立的终端中依次运行：
 ```bash
-# 终端 1 - Gateway
-cd gateway-service && mvn spring-boot:run
+# 1. 启动网关 (8080)
+cd gateway-service && JAVA_HOME=/Users/mitsuhahi/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home mvn spring-boot:run -DskipTests
 
-# 终端 2 - User Service
-cd user-service && mvn spring-boot:run
+# 2. 启动用户服务 (8081)
+cd user-service && JAVA_HOME=/Users/mitsuhahi/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home mvn spring-boot:run -DskipTests
 
-# 终端 3 - Tool Agent
-cd tool-agent && mvn spring-boot:run
+# 3. 启动工具服务 (8083)
+cd tool-agent && JAVA_HOME=/Users/mitsuhahi/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home mvn spring-boot:run -DskipTests
 ```
+*(注：您也可以直接运行根目录下的 `bash dev.sh` 一键自动分窗口启动所有本地服务)*
 
-### 第 4 步：启动前端（与原 README 完全一致）
-
+### 第 4 步：本地启动前端
 ```bash
-cd web-ui && npm install && npm run dev
+cd web-ui
+npm install
+npm run dev
 ```
+前端开发地址：`http://localhost:3000`
 
 ---
 
-## 四、日常操作
+## 📦 三、方案 B：全量 Docker 容器化部署方案（适合一键演示与测试）
 
+此方案无需您配置本地的 JDK 17、Node.js 或 Maven，通过 Docker 一键打包并运行包含微服务和 Nginx 代理在内的整套系统。
+
+### 第 1 步：编译前端静态资源（⚠️ 必须）
+由于全量方案中 Nginx 会直接挂载前端的打包产物目录 `./web-ui/dist`，**在首次启动或前端代码修改后，必须先在本地进行打包构建**：
 ```bash
-# 后台启动（推荐，不占用终端）
-docker compose up -d
+cd web-ui
+npm install
+npm run build
+```
+这会在 `web-ui` 目录下生成 `dist` 静态资源目录。
 
-# 查看运行状态
+### 第 2 步：一键打包并启动全量容器
+返回项目根目录，执行：
+```bash
+docker compose up --build -d
+```
+Docker 会依次拉取镜像，并通过多阶段构建编译四个后端 Spring Boot 服务（Gateway, User, Task, Tool），最后通过 Nginx 进行反向代理接入。
+
+### 第 3 步：访问服务
+全量部署成功后，系统统一由 **Nginx (80 端口)** 提供服务接入：
+- **前端页面**：[http://localhost](http://localhost) (输入默认账号：`admin` 密码：`123456` 即可登录进入系统)
+- **后端网关 API**：`http://localhost:8080`
+
+### 第 4 步：日常管理
+```bash
+# 查看所有运行中的服务容器
 docker compose ps
 
-# 查看日志
-docker compose logs mysql
-docker compose logs redis
+# 查看后端网关或特定服务的运行日志
+docker compose logs -f gateway-service
+docker compose logs -f tool-agent
 
-# 停止（数据保留）
+# 停止全量服务（数据保留）
 docker compose down
 
-# 停止并清空所有数据（谨慎！重置到初始状态）
+# 停止全量服务并清空数据库（谨慎！数据卷会重置到初始状态）
 docker compose down -v
 ```
 
 ---
 
-## 五、数据库连接信息
+## 🔑 四、数据库与 Redis 连接配置
 
-容器启动后，本地后端直接使用以下配置连接（与原 `application.yml` 一致，无需修改）：
+无论是方案 A 还是方案 B，数据库和 Redis 都由 Docker 统一托管：
 
 | 参数 | 值 |
 |------|----|
-| Host | `localhost` |
-| Port | `3306` |
-| Database | `agent_platform` |
-| Username | `root` |
-| Password | `123456` |
-| Redis Host | `localhost:6379` |
+| MySQL Host | `localhost` (本地开发连) / `mysql` (Docker 容器内连) |
+| MySQL Port | `3306` |
+| 初始数据库 | `agent_platform` |
+| 用户名 / 密码 | `root / 123456` |
+| Redis Host | `localhost:6379` (本地开发连) / `redis` (Docker 容器内连) |
 
-> 如果你本地已有 MySQL/Redis 占用了 3306/6379 端口，先停掉本地服务再启动 Docker：
+> 💡 **端口冲突提示**：如果本地电脑已独立安装了 MySQL 或 Redis 导致容器端口被占用，请先停止本地服务：
 > ```bash
 > # macOS 停止本地 MySQL
 > brew services stop mysql
 > # macOS 停止本地 Redis
 > brew services stop redis
 > ```
-
----
-
-## 六、常见问题
-
-**Q: `docker compose up` 之后 MySQL 一直重启怎么办？**  
-A: 查看日志 `docker compose logs mysql`，通常是端口冲突。确认本地没有其他 MySQL 进程在运行。
-
-**Q: 数据库数据在哪里？**  
-A: 存储在 Docker Volume `agent_mysql_data` 中，`docker compose down` 不会删除数据，只有加 `-v` 才会清除。
-
-**Q: 如何连接 MySQL 查看数据？**  
-```bash
-docker exec -it agent_mysql mysql -u root -p123456 agent_platform
-```
-
-**Q: 其他组员 push 了新的 SQL 迁移怎么办？**  
-A: 暂无自动迁移，手动执行：
-```bash
-docker exec -i agent_mysql mysql -u root -p123456 agent_platform < 新的迁移文件.sql
-```
