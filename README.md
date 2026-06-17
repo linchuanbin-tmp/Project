@@ -1,5 +1,9 @@
-# 🚀 智能 Agent 平台
+# 🚀 BankAgent
 
+> 🌐 **服务器部署信息**：
+> - **测试服务器公网 IP**：`167.172.82.161`
+> - **部署状态**：目前云服务器部署正在完善中，域名解析暂未配置。本地开发与演示时，可直接通过 Docker 进行全量或半容器化本地调试。
+> 
 > 💡 **Docker 部署说明**：
 > 本项目支持使用 **Docker Compose** 进行一键全量容器化部署，或者使用半容器化方案进行本地开发调试。
 > 详细操作步骤请参阅 [Docker 部署与开发指南 (README_DOCKER.md)](./README_DOCKER.md)。
@@ -29,7 +33,7 @@
 ## 二、项目结构详解
 
 ```
-agent-platform/
+BankAgent/
 ├── 📁 gateway-service/              # 网关服务 (端口 8080)
 │   ├── src/main/java/com/agent/gateway/
 │   │   ├── config/SecurityConfig.java       # 跨域 + 安全放行
