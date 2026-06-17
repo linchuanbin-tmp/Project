@@ -46,20 +46,53 @@ docker exec agent_redis redis-cli ping
 ```
 
 ### 第 3 步：在本地启动后端微服务
-> ⚠️ **注意**：本地运行时，Maven 可能会默认使用系统的高版本 JDK（例如 JDK 21+ 或 JDK 26），导致 Lombok 兼容报错。请强制指定使用 **JDK 17** 运行。
+> ⚠️ **注意**：本地运行时，Maven 可能会默认使用系统的高版本 JDK（例如 JDK 21+ 或 JDK 26），导致 Lombok 兼容报错。请强制指定使用 **JDK 17** 运行。请根据您本地实际安装的 JDK 17 路径替换下面的路径值：
 
-在三个独立的终端中依次运行：
+**macOS / Linux**：
 ```bash
+# 1. 终端窗口 1：启动网关 (8080)
+export JAVA_HOME="/Users/your_username/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home" # 替换为您的本地路径
+cd gateway-service && mvn spring-boot:run -DskipTests
+
+# 2. 终端窗口 2：启动用户服务 (8081)
+export JAVA_HOME="/Users/your_username/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home"
+cd user-service && mvn spring-boot:run -DskipTests
+
+# 3. 终端窗口 3：启动工具服务 (8083)
+export JAVA_HOME="/Users/your_username/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home"
+cd tool-agent && mvn spring-boot:run -DskipTests
+```
+*(注：macOS 用户也可以直接在项目根目录下运行 `bash dev.sh` 一键自动分窗口启动所有服务)*
+
+**Windows (CMD)**：
+```cmd
+:: 1. 启动网关 (8080)
+set JAVA_HOME="C:\Program Files\Java\jdk-17"  &:: 替换为你的 JDK17 安装目录
+cd gateway-service && mvn spring-boot:run -DskipTests
+
+:: 2. 启动用户服务 (8081)
+set JAVA_HOME="C:\Program Files\Java\jdk-17"
+cd user-service && mvn spring-boot:run -DskipTests
+
+:: 3. 启动工具服务 (8083)
+set JAVA_HOME="C:\Program Files\Java\jdk-17"
+cd tool-agent && mvn spring-boot:run -DskipTests
+```
+
+**Windows (PowerShell)**：
+```powershell
 # 1. 启动网关 (8080)
-cd gateway-service && JAVA_HOME=/Users/mitsuhahi/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home mvn spring-boot:run -DskipTests
+$env:JAVA_HOME="C:\Program Files\Java\jdk-17"   # 替换为你的 JDK17 安装目录
+cd gateway-service; mvn spring-boot:run -DskipTests
 
 # 2. 启动用户服务 (8081)
-cd user-service && JAVA_HOME=/Users/mitsuhahi/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home mvn spring-boot:run -DskipTests
+$env:JAVA_HOME="C:\Program Files\Java\jdk-17"
+cd user-service; mvn spring-boot:run -DskipTests
 
 # 3. 启动工具服务 (8083)
-cd tool-agent && JAVA_HOME=/Users/mitsuhahi/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home mvn spring-boot:run -DskipTests
+$env:JAVA_HOME="C:\Program Files\Java\jdk-17"
+cd tool-agent; mvn spring-boot:run -DskipTests
 ```
-*(注：您也可以直接运行根目录下的 `bash dev.sh` 一键自动分窗口启动所有本地服务)*
 
 ### 第 4 步：本地启动前端
 ```bash
@@ -127,9 +160,16 @@ docker compose down -v
 | Redis Host | `localhost:6379` (本地开发连) / `redis` (Docker 容器内连) |
 
 > 💡 **端口冲突提示**：如果本地电脑已独立安装了 MySQL 或 Redis 导致容器端口被占用，请先停止本地服务：
+> 
+> **macOS (Homebrew)**:
 > ```bash
-> # macOS 停止本地 MySQL
 > brew services stop mysql
-> # macOS 停止本地 Redis
 > brew services stop redis
+> ```
+> 
+> **Windows (CMD/PowerShell - 管理员身份)**:
+> ```cmd
+> net stop mysql
+> net stop redis
+> # 或者直接在“服务”管理器 (services.msc) 中手动停用对应的 MySQL 或 Redis 服务
 > ```
