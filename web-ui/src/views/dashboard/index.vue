@@ -235,4 +235,21 @@ const services = [
 
 .status-badge.online  { background: #f0fdf4; color: #16a34a; }
 .status-badge.offline { background: #f3f4f6; color: #9ca3af; }
+
+/* ── 移动端适配 ─────────────────────────────────── */
+@media (max-width: 768px) {
+  .page-header {
+    margin-bottom: 24px;
+    padding-top: 10px;
+  }
+
+  .action-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .action-card {
+    padding: 20px 18px 16px;
+  }
+}
 </style>

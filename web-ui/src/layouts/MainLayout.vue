@@ -1,12 +1,25 @@
 <template>
-  <el-container class="main-layout">
+  <div class="layout-wrapper">
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+      <button class="hamburger-btn" @click="mobileOpen = !mobileOpen">
+        <Menu :size="20" :stroke-width="1.8" />
+      </button>
+      <span class="mobile-logo-text" @click="router.push('/app/dashboard')">BankAgent</span>
+      <div class="mobile-spacer"></div>
+    </div>
 
-    <!-- Sidebar -->
-    <el-aside :width="collapsed ? '56px' : '230px'" class="aside" :class="{ collapsed }">
+    <!-- Backdrop for mobile drawer -->
+    <div v-show="mobileOpen" class="mobile-backdrop" @click="mobileOpen = false"></div>
+
+    <el-container class="main-layout">
+
+      <!-- Sidebar -->
+      <el-aside :width="collapsed ? '56px' : '230px'" class="aside" :class="{ collapsed, 'mobile-active': mobileOpen }">
 
       <!-- Logo & collapse toggle -->
       <div class="sidebar-logo">
-        <span v-if="!collapsed" class="logo-text" @click="router.push('/')">BankAgent</span>
+        <span v-if="!collapsed" class="logo-text" @click="router.push('/app/dashboard')">BankAgent</span>
         <button class="collapse-btn" @click="collapsed = !collapsed">
           <PanelLeftClose v-if="!collapsed" :size="16" :stroke-width="1.6" />
           <PanelLeftOpen v-else :size="16" :stroke-width="1.6" />
@@ -21,22 +34,22 @@
           :collapse="collapsed"
           :collapse-transition="false"
       >
-        <el-menu-item index="/dashboard">
+        <el-menu-item index="/app/dashboard">
           <template #title>Dashboard</template>
           <Home :size="16" :stroke-width="1.6" />
         </el-menu-item>
 
         <div v-if="!collapsed" class="menu-section-title">Agent services</div>
 
-        <el-menu-item index="/tool">
+        <el-menu-item index="/app/tool">
           <template #title>Tool Call</template>
           <Wrench :size="16" :stroke-width="1.6" />
         </el-menu-item>
-        <el-menu-item index="/code">
+        <el-menu-item index="/app/code">
           <template #title>SQL Generator</template>
           <FileText :size="16" :stroke-width="1.6" />
         </el-menu-item>
-        <el-menu-item index="/rag">
+        <el-menu-item index="/app/rag">
           <template #title>Knowledge Q&A</template>
           <BookOpen :size="16" :stroke-width="1.6" />
         </el-menu-item>
@@ -44,7 +57,7 @@
         <!-- Admin section -->
         <template v-if="userStore.userInfo?.roles?.includes('ROLE_ADMIN')">
           <div v-if="!collapsed" class="menu-section-title">Administration</div>
-          <el-menu-item index="/admin/users">
+          <el-menu-item index="/app/admin/users">
             <template #title>User Management</template>
             <Users :size="16" :stroke-width="1.6" />
           </el-menu-item>
@@ -99,16 +112,17 @@
     </el-main>
 
   </el-container>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@stores/modules/user'
 import {
   Home, Wrench, FileText, BookOpen,
   Settings, ChevronDown, Users,
-  PanelLeftClose, PanelLeftOpen
+  PanelLeftClose, PanelLeftOpen, Menu
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -116,7 +130,13 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const collapsed = ref(false)
+const mobileOpen = ref(false)
 const activeMenu = computed(() => route.path)
+
+// Auto-close mobile sidebar drawer upon navigation
+watch(() => route.path, () => {
+  mobileOpen.value = false
+})
 
 const handleCommand = (command: string) => {
   if (command === 'logout') userStore.logout()
@@ -351,6 +371,100 @@ const handleCommand = (command: string) => {
   padding: 28px;
   overflow-y: auto;
   flex: 1;
+}
+
+/* ── 响应式适配 (移动端) ────────────────────────── */
+.layout-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+}
+
+.mobile-header {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .main-layout {
+    height: calc(100vh - 56px);
+    flex-direction: column;
+  }
+
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+    padding: 0 16px;
+    flex-shrink: 0;
+  }
+
+  .hamburger-btn {
+    background: none;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    color: #4b5563;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hamburger-btn:hover {
+    background: #f3f4f6;
+  }
+
+  .mobile-logo-text {
+    font-size: 17px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: -0.5px;
+    cursor: pointer;
+  }
+
+  .mobile-spacer {
+    width: 32px;
+  }
+
+  .aside {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    width: 240px !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 8px 0 24px rgba(0,0,0,0.08);
+  }
+
+  .aside.mobile-active {
+    transform: translateX(0);
+  }
+
+  .mobile-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(1.5px);
+    z-index: 999;
+  }
+
+  .main-content {
+    padding: 16px;
+  }
+
+  /* Hide sidebar toggle collapse button on mobile */
+  .collapse-btn {
+    display: none !important;
+  }
 }
 
 /* ── 路由动画 ─────────────────────────────────── */

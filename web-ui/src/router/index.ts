@@ -4,22 +4,31 @@ import { ElMessage } from 'element-plus'
 
 const routes = [
     {
-        path: '/login',
-        name: 'Login',
-        component: () => import('@views/login/index.vue'),
-        meta: { public: true }
-    },
-    {
-        path: '/register',
-        name: 'Register',
-        component: () => import('@views/register/index.vue'),
-        meta: { public: true }
-    },
-    {
+        // Auth pages share a persistent background via AuthLayout
         path: '/',
+        component: () => import('@layouts/AuthLayout.vue'),
+        redirect: '/login',
+        meta: { public: true },
+        children: [
+            {
+                path: 'login',
+                name: 'Login',
+                component: () => import('@views/login/index.vue'),
+                meta: { public: true }
+            },
+            {
+                path: 'register',
+                name: 'Register',
+                component: () => import('@views/register/index.vue'),
+                meta: { public: true }
+            }
+        ]
+    },
+    {
+        path: '/app',
         name: 'Layout',
         component: () => import('@layouts/MainLayout.vue'),
-        redirect: '/dashboard',
+        redirect: '/app/dashboard',
         children: [
             {
                 path: 'dashboard',
@@ -52,6 +61,11 @@ const routes = [
                 meta: { title: 'User Management', requiresRole: 'ROLE_ADMIN' }
             }
         ]
+    },
+    // Catch-all: redirect root to login
+    {
+        path: '/:pathMatch(.*)*',
+        redirect: '/login'
     }
 ]
 
@@ -65,33 +79,32 @@ router.beforeEach(async (to, _from, next) => {
 
     const isPublicRoute = to.meta.public === true
 
-    // 1. If logged in but userInfo is empty (due to page refresh), fetch it.
+    // 1. If logged in but userInfo is empty (page refresh), restore it silently
     if (userStore.isLoggedIn && !userStore.userInfo) {
         try {
             await userStore.getUserInfo()
-        } catch (error) {
-            console.error('Failed to restore user info on refresh:', error)
+        } catch {
+            // Token invalid — clear and go to login without showing an error popup
             userStore.logout()
-            ElMessage.error('Session expired. Please log in again.')
             return next('/login')
         }
     }
 
-    // 2. Auth guard: if not logged in and requesting private page, redirect to login
+    // 2. Auth guard: unauthenticated user on private page → login
     if (!isPublicRoute && !userStore.isLoggedIn) {
         next('/login')
     }
-    // 3. Login guard: redirect to dashboard if already logged in
-    else if (to.path === '/login' && userStore.isLoggedIn) {
-        next('/')
+    // 3. Already logged in hitting /login or /register → dashboard
+    else if (isPublicRoute && userStore.isLoggedIn && (to.path === '/login' || to.path === '/register')) {
+        next('/app/dashboard')
     }
-    // 4. Role guard: check if route requires a specific role
+    // 4. Role guard
     else if (to.meta.requiresRole) {
         const requiredRole = to.meta.requiresRole as string
         const hasRole = userStore.userInfo?.roles?.includes(requiredRole)
         if (!hasRole) {
             ElMessage.warning('Access denied: Administrator privileges required.')
-            next('/dashboard')
+            next('/app/dashboard')
         } else {
             next()
         }
