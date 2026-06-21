@@ -99,22 +99,25 @@ const rules = {
   ]
 }
 
-const submit = async () => {
-  try {
-    await formRef.value?.validate()
-    loading.value = true
-    await request.post('/user/register', {
-      username: form.email,
-      password: form.password,
-      realName: form.email
-    })
-    ElMessage.success('Account created! Please sign in.')
-    router.push('/login')
-  } catch {
-    // errors shown by Axios interceptor
-  } finally {
-    loading.value = false
-  }
+const submit = () => {
+  if (!formRef.value) return
+  formRef.value.validate(async (valid: boolean) => {
+    if (!valid) return
+    try {
+      loading.value = true
+      await request.post('/user/register', {
+        username: form.email,
+        password: form.password,
+        realName: form.email
+      })
+      ElMessage.success('Account created! Please sign in.')
+      router.push('/login')
+    } catch {
+      // errors shown by Axios interceptor
+    } finally {
+      loading.value = false
+    }
+  })
 }
 </script>
 
