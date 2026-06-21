@@ -208,7 +208,9 @@ const executeWithWebSocket = async () => {
 
   wsClient.close?.()
 
-  const wsUrl = `ws://localhost:8080/ws?taskId=${taskId}`
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = window.location.host
+  const wsUrl = `${protocol}//${host}/ws/?taskId=${taskId}`
   wsClient.connect(wsUrl)
 
   wsClient.on('message', (rawData: any) => {

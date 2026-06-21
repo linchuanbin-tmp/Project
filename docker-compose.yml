@@ -133,6 +133,8 @@ services:
       - USER_SERVICE_URI=${USER_SERVICE_URI}
       - TASK_SERVICE_URI=${TASK_SERVICE_URI}
       - TOOL_SERVICE_URI=${TOOL_SERVICE_URI}
+      - JWT_SECRET=${JWT_SECRET}
+      - TOOL_SERVICE_WS_URI=ws://tool-agent:8083
     ports:
       - "${GATEWAY_PORT}:8080"
     depends_on:

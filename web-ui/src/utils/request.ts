@@ -33,17 +33,20 @@ request.interceptors.response.use(
         if (res.code !== 200) {
             ElMessage.error(res.message || 'Request failed')
 
-            // 401: Token expired or not authenticated
+            // 401: Token expired — only show dialog when inside the app, not on auth pages
             if (res.code === 401) {
-                ElMessageBox.confirm('Session expired. Please log in again.', 'Notice', {
-                    confirmButtonText: 'Log in',
-                    cancelButtonText: 'Cancel',
-                    type: 'warning'
-                }).then(() => {
-                    const userStore = useUserStore()
-                    userStore.logout()
-                    router.push('/login')
-                })
+                const publicPaths = ['/login', '/register']
+                const isPublic = publicPaths.some(p => router.currentRoute.value.path.startsWith(p))
+                if (!isPublic) {
+                    ElMessageBox.confirm('Session expired. Please log in again.', 'Notice', {
+                        confirmButtonText: 'Log in',
+                        cancelButtonText: 'Cancel',
+                        type: 'warning'
+                    }).then(() => {
+                        const userStore = useUserStore()
+                        userStore.logout()
+                    }).catch(() => {})
+                }
             }
             return Promise.reject(new Error(res.message || 'Error'))
         }
@@ -51,7 +54,18 @@ request.interceptors.response.use(
         return res.data
     },
     (error) => {
-        ElMessage.error(error.message || 'Network error')
+        const response = error.response
+        if (response && response.status === 401) {
+            const publicPaths = ['/login', '/register']
+            const isPublic = publicPaths.some(p => router.currentRoute.value.path.startsWith(p))
+            if (!isPublic) {
+                const userStore = useUserStore()
+                userStore.logout()
+                ElMessage.error('Session expired. Please log in again.')
+            }
+        } else {
+            ElMessage.error(error.message || 'Network error')
+        }
         return Promise.reject(error)
     }
 )

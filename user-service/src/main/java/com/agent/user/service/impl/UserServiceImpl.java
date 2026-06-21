@@ -84,7 +84,7 @@ public class UserServiceImpl implements UserService {
                         .eq(User::getUsername, request.getUsername())
         );
         if (existingUser != null) {
-            throw new RuntimeException("用户名已存在");
+            throw new RuntimeException("该邮箱已被注册");
         }
 
         // 2. 保存用户基本信息

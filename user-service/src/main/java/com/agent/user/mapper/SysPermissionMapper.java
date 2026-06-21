@@ -10,7 +10,7 @@ import java.util.List;
 @Mapper
 public interface SysPermissionMapper extends BaseMapper<SysPermission> {
 
-    @Select("SELECT p.* FROM sys_permission p " +
+    @Select("SELECT DISTINCT p.* FROM sys_permission p " +
             "JOIN sys_role_permission rp ON p.id = rp.perm_id " +
             "JOIN sys_user_role ur ON rp.role_id = ur.role_id " +
             "WHERE ur.user_id = #{userId} AND p.deleted = 0")
