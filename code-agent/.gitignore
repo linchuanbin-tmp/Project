@@ -1,0 +1,21 @@
+# Trained model (too large for Git, regenerate with data/train_simple.py)
+data/fine-tuned-t5-banking/
+data/pretrained_t5sql/
+data/.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Maven
+target/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

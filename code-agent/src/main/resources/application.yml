@@ -1,0 +1,65 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: code-agent
+  datasource:
+    url: jdbc:mysql://localhost:3306/agent_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: zzm20030718
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+# Code Agent 配置
+code-agent:
+  # ONNX 模型路径（暂留空，使用模板规则引擎作为 fallback）
+  onnx:
+    model-path: classpath:models/text2sql.onnx
+    enabled: true  # true = LLM inference mode, false = template engine
+  # SQL 白名单配置
+  whitelist:
+    # 只允许这些操作
+    allowed-operations:
+      - SELECT
+    # 禁止的关键字（额外的安全检查）
+    forbidden-keywords:
+      - DROP
+      - DELETE
+      - INSERT
+      - UPDATE
+      - ALTER
+      - TRUNCATE
+      - CREATE
+      - EXEC
+      - EXECUTE
+      - UNION
+      - INTO
+      - LOAD_FILE
+      - OUTFILE
+      - DUMPFILE
+    # 允许的最大表数量（防止复杂 JOIN 攻击）
+    max-tables-per-query: 3
+    # 允许的最大条件数
+    max-conditions: 10
+  # 元数据缓存
+  metadata:
+    # 缓存过期时间（秒）
+    cache-ttl: 3600
+    # 缓存 key 前缀
+    cache-prefix: "code_agent:metadata:"
+
+# 日志
+logging:
+  level:
+    com.agent.code: DEBUG
+    com.microsoft.onnxruntime: INFO
