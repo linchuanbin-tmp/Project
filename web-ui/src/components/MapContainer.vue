@@ -4,6 +4,9 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   path: number[][]
@@ -36,7 +39,7 @@ const loadAMap = (): Promise<any> => {
     script.async = true
 
     script.onerror = () => {
-      reject(new Error('高德地图加载失败，请检查 Key 是否正确、网络是否正常'))
+      reject(new Error(t('map.loadFailed')))
     }
 
     script.onload = () => {
@@ -49,7 +52,7 @@ const loadAMap = (): Promise<any> => {
           resolve(window.AMap)
         } else if (attempts >= 50) {
           clearInterval(check)
-          reject(new Error('高德地图加载超时'))
+          reject(new Error(t('map.loadTimeout')))
         }
       }, 100)
     }
@@ -79,7 +82,7 @@ const initMap = async () => {
     if (mapContainer.value) {
       mapContainer.value.innerHTML = `
         <div style="display:flex;justify-content:center;align-items:center;height:100%;color:#F56C6C;font-size:14px;">
-          地图加载失败：${err.message}
+          ${t('map.initFailed', { message: err.message })}
         </div>`
     }
   }
@@ -115,7 +118,7 @@ const updateRoute = () => {
     startMarker = new AMap.Marker({
       position: props.startPoint,
       label: {
-        content: '<div style="background:#409EFF;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">起点</div>',
+        content: `<div style="background:#409EFF;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">${t('map.startPoint')}</div>`,
         direction: 'top',
         offset: new AMap.Pixel(0, -5)
       }
@@ -128,7 +131,7 @@ const updateRoute = () => {
     endMarker = new AMap.Marker({
       position: props.endPoint,
       label: {
-        content: '<div style="background:#F56C6C;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">终点</div>',
+        content: `<div style="background:#F56C6C;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">${t('map.endPoint')}</div>`,
         direction: 'top',
         offset: new AMap.Pixel(0, -5)
       }

@@ -40,6 +40,14 @@ spring:
           filters:
             - StripPrefix=1
 
+        # Code Agent 路由（Text-to-SQL）
+        - id: code-agent
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/code/**
+          filters:
+            - StripPrefix=1
+
         # Tool Agent WebSocket 路由（关键修改）
         - id: tool-ws
           uri: ws://localhost:8083

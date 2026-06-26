@@ -1,7 +1,7 @@
 <template>
   <div>
-    <h1>rag agent仪表盘</h1>
-    <p>rag agent仪表盘</p>
+    <h1>{{ $t('rag.title') }}</h1>
+    <p>{{ $t('rag.subtitle') }}</p>
   </div>
 </template>
 

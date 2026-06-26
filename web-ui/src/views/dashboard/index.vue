@@ -1,7 +1,7 @@
 <template>
   <div>
-    <h1>首页仪表盘</h1>
-    <p>Agent平台控制台</p>
+    <h1>{{ $t('dashboard.title') }}</h1>
+    <p>{{ $t('dashboard.subtitle') }}</p>
   </div>
 </template>
 
