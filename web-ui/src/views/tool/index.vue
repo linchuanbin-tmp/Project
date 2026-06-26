@@ -1,28 +1,28 @@
 <template>
   <div class="tool-container">
-    <el-page-header @back="router.back()" title="工具调用 Agent" />
+    <el-page-header @back="router.back()" :title="$t('tool.pageTitle')" />
 
     <el-row :gutter="20" style="margin-top: 20px;">
       <!-- 左侧：功能选择 -->
       <el-col :xs="24" :sm="24" :md="16">
         <el-tabs v-model="activeTab" type="border-card" class="tool-tabs">
           <!-- 会议室查询 -->
-          <el-tab-pane label="🏢 会议室查询" name="meeting">
+          <el-tab-pane :label="$t('tool.tabs.meeting')" name="meeting">
             <el-form :model="meetingForm" label-width="100px">
-              <el-form-item label="选择日期">
+              <el-form-item :label="$t('tool.meeting.date')">
                 <el-date-picker
                     v-model="meetingForm.date"
                     type="date"
-                    placeholder="选择日期"
+                    :placeholder="$t('tool.meeting.date')"
                     style="width: 100%;"
                 />
               </el-form-item>
-              <el-form-item label="容纳人数">
+              <el-form-item :label="$t('tool.meeting.capacity')">
                 <el-input-number v-model="meetingForm.capacity" :min="1" :max="100" />
               </el-form-item>
               <el-form-item>
                 <el-button type="primary" @click="queryMeetingRooms" :loading="loading">
-                  查询可用会议室
+                  {{ $t('tool.meeting.queryBtn') }}
                 </el-button>
               </el-form-item>
             </el-form>
@@ -30,15 +30,15 @@
             <el-divider />
 
             <div v-if="meetingRooms.length > 0">
-              <h4>查询结果：</h4>
+              <h4>{{ $t('tool.meeting.resultTitle') }}</h4>
               <el-row :gutter="10">
                 <el-col :span="12" v-for="room in meetingRooms" :key="room.id">
                   <el-card :class="{ 'room-available': room.available, 'room-occupied': !room.available }" shadow="hover">
                     <h5>{{ room.name }} ({{ room.id }})</h5>
-                    <p>容量: {{ room.capacity }}人 | 位置: {{ room.location }}</p>
-                    <p>设备: {{ room.equipment.join(', ') }}</p>
+                    <p>{{ $t('tool.meeting.capacity') }}: {{ room.capacity }}{{ $t('tool.meeting.capacityUnit') }} | {{ $t('tool.meeting.location') }}: {{ room.location }}</p>
+                    <p>{{ $t('tool.meeting.equipment') }}: {{ room.equipment.join(', ') }}</p>
                     <el-tag :type="room.available ? 'success' : 'danger'">
-                      {{ room.available ? '可预订' : '已占用' }}
+                      {{ room.available ? $t('tool.meeting.available') : $t('tool.meeting.occupied') }}
                     </el-tag>
                     <div style="margin-top: 10px;">
                       <el-button
@@ -48,7 +48,7 @@
                           @click="bookRoom(room)"
                           :loading="bookingRoomId === room.id"
                       >
-                        立即预定
+                        {{ $t('tool.meeting.bookNow') }}
                       </el-button>
                       <el-button
                           v-else
@@ -56,7 +56,7 @@
                           size="small"
                           disabled
                       >
-                        已预定
+                        {{ $t('tool.meeting.booked') }}
                       </el-button>
                     </div>
                   </el-card>
@@ -66,31 +66,31 @@
           </el-tab-pane>
 
           <!-- 日程冲突检测 -->
-          <el-tab-pane label="📅 日程冲突" name="schedule">
+          <el-tab-pane :label="$t('tool.tabs.schedule')" name="schedule">
             <!-- 添加日程表单 -->
             <el-form :model="addScheduleForm" label-width="120px" style="margin-bottom: 20px;">
-              <el-form-item label="人员">
-                <el-input v-model="addScheduleForm.userId" placeholder="如：admin" />
+              <el-form-item :label="$t('tool.schedule.person')">
+                <el-input v-model="addScheduleForm.userId" :placeholder="$t('tool.schedule.personPlaceholder')" />
               </el-form-item>
-              <el-form-item label="事件ID">
-                <el-input v-model="addScheduleForm.eventId" placeholder="如：meeting-001" />
+              <el-form-item :label="$t('tool.schedule.eventId')">
+                <el-input v-model="addScheduleForm.eventId" :placeholder="$t('tool.schedule.eventIdPlaceholder')" />
               </el-form-item>
-              <el-form-item label="事件名称">
-                <el-input v-model="addScheduleForm.eventName" placeholder="如：项目评审会" />
+              <el-form-item :label="$t('tool.schedule.eventName')">
+                <el-input v-model="addScheduleForm.eventName" :placeholder="$t('tool.schedule.eventNamePlaceholder')" />
               </el-form-item>
-              <el-form-item label="时间范围">
+              <el-form-item :label="$t('tool.schedule.timeRange')">
                 <el-date-picker
                     v-model="addScheduleForm.timeRange"
                     type="datetimerange"
-                    range-separator="至"
-                    start-placeholder="开始时间"
-                    end-placeholder="结束时间"
+                    :range-separator="$t('tool.schedule.to')"
+                    :start-placeholder="$t('tool.schedule.startTime')"
+                    :end-placeholder="$t('tool.schedule.endTime')"
                     style="width: 100%;"
                 />
               </el-form-item>
               <el-form-item label=" ">
                 <el-button type="primary" @click="createSchedule" :loading="loading">
-                  添加日程
+                  {{ $t('tool.schedule.addBtn') }}
                 </el-button>
               </el-form-item>
             </el-form>
@@ -98,19 +98,19 @@
             <el-divider />
 
             <el-form :model="scheduleForm" label-width="120px">
-              <el-form-item label="会议时间">
+              <el-form-item :label="$t('tool.schedule.meetingTime')">
                 <el-date-picker
                     v-model="scheduleForm.timeRange"
                     type="datetimerange"
-                    range-separator="至"
-                    start-placeholder="开始时间"
-                    end-placeholder="结束时间"
+                    :range-separator="$t('tool.schedule.to')"
+                    :start-placeholder="$t('tool.schedule.startTime')"
+                    :end-placeholder="$t('tool.schedule.endTime')"
                 />
               </el-form-item>
-              <el-form-item label="参会人员">
+              <el-form-item :label="$t('tool.schedule.attendees')">
                 <el-select
                     v-model="scheduleForm.attendees"
-                    placeholder="选择参会人员"
+                    :placeholder="$t('tool.schedule.selectAttendees')"
                     multiple
                     clearable
                     style="width: 100%;"
@@ -125,7 +125,7 @@
               </el-form-item>
               <el-form-item label=" ">
                 <el-button type="primary" @click="checkConflict" :loading="loading">
-                  检测冲突
+                  {{ $t('tool.schedule.conflictBtn') }}
                 </el-button>
               </el-form-item>
             </el-form>
@@ -143,24 +143,24 @@
           </el-tab-pane>
 
           <!-- 路线规划 -->
-          <el-tab-pane label="🗺️ 路线规划" name="route">
+          <el-tab-pane :label="$t('tool.tabs.route')" name="route">
             <el-form :model="routeForm" label-width="100px">
-              <el-form-item label="出发地">
-                <el-input v-model="routeForm.from" placeholder="例如：公司" />
+              <el-form-item :label="$t('tool.route.from')">
+                <el-input v-model="routeForm.from" :placeholder="$t('tool.route.fromPlaceholder')" />
               </el-form-item>
-              <el-form-item label="目的地">
-                <el-input v-model="routeForm.to" placeholder="例如：机场" />
+              <el-form-item :label="$t('tool.route.to')">
+                <el-input v-model="routeForm.to" :placeholder="$t('tool.route.toPlaceholder')" />
               </el-form-item>
-              <el-form-item label="出行方式">
+              <el-form-item :label="$t('tool.route.mode')">
                 <el-radio-group v-model="routeForm.mode">
-                  <el-radio label="driving">驾车</el-radio>
-                  <el-radio label="transit">公交</el-radio>
-                  <el-radio label="walking">步行</el-radio>
+                  <el-radio label="driving">{{ $t('tool.route.driving') }}</el-radio>
+                  <el-radio label="transit">{{ $t('tool.route.transit') }}</el-radio>
+                  <el-radio label="walking">{{ $t('tool.route.walking') }}</el-radio>
                 </el-radio-group>
               </el-form-item>
               <el-form-item>
                 <el-button type="primary" @click="planRoute" :loading="loading">
-                  规划路线
+                  {{ $t('tool.route.planBtn') }}
                 </el-button>
               </el-form-item>
             </el-form>
@@ -175,7 +175,7 @@
               />
             </div>
 
-            <el-empty v-else description="输入出发地和目的地，点击规划路线查看地图" />
+            <el-empty v-else :description="$t('tool.route.mapEmptyDesc')" />
           </el-tab-pane>
         </el-tabs>
       </el-col>
@@ -185,8 +185,8 @@
         <el-card>
           <template #header>
             <div class="card-header">
-              <span>🤖 AI 助手模式</span>
-              <el-tag v-if="isExecuting" type="warning" effect="dark">执行中</el-tag>
+              <span>{{ $t('tool.ai.title') }}</span>
+              <el-tag v-if="isExecuting" type="warning" effect="dark">{{ $t('tool.ai.executing') }}</el-tag>
             </div>
           </template>
 
@@ -195,7 +195,7 @@
                 v-model="naturalQuery"
                 type="textarea"
                 :rows="4"
-                placeholder="例如：“帮我定一个6月2日的会议室，要能容纳10人”“帮我看看admin6月2日至6月3日有没有空”“帮我规划一条路线，从天安门广场到首都国际机场”"
+                :placeholder="$t('tool.ai.placeholder')"
                 :disabled="isExecuting"
             />
 
@@ -206,7 +206,7 @@
                 :loading="isExecuting"
                 :disabled="!naturalQuery.trim()"
             >
-              {{ isExecuting ? '执行中...' : '发送给 AI 助手' }}
+              {{ isExecuting ? $t('tool.ai.executingDot') : $t('tool.ai.sendBtn') }}
             </el-button>
 
             <!-- 实时进度显示 -->
@@ -229,34 +229,34 @@
             <!-- AI 助手模式卡片内，进度条下方 -->
             <div v-if="aiResponse" class="ai-result">
               <el-divider />
-              <h4>🤖 AI 解析结果</h4>
+              <h4>{{ $t('tool.ai.resultTitle') }}</h4>
 
               <!-- 意图解析 -->
               <div v-if="aiResponse.aiParsed">
                 <el-descriptions :column="1" border size="small">
-                  <el-descriptions-item label="意图">{{ aiResponse.aiParsed.intent || '查询' }}</el-descriptions-item>
-                  <el-descriptions-item label="日期">{{ aiResponse.aiParsed.date || '今天' }}</el-descriptions-item>
-                  <el-descriptions-item label="时间段">{{ aiResponse.aiParsed.timeRange || '未指定' }}</el-descriptions-item>
-                  <el-descriptions-item label="人数">{{ aiResponse.aiParsed.capacity || '未指定' }}</el-descriptions-item>
-                  <el-descriptions-item v-if="aiResponse.aiParsed.equipment" label="设备需求">{{ aiResponse.aiParsed.equipment?.join(', ') || '无' }}</el-descriptions-item>
+                  <el-descriptions-item :label="$t('tool.ai.intent')">{{ aiResponse.aiParsed.intent || $t('tool.ai.query') }}</el-descriptions-item>
+                  <el-descriptions-item :label="$t('tool.ai.date')">{{ aiResponse.aiParsed.date || $t('tool.ai.today') }}</el-descriptions-item>
+                  <el-descriptions-item :label="$t('tool.ai.timeRange')">{{ aiResponse.aiParsed.timeRange || $t('tool.ai.unspecified') }}</el-descriptions-item>
+                  <el-descriptions-item :label="$t('tool.ai.capacity')">{{ aiResponse.aiParsed.capacity || $t('tool.ai.unspecified') }}</el-descriptions-item>
+                  <el-descriptions-item v-if="aiResponse.aiParsed.equipment" :label="$t('tool.ai.equipment')">{{ aiResponse.aiParsed.equipment?.join(', ') || $t('tool.ai.none') }}</el-descriptions-item>
                 </el-descriptions>
               </div>
 
               <!-- 推荐结果 -->
               <div v-if="aiResponse.rooms" style="margin-top: 10px;">
-                <h5>推荐会议室：</h5>
+                <h5>{{ $t('tool.ai.recommendedRoom') }}</h5>
                 <el-card v-for="room in aiResponse.rooms" :key="room.id" class="room-card" shadow="hover">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span><strong>{{ room.name }}</strong> ({{ room.id }})</span>
                     <el-tag :type="room.available ? 'success' : 'danger'">
-                      {{ room.available ? '可预订' : '已占用' }}
+                      {{ room.available ? $t('tool.meeting.available') : $t('tool.meeting.occupied') }}
                     </el-tag>
                   </div>
                   <p style="margin: 5px 0; color: #666; font-size: 12px;">
-                    容量: {{ room.capacity }}人 | 位置: {{ room.location }} | 设备: {{ room.equipment?.join(', ') }}
+                    {{ $t('tool.meeting.capacity') }}: {{ room.capacity }}{{ $t('tool.meeting.capacityUnit') }} | {{ $t('tool.meeting.location') }}: {{ room.location }} | {{ $t('tool.meeting.equipment') }}: {{ room.equipment?.join(', ') }}
                   </p>
                   <p v-if="room.aiMatchScore" style="margin: 0; color: #409EFF; font-size: 12px;">
-                    🤖 AI匹配度: {{ room.aiMatchScore }}% - {{ room.aiReasoning }}
+                    {{ $t('tool.ai.aiMatchScore') }}: {{ room.aiMatchScore }}% - {{ room.aiReasoning }}
                   </p>
                 </el-card>
               </div>
@@ -264,9 +264,9 @@
               <!-- 路线规划结果 -->
               <div v-if="aiResponse.distance">
                 <el-descriptions :column="2" border>
-                  <el-descriptions-item label="距离">{{ aiResponse.distance }}</el-descriptions-item>
-                  <el-descriptions-item label="时间">{{ aiResponse.duration }}</el-descriptions-item>
-                  <el-descriptions-item label="路况">{{ aiResponse.trafficStatus }}</el-descriptions-item>
+                  <el-descriptions-item :label="$t('tool.ai.distance')">{{ aiResponse.distance }}</el-descriptions-item>
+                  <el-descriptions-item :label="$t('tool.ai.duration')">{{ aiResponse.duration }}</el-descriptions-item>
+                  <el-descriptions-item :label="$t('tool.ai.trafficStatus')">{{ aiResponse.trafficStatus }}</el-descriptions-item>
                 </el-descriptions>
               </div>
 
@@ -281,7 +281,7 @@
 
               <!-- 原始JSON（调试用，可折叠） -->
               <el-collapse style="margin-top: 10px;">
-                <el-collapse-item title="原始响应数据">
+                <el-collapse-item :title="$t('tool.ai.rawData')">
                   <pre style="font-size: 11px; background: #f5f7fa; padding: 8px;">{{ JSON.stringify(aiResponse, null, 2) }}</pre>
                 </el-collapse-item>
               </el-collapse>
@@ -294,14 +294,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onUnmounted } from 'vue'
+import { ref, reactive, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import MapContainer from '@components/MapContainer.vue'
 import { getMeetingRooms, checkScheduleConflict, planRoute as planRouteApi, executeTool } from '@api/tool'
 import { wsClient } from '@utils/websocket'
 
 const router = useRouter()
+const { t } = useI18n()
 const loading = ref(false)
 const activeTab = ref('meeting')
 const routePath = ref<number[][]>([])
@@ -340,7 +342,7 @@ const extractFromQuery = (query: string) => {
   if (rangeMatch) {
     const start = `2026-${rangeMatch[1].padStart(2,'0')}-${rangeMatch[2].padStart(2,'0')}`
     const end = `2026-${rangeMatch[3].padStart(2,'0')}-${rangeMatch[4].padStart(2,'0')}`
-    timeRange = `${start} 至 ${end}`
+    timeRange = `${start} ${t('tool.schedule.to')} ${end}`
   }
 
   return {
@@ -359,7 +361,7 @@ const meetingRooms = ref<any[]>([])
 
 const queryMeetingRooms = async () => {
   if (!meetingForm.date) {
-    ElMessage.warning('请先选择日期')
+    ElMessage.warning(t('tool.meeting.selectDateFirst'))
     return
   }
   loading.value = true
@@ -374,10 +376,10 @@ const queryMeetingRooms = async () => {
       capacity: meetingForm.capacity
     })
     meetingRooms.value = res || []
-    ElMessage.success(`找到 ${meetingRooms.value.length} 个会议室`)
+    ElMessage.success(t('tool.meeting.found', { count: meetingRooms.value.length }))
   } catch (error) {
     console.error(error)
-    ElMessage.error('查询失败')
+    ElMessage.error(t('tool.meeting.queryFailed'))
   } finally {
     loading.value = false
   }
@@ -385,7 +387,7 @@ const queryMeetingRooms = async () => {
 
 const bookRoom = async (room: any) => {
   if (!meetingForm.date) {
-    ElMessage.warning('请先选择日期再预定')
+    ElMessage.warning(t('tool.meeting.selectDateToBook'))
     return
   }
 
@@ -407,26 +409,26 @@ const bookRoom = async (room: any) => {
         booker: 'admin',
         startTime: formatDateTime(startTime),
         endTime: formatDateTime(endTime),
-        topic: '会议'
+        topic: t('tool.meeting.topic')
       })
     })
     const data = await res.json()
     if (data.code === 200) {
-      ElMessage.success('预定成功')
+      ElMessage.success(t('tool.meeting.bookSuccess'))
       // 本地立即标记为已预定，UI 瞬间变红
       const idx = meetingRooms.value.findIndex((r: any) => r.id === room.id)
       if (idx !== -1) {
         meetingRooms.value[idx].available = false
-        meetingRooms.value[idx].statusText = '已预定'
+        meetingRooms.value[idx].statusText = t('tool.meeting.booked')
       }
       // 同时重新查询数据库确保同步
       await queryMeetingRooms()
     } else {
-      ElMessage.error(data.message || '预定失败')
+      ElMessage.error(data.message || t('tool.meeting.bookFailed'))
     }
   } catch (error) {
     console.error(error)
-    ElMessage.error('预定请求失败')
+    ElMessage.error(t('tool.meeting.bookRequestFailed'))
   } finally {
     bookingRoomId.value = null
   }
@@ -446,17 +448,17 @@ const addScheduleForm = reactive({
   timeRange: [] as Date[]
 })
 
-const userOptions = [
-  { label: '管理员 (admin)', value: 'admin' },
-  { label: '测试用户 (user)', value: 'user' },
-  { label: '张三', value: 'zhangsan' },
-  { label: '李四', value: 'lisi' }
-]
+const userOptions = computed(() => [
+  { label: 'admin', value: 'admin' },
+  { label: 'user', value: 'user' },
+  { label: 'zhangsan', value: 'zhangsan' },
+  { label: 'lisi', value: 'lisi' }
+])
 const conflictResult = ref<any>(null)
 
 const checkConflict = async () => {
   if (scheduleForm.timeRange.length !== 2) {
-    ElMessage.warning('请选择完整的时间范围')
+    ElMessage.warning(t('tool.schedule.selectFullTimeRange'))
     return
   }
 
@@ -470,7 +472,7 @@ const checkConflict = async () => {
     conflictResult.value = res
   } catch (error) {
     console.error(error)
-    ElMessage.error('检测失败')
+    ElMessage.error(t('tool.schedule.checkFailed'))
   } finally {
     loading.value = false
   }
@@ -478,11 +480,11 @@ const checkConflict = async () => {
 
 const createSchedule = async () => {
   if (addScheduleForm.timeRange.length !== 2) {
-    ElMessage.warning('请选择完整的时间范围')
+    ElMessage.warning(t('tool.schedule.selectFullTimeRange'))
     return
   }
   if (!addScheduleForm.eventId || !addScheduleForm.eventName) {
-    ElMessage.warning('请填写事件ID和事件名称')
+    ElMessage.warning(t('tool.schedule.fillEventInfo'))
     return
   }
 
@@ -505,16 +507,16 @@ const createSchedule = async () => {
     })
     const data = await res.json()
     if (data.code === 200) {
-      ElMessage.success('日程添加成功')
+      ElMessage.success(t('tool.schedule.addSuccess'))
       addScheduleForm.eventId = ''
       addScheduleForm.eventName = ''
       addScheduleForm.timeRange = []
     } else {
-      ElMessage.error(data.message || '添加失败')
+      ElMessage.error(data.message || t('tool.schedule.addFailed'))
     }
   } catch (error) {
     console.error(error)
-    ElMessage.error('添加日程请求失败')
+    ElMessage.error(t('tool.schedule.addRequestFailed'))
   } finally {
     loading.value = false
   }
@@ -530,7 +532,7 @@ const routeResult = ref<any>(null)
 
 const planRoute = async () => {
   if (!routeForm.to) {
-    ElMessage.warning('请输入目的地')
+    ElMessage.warning(t('tool.route.enterDestination'))
     return
   }
   loading.value = true
@@ -552,11 +554,11 @@ const planRoute = async () => {
         [116.321, 39.894], [116.35, 39.85], [116.38, 39.78],
         [116.40, 39.65], [116.41, 39.55], [116.412, 39.509]
       ]
-      ElMessage.info('已显示演示路线')
+      ElMessage.info(t('tool.route.demoRoute'))
     }
   } catch (error) {
     console.error(error)
-    ElMessage.error('规划失败')
+    ElMessage.error(t('tool.route.planFailed'))
   } finally {
     loading.value = false
   }
@@ -568,7 +570,7 @@ const aiResponse = ref<any>(null)
 
 const taskProgress = ref(0)
 const taskStatus = ref('')
-const taskMessage = ref('等待任务开始...')
+const taskMessage = ref(t('tool.ai.waiting'))
 const isExecuting = ref(false)
 let hasFetchedResult = false
 
@@ -576,7 +578,7 @@ const generateTaskId = () => 'task_' + Date.now() + '_' + Math.random().toString
 
 const executeWithWebSocket = async () => {
   if (!naturalQuery.value.trim()) {
-    ElMessage.warning('请输入查询内容')
+    ElMessage.warning(t('tool.ai.enterQuery'))
     return
   }
 
@@ -585,7 +587,7 @@ const executeWithWebSocket = async () => {
   hasFetchedResult = false
   taskProgress.value = 0
   taskStatus.value = 'connected'
-  taskMessage.value = '正在连接服务器...'
+  taskMessage.value = t('tool.ai.connecting')
   aiResponse.value = null
 
   // 关闭旧连接，防止事件堆积
@@ -604,29 +606,29 @@ const executeWithWebSocket = async () => {
 
     if (data.status === 'completed' && !hasFetchedResult) {
       hasFetchedResult = true
-      taskMessage.value = '正在获取结果...'
+      taskMessage.value = t('tool.ai.fetchingResult')
       fetchTaskResult().then(() => {
         taskProgress.value = 100
         isExecuting.value = false
-        ElMessage.success('任务执行完成！')
+        ElMessage.success(t('tool.ai.complete'))
       }).catch(() => {
         isExecuting.value = false
       })
     } else if (data.status === 'error') {
       isExecuting.value = false
-      taskMessage.value = data.message || '执行出错'
-      ElMessage.error(data.message || '执行出错')
+      taskMessage.value = data.message || t('tool.ai.error')
+      ElMessage.error(data.message || t('tool.ai.error'))
     }
   })
 
   wsClient.on('error', () => {
     taskStatus.value = 'error'
-    taskMessage.value = '连接发生错误'
+    taskMessage.value = t('tool.ai.connectionError')
     isExecuting.value = false
   })
 
   wsClient.on('open', () => {
-    taskMessage.value = '已连接，正在发送任务...'
+    taskMessage.value = t('tool.ai.connected')
     wsClient.send(JSON.stringify({
       taskType: 'AI',
       query: naturalQuery.value,
@@ -650,7 +652,7 @@ const fetchTaskResult = async () => {
     console.log('AI解析结果:', payload)
 
     if (!payload) {
-      ElMessage.warning('AI 返回结果为空，请检查后端 /tool/execute 接口')
+      ElMessage.warning(t('tool.ai.aiEmpty'))
       return
     }
 
@@ -659,19 +661,20 @@ const fetchTaskResult = async () => {
     const intent = intentRaw.toLowerCase()
 
     let targetTab = 'meeting'
-    if (intent.includes('route') || intent.includes('路线') || intent.includes('导航') || intent.includes('path') || intent.includes('map')) {
+    // 扩展支持中英文意图关键词匹配
+    if (intent.includes('route') || intent.includes('路线') || intent.includes('導航') || intent.includes('导航') || intent.includes('nav') || intent.includes('path') || intent.includes('map')) {
       targetTab = 'route'
-    } else if (intent.includes('schedule') || intent.includes('冲突') || intent.includes('日程') || intent.includes('会议时间') || intent.includes('conflict') || intent.includes('有没有空') || intent.includes('空')) {
+    } else if (intent.includes('schedule') || intent.includes('冲突') || intent.includes('衝突') || intent.includes('日程') || intent.includes('会议时间') || intent.includes('會議時間') || intent.includes('conflict') || intent.includes('有没有空') || intent.includes('有空') || intent.includes('空')) {
       targetTab = 'schedule'
-    } else if (intent.includes('meeting') || intent.includes('会议室') || intent.includes('room') || intent.includes('预订')) {
+    } else if (intent.includes('meeting') || intent.includes('会议室') || intent.includes('會議室') || intent.includes('room') || intent.includes('预订') || intent.includes('預訂')) {
       targetTab = 'meeting'
     }
 
     activeTab.value = targetTab
 
     if (targetTab === 'route') {
-      routeForm.from = payload.from || payload.aiParsed?.from || routeForm.from || '公司'
-      routeForm.to = payload.to || payload.aiParsed?.to || routeForm.to || '机场'
+      routeForm.from = payload.from || payload.aiParsed?.from || routeForm.from || t('tool.route.fromPlaceholder')
+      routeForm.to = payload.to || payload.aiParsed?.to || routeForm.to || t('tool.route.toPlaceholder')
       routeForm.mode = payload.mode || payload.aiParsed?.mode || 'driving'
 
       if (payload.path && payload.path.length > 0) {
@@ -685,7 +688,7 @@ const fetchTaskResult = async () => {
           [116.321, 39.894], [116.35, 39.85], [116.38, 39.78],
           [116.40, 39.65], [116.41, 39.55], [116.412, 39.509]
         ]
-        ElMessage.info('已显示演示路线（后端未返回具体坐标）')
+        ElMessage.info(t('tool.route.demoRouteNoCoords'))
       }
       routeResult.value = payload
 
@@ -695,17 +698,18 @@ const fetchTaskResult = async () => {
 
       if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
       // 日期：日程查询通常没有单一日期的概念，显示"未指定"
-      aiResponse.value.aiParsed.date = '未指定'
+      aiResponse.value.aiParsed.date = t('tool.ai.unspecified')
       // 时间段：从用户输入提取，如"6月2日至6月3日"
-      aiResponse.value.aiParsed.timeRange = extracted.timeRange || '未指定'
+      aiResponse.value.aiParsed.timeRange = extracted.timeRange || t('tool.ai.unspecified')
       // 人数：日程冲突一般不涉及人数，显示未指定
-      aiResponse.value.aiParsed.capacity = '未指定'
+      aiResponse.value.aiParsed.capacity = t('tool.ai.unspecified')
       // 设备需求：日程冲突没有设备需求，删除（通过模板 v-if 控制）
       aiResponse.value.aiParsed.equipment = null
 
       // 回填左侧表单
       if (extracted.timeRange) {
-        const parts = extracted.timeRange.split(' 至 ')
+        const separator = t('tool.schedule.to')
+        const parts = extracted.timeRange.split(` ${separator} `)
         if (parts.length === 2) {
           scheduleForm.timeRange = [new Date(parts[0] + 'T00:00:00'), new Date(parts[1] + 'T00:00:00')]
         }
@@ -747,10 +751,10 @@ const fetchTaskResult = async () => {
       // 3. 覆盖 AI 解析结果中的假数据，显示真实解析
       if (aiResponse.value) {
         if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
-        aiResponse.value.aiParsed.date = extracted.date || aiResponse.value.aiParsed.date || '今天'
+        aiResponse.value.aiParsed.date = extracted.date || aiResponse.value.aiParsed.date || t('tool.ai.today')
         aiResponse.value.aiParsed.capacity = extracted.capacity
             ? String(extracted.capacity)
-            : (aiResponse.value.aiParsed.capacity || '未指定')
+            : (aiResponse.value.aiParsed.capacity || t('tool.ai.unspecified'))
 
         // 4. 用真实会议室数据覆盖后端返回的 Mock 数据
         aiResponse.value.rooms = meetingRooms.value.map((room: any) => ({
@@ -761,15 +765,20 @@ const fetchTaskResult = async () => {
           equipment: room.equipment,
           available: room.available,
           aiMatchScore: room.available ? 100 : 0,
-          aiReasoning: room.available ? '符合查询条件' : '该时段已占用'
+          aiReasoning: room.available ? t('tool.ai.matchedReason') : t('tool.ai.occupiedReason')
         }))
       }
     }
 
-    ElMessage.success(`AI 识别为「${targetTab === 'route' ? '路线规划' : targetTab === 'schedule' ? '日程冲突' : '会议室查询'}」意图，已自动跳转并展示结果`)
+    const intentLabels: Record<string, string> = {
+      route: t('tool.tabs.route').replace(/^[^\s]+\s/, ''),
+      schedule: t('tool.tabs.schedule').replace(/^[^\s]+\s/, ''),
+      meeting: t('tool.tabs.meeting').replace(/^[^\s]+\s/, '')
+    }
+    ElMessage.success(t('tool.ai.intentMatched', { intent: intentLabels[targetTab] || targetTab }))
   } catch (error) {
     console.error('fetchTaskResult 错误:', error)
-    ElMessage.error('获取 AI 结果失败')
+    ElMessage.error(t('tool.ai.aiResultFailed'))
   }
 }
 

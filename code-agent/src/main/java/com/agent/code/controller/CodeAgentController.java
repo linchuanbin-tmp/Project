@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Map;
 
 /**
  * Code Agent REST 接口
@@ -21,7 +22,7 @@ import java.util.ArrayList;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/code")
+@RequestMapping("/code")
 @RequiredArgsConstructor
 public class CodeAgentController {
 

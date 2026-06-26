@@ -22,6 +22,8 @@
     <modules>
         <module>gateway-service</module>
         <module>user-service</module>
+        <module>task-service</module>
+        <module>tool-agent</module>
     </modules>
 
     <properties>

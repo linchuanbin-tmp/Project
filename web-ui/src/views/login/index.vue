@@ -1,12 +1,12 @@
 <template>
   <div class="login-container">
     <el-card class="login-box">
-      <h2 class="title">Agent平台登录</h2>
+      <h2 class="title">{{ $t('login.title') }}</h2>
       <el-form :model="form" :rules="rules" ref="formRef">
         <el-form-item prop="username">
           <el-input
               v-model="form.username"
-              placeholder="用户名"
+              :placeholder="$t('login.username')"
               :prefix-icon="User"
           />
         </el-form-item>
@@ -14,7 +14,7 @@
           <el-input
               v-model="form.password"
               type="password"
-              placeholder="密码"
+              :placeholder="$t('login.password')"
               :prefix-icon="Lock"
               @keyup.enter="handleLogin"
           />
@@ -26,7 +26,7 @@
               style="width: 100%"
               @click="handleLogin"
           >
-            登录
+            {{ $t('login.loginBtn') }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -35,14 +35,16 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { User, Lock } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const userStore = useUserStore()
+const { t } = useI18n()
 const loading = ref(false)
 const formRef = ref()
 
@@ -51,10 +53,10 @@ const form = reactive({
   password: '123456'
 })
 
-const rules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
-}
+const rules = computed(() => ({
+  username: [{ required: true, message: t('login.usernameRequired'), trigger: 'blur' }],
+  password: [{ required: true, message: t('login.passwordRequired'), trigger: 'blur' }]
+}))
 
 const handleLogin = async () => {
   try {

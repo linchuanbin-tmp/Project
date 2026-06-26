@@ -1,6 +1,23 @@
 <template>
-  <router-view />
+  <el-config-provider :locale="elLocale">
+    <router-view />
+  </el-config-provider>
 </template>
+
+<script setup lang="ts">
+import { computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { elLocaleMap } from '@/i18n'
+
+const { locale } = useI18n()
+const elLocale = computed(() => elLocaleMap[locale.value] || elLocaleMap['zh-CN'])
+
+// 同步 document.documentElement.lang 和 localStorage
+watch(locale, (val) => {
+  document.documentElement.lang = val
+  localStorage.setItem('lang', val)
+}, { immediate: true })
+</script>
 
 <style>
 * {

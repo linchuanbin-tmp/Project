@@ -2,7 +2,7 @@
   <el-container class="main-layout">
     <!-- 侧边栏 -->
     <el-aside width="200px" class="aside">
-      <div class="logo">Agent平台</div>
+      <div class="logo">{{ $t('menu.logo') }}</div>
       <el-menu
           :default-active="activeMenu"
           router
@@ -13,25 +13,25 @@
       >
         <el-menu-item index="/dashboard">
           <el-icon><House /></el-icon>
-          <span>首页</span>
+          <span>{{ $t('menu.home') }}</span>
         </el-menu-item>
 
         <el-sub-menu index="agents">
           <template #title>
             <el-icon><Cpu /></el-icon>
-            <span>Agent服务</span>
+            <span>{{ $t('menu.agents') }}</span>
           </template>
           <el-menu-item index="/tool">
             <el-icon><Tools /></el-icon>
-            <span>工具调用</span>
+            <span>{{ $t('menu.tool') }}</span>
           </el-menu-item>
           <el-menu-item index="/code">
             <el-icon><Document /></el-icon>
-            <span>SQL生成</span>
+            <span>{{ $t('menu.code') }}</span>
           </el-menu-item>
           <el-menu-item index="/rag">
             <el-icon><Reading /></el-icon>
-            <span>知识问答</span>
+            <span>{{ $t('menu.rag') }}</span>
           </el-menu-item>
         </el-sub-menu>
       </el-menu>
@@ -41,14 +41,16 @@
       <!-- 顶部导航 -->
       <el-header class="header">
         <div class="header-right">
+          <LangSwitcher />
+          <el-divider direction="vertical" style="margin: 0 12px;" />
           <el-dropdown @command="handleCommand">
             <span class="user-info">
-              {{ userStore.userInfo?.username || '用户' }}
+              {{ userStore.userInfo?.username || $t('menu.user') }}
               <el-icon class="el-icon--right"><arrow-down /></el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+                <el-dropdown-item command="logout">{{ $t('menu.logout') }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -72,6 +74,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@stores/modules/user'
 import { House, Cpu, Tools, Document, Reading, ArrowDown } from '@element-plus/icons-vue'
+import LangSwitcher from '@components/LangSwitcher.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -118,11 +121,14 @@ const handleCommand = (command: string) => {
 }
 
 .header-right {
+  display: flex;
+  align-items: center;
   cursor: pointer;
 }
 
 .user-info {
   color: #606266;
+  white-space: nowrap;
 }
 
 .main-content {
