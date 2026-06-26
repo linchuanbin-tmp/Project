@@ -140,7 +140,7 @@ code-agent/
     │   ├── config/
     │   │   ├── CodeAgentProperties.java # 配置属性绑定
     │   │   ├── MetadataCacheManager.java# 缓存预热调度
-    │   │   └── OnnxConfig.java          # 推理模式切换
+    │   │   └── OnnxConfig.java          # ONNX 配置
     │   ├── controller/
     │   │   └── CodeAgentController.java # REST API (7 个端点)
     │   ├── dto/
@@ -152,19 +152,17 @@ code-agent/
     │   │   └── ColumnMetadata.java      # 列元数据
     │   └── service/
     │       ├── CodeGenerationService.java       # 接口
-    │       ├── OnnxCodeGenerationService.java   # LLM 推理实现
-    │       ├── TemplateCodeGenerationService.java # 模板引擎（fallback）
+    │       ├── OnnxCodeGenerationService.java   # LLM 推理（唯一实现）
     │       ├── SqlValidationService.java        # 5层白名单
     │       ├── SqlExecutionService.java         # SQL 执行
     │       └── MetadataCacheService.java        # 元数据缓存
     ├── main/resources/
     │   ├── application.yml              # 应用配置
     │   ├── banking_data.sql             # 核心 3 表 DDL + 测试数据
-    │   ├── hr_loan_data.sql             # 扩展表（预留，不在模型覆盖范围）
+    │   ├── hr_loan_data.sql             # 扩展表
     │   └── models/README.md
     └── test/java/com/agent/code/
-        ├── SqlValidationServiceTest.java      # 白名单测试 (21 cases)
-        └── TemplateCodeGenerationServiceTest.java # 模板引擎测试 (15 cases)
+        └── SqlValidationServiceTest.java      # 白名单测试 (21 cases)
 ```
 
 ---
@@ -257,13 +255,10 @@ python show_results.py  # 逐条对比
 ```mermaid
 graph TD
     A[用户请求] -->|POST /api/code/query| B[CodeAgentController]
-    B --> C{推理模式}
-    C -->|onnx.enabled=true| D[OnnxCodeGenerationService]
-    C -->|false| E[TemplateCodeGenerationService]
+    B --> D[OnnxCodeGenerationService]
     D -->|HTTP POST| F[Python:8090]
-    F --> G[LLM API]
+    F --> G[DeepSeek API]
     G --> H[SQL]
-    E --> H
     H --> I[SqlValidationService]
     I -->|通过| J[SqlExecutionService]
     I -->|拒绝| K[返回错误]

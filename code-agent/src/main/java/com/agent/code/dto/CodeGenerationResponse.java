@@ -23,7 +23,7 @@ public class CodeGenerationResponse {
     /** 原始问题 */
     private String question;
 
-    /** 使用的推理方式: ONNX / TEMPLATE */
+    /** 使用的推理方式: LLM */
     private String inferenceMethod;
 
     /** 白名单校验结果 */

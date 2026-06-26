@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  * 从 MySQL information_schema 读取表结构，缓存到 Redis。
  * 用于：
  * 1. SQL 白名单校验（表名/列名校验）
- * 2. SQL 生成上下文（提供 schema 给模型/模板引擎）
+ * 2. SQL 生成上下文（提供 schema 给 LLM 推理）
  */
 @Slf4j
 @Service
