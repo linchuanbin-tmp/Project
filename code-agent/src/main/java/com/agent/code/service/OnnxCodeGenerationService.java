@@ -5,7 +5,6 @@ import com.agent.code.dto.CodeGenerationResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -15,14 +14,13 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 /**
- * LLM 推理 SQL 生成服务
+ * LLM 推理 SQL 生成服务（唯一实现）
  * <p>
- * 调用 Python 推理服务器 (port 8090)，底层使用 LLM API。
- * 当 code-agent.onnx.enabled=true 时自动启用。
+ * 全权委托 Python 推理服务器 (port 8090) 调用 DeepSeek API 生成 SQL，
+ * 不再使用本地模板规则匹配。
  */
 @Slf4j
 @Service
-@ConditionalOnProperty(name = "code-agent.onnx.enabled", havingValue = "true")
 public class OnnxCodeGenerationService implements CodeGenerationService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();

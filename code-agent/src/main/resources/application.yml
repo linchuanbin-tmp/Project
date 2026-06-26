@@ -25,7 +25,6 @@ code-agent:
   # LLM 推理（通过 Python 推理服务调用）
   onnx:
     model-path: classpath:models/text2sql.onnx
-    enabled: false  # true = LLM inference mode, false = template engine
   # SQL 白名单配置
   whitelist:
     # 只允许这些操作
