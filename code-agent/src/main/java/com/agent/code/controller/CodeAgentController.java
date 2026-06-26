@@ -6,7 +6,6 @@ import com.agent.code.dto.MetadataCacheResponse;
 import com.agent.code.service.CodeGenerationService;
 import com.agent.code.service.MetadataCacheService;
 import com.agent.code.service.SqlExecutionService;
-import com.agent.code.service.SqlValidationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
-import java.util.Map;
 
 /**
  * Code Agent REST 接口
@@ -28,7 +26,6 @@ import java.util.Map;
 public class CodeAgentController {
 
     private final CodeGenerationService codeGenerationService;
-    private final SqlValidationService sqlValidationService;
     private final MetadataCacheService metadataCacheService;
     private final SqlExecutionService sqlExecutionService;
 
@@ -48,7 +45,7 @@ public class CodeAgentController {
     }
 
     /**
-     * 自然语言 → SQL 生成
+     * 自然语言 → SQL 生成（仅预览，不校验不执行）
      * <p>
      * POST /api/code/generate
      */
@@ -58,43 +55,10 @@ public class CodeAgentController {
 
         log.info("📩 收到 SQL 生成请求: {}", request.getQuestion());
 
-        // 1. 生成 SQL
+        // 生成 SQL，不做白名单校验（仅预览用途）
         CodeGenerationResponse response = codeGenerationService.generateSQL(request);
 
-        // 2. 白名单校验
-        if (response.getSuccess() && response.getSql() != null) {
-            SqlValidationService.ValidationResult validation =
-                    sqlValidationService.validate(response.getSql());
-            response.setWhitelistPassed(validation.passed());
-
-            if (!validation.passed()) {
-                response.setSuccess(false);
-                response.setErrorMessage("白名单校验失败: " + validation.message());
-                log.warn("⚠️ SQL 白名单校验不通过: {}", validation.message());
-            }
-        }
-
         return ResponseEntity.ok(response);
-    }
-
-    /**
-     * 仅校验 SQL 是否通过白名单（不生成）
-     * <p>
-     * POST /api/code/validate
-     */
-    @PostMapping("/validate")
-    public ResponseEntity<Map<String, Object>> validateSQL(@RequestBody Map<String, String> body) {
-        String sql = body.get("sql");
-        if (sql == null || sql.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "SQL 不能为空"));
-        }
-
-        SqlValidationService.ValidationResult result = sqlValidationService.validate(sql);
-        return ResponseEntity.ok(Map.of(
-                "passed", result.passed(),
-                "message", result.message(),
-                "sql", sql
-        ));
     }
 
     /**

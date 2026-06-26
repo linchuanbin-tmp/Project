@@ -1,6 +1,6 @@
 # Code Agent — 银行业务 Text-to-SQL 模块
 
-基于微调 T5-small 模型的自然语言转 SQL 系统，覆盖银行客户、账户、交易 3 张核心表。Java 后端通过 HTTP 调用 Python 推理服务，生成的 SQL 经白名单校验后直接执行并返回结果。
+基于 **LLM** 的自然语言转 SQL 系统，覆盖银行 6 张核心表。Java 后端通过 HTTP 调用 Python 推理服务，生成的 SQL 经 5 层白名单校验后直接执行并返回结果。
 
 ---
 
@@ -9,7 +9,7 @@
 ```
 用户输入: "查询余额大于50000的账户"
     ↓
-Java Code Agent (8084) → Python T5 推理 (8090) → SQL 生成
+Java Code Agent (8084) → Python 推理服务 (8090) → LLM API → SQL 生成
     ↓
 白名单校验 (5层) → MySQL 执行 → JSON 结果返回
 ```
@@ -18,11 +18,11 @@ Java Code Agent (8084) → Python T5 推理 (8090) → SQL 生成
 
 | 指标 | 数值 |
 |------|:---:|
-| 模型参数 | 60M (t5-small) |
-| 训练数据 | 120 条问答-SQL 对 |
-| 测试准确率 | **75%** |
-| SQL 可执行率 | **100%** |
-| 覆盖数据表 | 3 张（bank_customer, bank_account, bank_transaction） |
+| 推理引擎 | LLM API |
+| Prompt 上下文 | 完整 6 表 DDL + 列注释（从 MySQL 动态加载） |
+| SQL 可执行率 | **≈100%**（白名单兜底） |
+| 覆盖数据表 | 6 张（bank_customer, bank_account, bank_transaction, bank_department, bank_employee, bank_loan） |
+| 推理延迟 | ~1-3s（API 调用） |
 
 ---
 
@@ -33,9 +33,10 @@ Java Code Agent (8084) → Python T5 推理 (8090) → SQL 生成
 | Java | 17 | Spring Boot 运行环境 |
 | Maven | 3.9+ | 后端构建 |
 | MySQL | 8.0+ | 业务数据库 |
-| Python | 3.11 | 模型推理 |
-| PyTorch | 2.3+ (CPU) | 模型运行 |
-| transformers | 4.40+ | 模型加载 |
+| Python | 3.10+ | 推理服务运行 |
+| Flask | 3.0+ | HTTP API 框架 |
+| openai | 1.0+ | LLM API 调用 |
+| API Key | — | 配置在 `data/ds_config.json` 中 |
 
 > ⚠️ Redis 非必须——元数据缓存失败时会自动降级到 MySQL 直读。
 
@@ -53,21 +54,33 @@ mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS agent_platform CHARACTER SET 
 mysql -u root -p agent_platform < src/main/resources/banking_data.sql
 ```
 
-### 3.2 启动 Python 推理服务
+### 3.2 配置 API Key
+
+编辑 `data/ds_config.json`，填入你的 API Key：
+
+```json
+{
+  "api_key": "sk-xxxxxxxxxxxxxxxx"
+}
+```
+
+### 3.3 启动 Python 推理服务
 
 ```bash
 cd data
-conda activate codeagent          # 或你的 Python 环境
-python infer_server.py            # 启动在 http://localhost:8090
+pip install flask openai pymysql   # 首次需安装依赖
+python infer_server.py             # 启动在 http://localhost:8090
 ```
 
 输出应显示：
 ```
-Model loaded. Starting server on :8090
+🚀 Text-to-SQL Inference Server
+   Schema: 6 tables (MySQL dynamic)
+   Port:   8090
  * Running on http://127.0.0.1:8090
 ```
 
-### 3.3 启动 Java 后端
+### 3.4 启动 Java 后端
 
 ```bash
 # 在项目根目录
@@ -82,7 +95,7 @@ Started CodeAgentApplication in 4.398 seconds
 ? 缓存预热完成！已加载 9 张表的元数据
 ```
 
-### 3.4 测试接口
+### 3.5 测试接口
 
 ```bash
 curl -X POST http://localhost:8084/api/code/query \
@@ -98,7 +111,7 @@ curl -X POST http://localhost:8084/api/code/query \
   "columns": ["id", "customer_no", "name", ...],
   "rows": [{"id": 1, "name": "张三", ...}, ...],
   "rowCount": 5,
-  "inferenceMethod": "T5-SMALL-TEXT2SQL",
+  "inferenceMethod": "LLM",
   "whitelistPassed": true
 }
 ```
@@ -181,21 +194,27 @@ code-agent/
 
 ---
 
-## 六、模型训练
+## 六、推理原理
 
-### 6.1 数据准备
+### 6.1 Prompt 设计
 
-数据集格式（Spider 兼容）：
+LLM 的 system prompt 包含三部分：
 
-```json
-{
-  "db_id": "a",
-  "question": "List all customers",
-  "query": "SELECT * FROM bank_customer"
-}
-```
+1. **角色设定**：「你是一位顶级的 MySQL Text-to-SQL 专家」
+2. **完整表结构**：所有 6 张表的 CREATE TABLE 语句（含列注释、外键关系、索引）
+3. **生成规则**：10 条 SQL 规范约束（只读 SELECT、反引号、JOIN 关联等）
 
-### 6.2 训练命令
+### 6.2 Schema 加载策略
+
+- **优先** 从 MySQL `information_schema` 动态读取完整 DDL
+- **兜底** 若 MySQL 不可用，使用硬编码的 6 张表 schema
+
+这样新增表或修改表结构后无需改动代码，prompt 始终与实际数据库同步。
+
+### 6.3 历史：T5 训练（已弃用）
+
+<details>
+<summary>点击展开——T5-small 微调细节</summary>
 
 ```bash
 cd data
@@ -210,9 +229,9 @@ python train_simple.py
 | 训练集/测试集 | 96 / 24 (8:2) |
 | 基础模型 | cssupport/t5-small-awesome-text-to-sql |
 
-训练完成后模型保存在 `data/fine-tuned-t5-banking/`，推理服务器自动加载。
+</details>
 
-### 6.3 评测
+### 6.4 评测
 
 ```bash
 python eval_quick.py    # MySQL 执行准确率
@@ -242,7 +261,7 @@ graph TD
     C -->|onnx.enabled=true| D[OnnxCodeGenerationService]
     C -->|false| E[TemplateCodeGenerationService]
     D -->|HTTP POST| F[Python:8090]
-    F --> G[T5-small 模型]
+    F --> G[LLM API]
     G --> H[SQL]
     E --> H
     H --> I[SqlValidationService]
@@ -261,7 +280,7 @@ graph TD
 1. **Spring Boot 版本**：主工程用 3.1.8，本模块用 3.2.0，建议统一
 2. **端口**：8084，与现有服务（8080/8081/8082/8083）无冲突
 3. **数据库**：共用 `agent_platform`，执行 `banking_data.sql` 即可
-4. **模型权重**：已 gitignore，需在新环境重新训练或拷贝
+4. **模型推理**：使用 LLM API，无需本地模型文件，配置写在 `data/ds_config.json` 中
 
 ---
 
@@ -269,8 +288,8 @@ graph TD
 
 | 限制 | 说明 |
 |------|------|
-| 仅 3 张表 | bank_customer / bank_account / bank_transaction |
-| 仅 SELECT | 不支持 INSERT/UPDATE/DELETE |
-| t5-small 上限 | 512 token 上下文窗口 |
-| 训练数据量 | 120 条，复杂 JOIN 语句准确率较低 |
-| CPU 推理 | 单次推理约 100-300ms |
+| 覆盖 6 张表 | bank_customer / bank_account / bank_transaction / bank_department / bank_employee / bank_loan |
+| 仅 SELECT | 不支持 INSERT/UPDATE/DELETE（安全设计） |
+| LLM API | 需网络连接和有效 API Key |
+| 推理延迟 | ~1-3s（API 网络调用） |
+| 上下文窗口 | DeepSeek 支持 128K token，远超 T5 的 512 token |

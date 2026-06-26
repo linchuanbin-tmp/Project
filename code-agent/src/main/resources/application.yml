@@ -22,10 +22,10 @@ spring:
 
 # Code Agent 配置
 code-agent:
-  # ONNX 模型路径（暂留空，使用模板规则引擎作为 fallback）
+  # LLM 推理（通过 Python 推理服务调用）
   onnx:
     model-path: classpath:models/text2sql.onnx
-    enabled: true  # true = LLM inference mode, false = template engine
+    enabled: true  # true = LLM 推理, false = 模板引擎 fallback
   # SQL 白名单配置
   whitelist:
     # 只允许这些操作

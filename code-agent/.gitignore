@@ -1,6 +1,9 @@
+# 临时测试文件
+data/test_flow.py
+
 # Trained model (too large for Git, regenerate with data/train_simple.py)
-data/fine-tuned-t5-banking/
-data/pretrained_t5sql/
+data/fine-tuned-flan-t5/
+data/distilled_dataset.json
 data/.venv/
 
 # Python

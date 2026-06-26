@@ -17,11 +17,8 @@ import java.time.Duration;
 /**
  * LLM 推理 SQL 生成服务
  * <p>
- * 调用 Python T5 推理服务器 (port 8090)。
+ * 调用 Python 推理服务器 (port 8090)，底层使用 LLM API。
  * 当 code-agent.onnx.enabled=true 时自动启用。
- *
- * <h3>启动 Python 服务：</h3>
- * <pre>pip install flask && python data/infer_server.py</pre>
  */
 @Slf4j
 @Service
@@ -36,7 +33,7 @@ public class OnnxCodeGenerationService implements CodeGenerationService {
     @Override
     public CodeGenerationResponse generateSQL(CodeGenerationRequest request) {
         String question = request.getQuestion();
-        log.info("LLM: {}", question);
+        log.info("🤖 LLM 推理: {}", question);
 
         try {
             String body = objectMapper.writeValueAsString(
@@ -46,7 +43,7 @@ public class OnnxCodeGenerationService implements CodeGenerationService {
                     .uri(URI.create("http://localhost:8090/infer"))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .timeout(Duration.ofSeconds(30))
+                    .timeout(Duration.ofSeconds(60))
                     .build();
 
             HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
@@ -54,26 +51,30 @@ public class OnnxCodeGenerationService implements CodeGenerationService {
             if (resp.statusCode() == 200) {
                 JsonNode json = objectMapper.readTree(resp.body());
                 String sql = json.get("sql").asText();
-                String method = json.has("method") ? json.get("method").asText() : "T5";
+                String method = json.has("method") ? json.get("method").asText() : "LLM";
 
-                log.info("LLM SQL: {}", sql);
+                if (sql == null || sql.isBlank()) {
+                    return fail(question, "LLM 返回空 SQL");
+                }
+
+                log.info("✅ LLM SQL ({}): {}", method, sql);
                 return CodeGenerationResponse.builder()
                         .success(true).sql(sql).question(question)
                         .inferenceMethod(method).whitelistPassed(null).build();
             }
-            return fail(question, "Server returned " + resp.statusCode());
+            return fail(question, "推理服务返回 HTTP " + resp.statusCode());
         } catch (Exception e) {
-            log.error("LLM error", e);
+            log.error("❌ LLM 推理失败", e);
             return fail(question, e.getMessage());
         }
     }
 
     @Override
-    public String getInferenceMethod() { return "T5-FINETUNED"; }
+    public String getInferenceMethod() { return "LLM"; }
 
     private CodeGenerationResponse fail(String q, String err) {
         return CodeGenerationResponse.builder()
-                .success(false).question(q).inferenceMethod("T5-FINETUNED")
+                .success(false).question(q).inferenceMethod("LLM")
                 .errorMessage(err).build();
     }
 }
