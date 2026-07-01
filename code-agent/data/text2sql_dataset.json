@@ -1,0 +1,602 @@
+[
+  {
+    "db_id": "a",
+    "question": "List all customers",
+    "query": "SELECT * FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Count customers",
+    "query": "SELECT COUNT(*) FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Find customer named Zhang San",
+    "query": "SELECT * FROM bank_customer WHERE name = 'Zhang San'"
+  },
+  {
+    "db_id": "a",
+    "question": "Show low risk customers",
+    "query": "SELECT * FROM bank_customer WHERE risk_level = 'LOW'"
+  },
+  {
+    "db_id": "a",
+    "question": "List customer names and phones",
+    "query": "SELECT name, phone FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Count customers by risk level",
+    "query": "SELECT risk_level, COUNT(*) FROM bank_customer GROUP BY risk_level"
+  },
+  {
+    "db_id": "a",
+    "question": "Show customers sorted by name",
+    "query": "SELECT * FROM bank_customer ORDER BY name"
+  },
+  {
+    "db_id": "a",
+    "question": "Find high risk customers",
+    "query": "SELECT * FROM bank_customer WHERE risk_level = 'HIGH'"
+  },
+  {
+    "db_id": "a",
+    "question": "List all customers",
+    "query": "SELECT * FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Count customers",
+    "query": "SELECT COUNT(*) FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Find customer named Zhang San",
+    "query": "SELECT * FROM bank_customer WHERE name = 'Zhang San'"
+  },
+  {
+    "db_id": "a",
+    "question": "Show low risk customers",
+    "query": "SELECT * FROM bank_customer WHERE risk_level = 'LOW'"
+  },
+  {
+    "db_id": "a",
+    "question": "List customer names and phones",
+    "query": "SELECT name, phone FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Count customers by risk level",
+    "query": "SELECT risk_level, COUNT(*) FROM bank_customer GROUP BY risk_level"
+  },
+  {
+    "db_id": "a",
+    "question": "Show customers sorted by name",
+    "query": "SELECT * FROM bank_customer ORDER BY name"
+  },
+  {
+    "db_id": "a",
+    "question": "Find high risk customers",
+    "query": "SELECT * FROM bank_customer WHERE risk_level = 'HIGH'"
+  },
+  {
+    "db_id": "a",
+    "question": "List all customers",
+    "query": "SELECT * FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Count customers",
+    "query": "SELECT COUNT(*) FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Find customer named Zhang San",
+    "query": "SELECT * FROM bank_customer WHERE name = 'Zhang San'"
+  },
+  {
+    "db_id": "a",
+    "question": "Show low risk customers",
+    "query": "SELECT * FROM bank_customer WHERE risk_level = 'LOW'"
+  },
+  {
+    "db_id": "a",
+    "question": "List customer names and phones",
+    "query": "SELECT name, phone FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Count customers by risk level",
+    "query": "SELECT risk_level, COUNT(*) FROM bank_customer GROUP BY risk_level"
+  },
+  {
+    "db_id": "a",
+    "question": "Show customers sorted by name",
+    "query": "SELECT * FROM bank_customer ORDER BY name"
+  },
+  {
+    "db_id": "a",
+    "question": "Find high risk customers",
+    "query": "SELECT * FROM bank_customer WHERE risk_level = 'HIGH'"
+  },
+  {
+    "db_id": "a",
+    "question": "List all customers",
+    "query": "SELECT * FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Count customers",
+    "query": "SELECT COUNT(*) FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Find customer named Zhang San",
+    "query": "SELECT * FROM bank_customer WHERE name = 'Zhang San'"
+  },
+  {
+    "db_id": "a",
+    "question": "Show low risk customers",
+    "query": "SELECT * FROM bank_customer WHERE risk_level = 'LOW'"
+  },
+  {
+    "db_id": "a",
+    "question": "List customer names and phones",
+    "query": "SELECT name, phone FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Count customers by risk level",
+    "query": "SELECT risk_level, COUNT(*) FROM bank_customer GROUP BY risk_level"
+  },
+  {
+    "db_id": "a",
+    "question": "Show customers sorted by name",
+    "query": "SELECT * FROM bank_customer ORDER BY name"
+  },
+  {
+    "db_id": "a",
+    "question": "Find high risk customers",
+    "query": "SELECT * FROM bank_customer WHERE risk_level = 'HIGH'"
+  },
+  {
+    "db_id": "a",
+    "question": "List all customers",
+    "query": "SELECT * FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Count customers",
+    "query": "SELECT COUNT(*) FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Find customer named Zhang San",
+    "query": "SELECT * FROM bank_customer WHERE name = 'Zhang San'"
+  },
+  {
+    "db_id": "a",
+    "question": "Show low risk customers",
+    "query": "SELECT * FROM bank_customer WHERE risk_level = 'LOW'"
+  },
+  {
+    "db_id": "a",
+    "question": "List customer names and phones",
+    "query": "SELECT name, phone FROM bank_customer"
+  },
+  {
+    "db_id": "a",
+    "question": "Count customers by risk level",
+    "query": "SELECT risk_level, COUNT(*) FROM bank_customer GROUP BY risk_level"
+  },
+  {
+    "db_id": "a",
+    "question": "Show customers sorted by name",
+    "query": "SELECT * FROM bank_customer ORDER BY name"
+  },
+  {
+    "db_id": "a",
+    "question": "Find high risk customers",
+    "query": "SELECT * FROM bank_customer WHERE risk_level = 'HIGH'"
+  },
+  {
+    "db_id": "a",
+    "question": "List all bank accounts",
+    "query": "SELECT * FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Count accounts",
+    "query": "SELECT COUNT(*) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Show savings accounts",
+    "query": "SELECT * FROM bank_account WHERE account_type = 'SAVINGS'"
+  },
+  {
+    "db_id": "a",
+    "question": "Find accounts with balance over 50000",
+    "query": "SELECT * FROM bank_account WHERE balance > 50000"
+  },
+  {
+    "db_id": "a",
+    "question": "Get total balance",
+    "query": "SELECT SUM(balance) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Count accounts by type",
+    "query": "SELECT account_type, COUNT(*) FROM bank_account GROUP BY account_type"
+  },
+  {
+    "db_id": "a",
+    "question": "Show accounts sorted by balance",
+    "query": "SELECT * FROM bank_account ORDER BY balance DESC"
+  },
+  {
+    "db_id": "a",
+    "question": "Get average balance",
+    "query": "SELECT AVG(balance) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "List all bank accounts",
+    "query": "SELECT * FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Count accounts",
+    "query": "SELECT COUNT(*) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Show savings accounts",
+    "query": "SELECT * FROM bank_account WHERE account_type = 'SAVINGS'"
+  },
+  {
+    "db_id": "a",
+    "question": "Find accounts with balance over 50000",
+    "query": "SELECT * FROM bank_account WHERE balance > 50000"
+  },
+  {
+    "db_id": "a",
+    "question": "Get total balance",
+    "query": "SELECT SUM(balance) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Count accounts by type",
+    "query": "SELECT account_type, COUNT(*) FROM bank_account GROUP BY account_type"
+  },
+  {
+    "db_id": "a",
+    "question": "Show accounts sorted by balance",
+    "query": "SELECT * FROM bank_account ORDER BY balance DESC"
+  },
+  {
+    "db_id": "a",
+    "question": "Get average balance",
+    "query": "SELECT AVG(balance) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "List all bank accounts",
+    "query": "SELECT * FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Count accounts",
+    "query": "SELECT COUNT(*) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Show savings accounts",
+    "query": "SELECT * FROM bank_account WHERE account_type = 'SAVINGS'"
+  },
+  {
+    "db_id": "a",
+    "question": "Find accounts with balance over 50000",
+    "query": "SELECT * FROM bank_account WHERE balance > 50000"
+  },
+  {
+    "db_id": "a",
+    "question": "Get total balance",
+    "query": "SELECT SUM(balance) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Count accounts by type",
+    "query": "SELECT account_type, COUNT(*) FROM bank_account GROUP BY account_type"
+  },
+  {
+    "db_id": "a",
+    "question": "Show accounts sorted by balance",
+    "query": "SELECT * FROM bank_account ORDER BY balance DESC"
+  },
+  {
+    "db_id": "a",
+    "question": "Get average balance",
+    "query": "SELECT AVG(balance) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "List all bank accounts",
+    "query": "SELECT * FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Count accounts",
+    "query": "SELECT COUNT(*) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Show savings accounts",
+    "query": "SELECT * FROM bank_account WHERE account_type = 'SAVINGS'"
+  },
+  {
+    "db_id": "a",
+    "question": "Find accounts with balance over 50000",
+    "query": "SELECT * FROM bank_account WHERE balance > 50000"
+  },
+  {
+    "db_id": "a",
+    "question": "Get total balance",
+    "query": "SELECT SUM(balance) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Count accounts by type",
+    "query": "SELECT account_type, COUNT(*) FROM bank_account GROUP BY account_type"
+  },
+  {
+    "db_id": "a",
+    "question": "Show accounts sorted by balance",
+    "query": "SELECT * FROM bank_account ORDER BY balance DESC"
+  },
+  {
+    "db_id": "a",
+    "question": "Get average balance",
+    "query": "SELECT AVG(balance) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "List all bank accounts",
+    "query": "SELECT * FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Count accounts",
+    "query": "SELECT COUNT(*) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Show savings accounts",
+    "query": "SELECT * FROM bank_account WHERE account_type = 'SAVINGS'"
+  },
+  {
+    "db_id": "a",
+    "question": "Find accounts with balance over 50000",
+    "query": "SELECT * FROM bank_account WHERE balance > 50000"
+  },
+  {
+    "db_id": "a",
+    "question": "Get total balance",
+    "query": "SELECT SUM(balance) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "Count accounts by type",
+    "query": "SELECT account_type, COUNT(*) FROM bank_account GROUP BY account_type"
+  },
+  {
+    "db_id": "a",
+    "question": "Show accounts sorted by balance",
+    "query": "SELECT * FROM bank_account ORDER BY balance DESC"
+  },
+  {
+    "db_id": "a",
+    "question": "Get average balance",
+    "query": "SELECT AVG(balance) FROM bank_account"
+  },
+  {
+    "db_id": "a",
+    "question": "List all transactions",
+    "query": "SELECT * FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Count transactions",
+    "query": "SELECT COUNT(*) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Find deposit transactions",
+    "query": "SELECT * FROM bank_transaction WHERE txn_type = 'DEPOSIT'"
+  },
+  {
+    "db_id": "a",
+    "question": "Show transactions over 10000",
+    "query": "SELECT * FROM bank_transaction WHERE amount > 10000"
+  },
+  {
+    "db_id": "a",
+    "question": "Get total transaction amount",
+    "query": "SELECT SUM(amount) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Count by transaction type",
+    "query": "SELECT txn_type, COUNT(*) FROM bank_transaction GROUP BY txn_type"
+  },
+  {
+    "db_id": "a",
+    "question": "Show latest transactions",
+    "query": "SELECT * FROM bank_transaction ORDER BY txn_time DESC LIMIT 5"
+  },
+  {
+    "db_id": "a",
+    "question": "Get average transaction amount",
+    "query": "SELECT AVG(amount) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "List all transactions",
+    "query": "SELECT * FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Count transactions",
+    "query": "SELECT COUNT(*) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Find deposit transactions",
+    "query": "SELECT * FROM bank_transaction WHERE txn_type = 'DEPOSIT'"
+  },
+  {
+    "db_id": "a",
+    "question": "Show transactions over 10000",
+    "query": "SELECT * FROM bank_transaction WHERE amount > 10000"
+  },
+  {
+    "db_id": "a",
+    "question": "Get total transaction amount",
+    "query": "SELECT SUM(amount) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Count by transaction type",
+    "query": "SELECT txn_type, COUNT(*) FROM bank_transaction GROUP BY txn_type"
+  },
+  {
+    "db_id": "a",
+    "question": "Show latest transactions",
+    "query": "SELECT * FROM bank_transaction ORDER BY txn_time DESC LIMIT 5"
+  },
+  {
+    "db_id": "a",
+    "question": "Get average transaction amount",
+    "query": "SELECT AVG(amount) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "List all transactions",
+    "query": "SELECT * FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Count transactions",
+    "query": "SELECT COUNT(*) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Find deposit transactions",
+    "query": "SELECT * FROM bank_transaction WHERE txn_type = 'DEPOSIT'"
+  },
+  {
+    "db_id": "a",
+    "question": "Show transactions over 10000",
+    "query": "SELECT * FROM bank_transaction WHERE amount > 10000"
+  },
+  {
+    "db_id": "a",
+    "question": "Get total transaction amount",
+    "query": "SELECT SUM(amount) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Count by transaction type",
+    "query": "SELECT txn_type, COUNT(*) FROM bank_transaction GROUP BY txn_type"
+  },
+  {
+    "db_id": "a",
+    "question": "Show latest transactions",
+    "query": "SELECT * FROM bank_transaction ORDER BY txn_time DESC LIMIT 5"
+  },
+  {
+    "db_id": "a",
+    "question": "Get average transaction amount",
+    "query": "SELECT AVG(amount) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "List all transactions",
+    "query": "SELECT * FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Count transactions",
+    "query": "SELECT COUNT(*) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Find deposit transactions",
+    "query": "SELECT * FROM bank_transaction WHERE txn_type = 'DEPOSIT'"
+  },
+  {
+    "db_id": "a",
+    "question": "Show transactions over 10000",
+    "query": "SELECT * FROM bank_transaction WHERE amount > 10000"
+  },
+  {
+    "db_id": "a",
+    "question": "Get total transaction amount",
+    "query": "SELECT SUM(amount) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Count by transaction type",
+    "query": "SELECT txn_type, COUNT(*) FROM bank_transaction GROUP BY txn_type"
+  },
+  {
+    "db_id": "a",
+    "question": "Show latest transactions",
+    "query": "SELECT * FROM bank_transaction ORDER BY txn_time DESC LIMIT 5"
+  },
+  {
+    "db_id": "a",
+    "question": "Get average transaction amount",
+    "query": "SELECT AVG(amount) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "List all transactions",
+    "query": "SELECT * FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Count transactions",
+    "query": "SELECT COUNT(*) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Find deposit transactions",
+    "query": "SELECT * FROM bank_transaction WHERE txn_type = 'DEPOSIT'"
+  },
+  {
+    "db_id": "a",
+    "question": "Show transactions over 10000",
+    "query": "SELECT * FROM bank_transaction WHERE amount > 10000"
+  },
+  {
+    "db_id": "a",
+    "question": "Get total transaction amount",
+    "query": "SELECT SUM(amount) FROM bank_transaction"
+  },
+  {
+    "db_id": "a",
+    "question": "Count by transaction type",
+    "query": "SELECT txn_type, COUNT(*) FROM bank_transaction GROUP BY txn_type"
+  },
+  {
+    "db_id": "a",
+    "question": "Show latest transactions",
+    "query": "SELECT * FROM bank_transaction ORDER BY txn_time DESC LIMIT 5"
+  },
+  {
+    "db_id": "a",
+    "question": "Get average transaction amount",
+    "query": "SELECT AVG(amount) FROM bank_transaction"
+  }
+]
