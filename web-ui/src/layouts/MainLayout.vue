@@ -42,15 +42,15 @@
         <div v-if="!collapsed" class="menu-section-title">Agent services</div>
 
         <el-menu-item index="/app/tool">
-          <template #title>Tool Call</template>
+          <template #title>Tool Agent</template>
           <Wrench :size="16" :stroke-width="1.6" />
         </el-menu-item>
         <el-menu-item index="/app/code">
-          <template #title>SQL Generator</template>
+          <template #title>Code Agent</template>
           <FileText :size="16" :stroke-width="1.6" />
         </el-menu-item>
         <el-menu-item index="/app/rag">
-          <template #title>Knowledge Q&A</template>
+          <template #title>RAG Agent</template>
           <BookOpen :size="16" :stroke-width="1.6" />
         </el-menu-item>
 

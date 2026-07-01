@@ -40,19 +40,19 @@ const routes = [
                 path: 'tool',
                 name: 'ToolAgent',
                 component: () => import('@views/tool/index.vue'),
-                meta: { title: 'Tool Call' }
+                meta: { title: 'Tool Agent' }
             },
             {
                 path: 'code',
                 name: 'CodeAgent',
                 component: () => import('@views/code/index.vue'),
-                meta: { title: 'SQL Generator' }
+                meta: { title: 'Code Agent' }
             },
             {
                 path: 'rag',
                 name: 'RagAgent',
                 component: () => import('@views/rag/index.vue'),
-                meta: { title: 'Knowledge Q&A' }
+                meta: { title: 'RAG Agent' }
             },
             {
                 path: 'admin/users',

@@ -49,7 +49,7 @@ const userStore = useUserStore()
 const actions = [
   {
     path: '/tool',
-    name: 'Tool Call',
+    name: 'Tool Agent',
     desc: 'Meeting rooms, schedule conflicts, and route planning via natural language.',
     icon: Wrench,
     bg: '#f0f9ff',
@@ -57,7 +57,7 @@ const actions = [
   },
   {
     path: '/code',
-    name: 'SQL Generator',
+    name: 'Code Agent',
     desc: 'Describe what data you need and let the agent write the query for you.',
     icon: FileText,
     bg: '#f0fdf4',
@@ -65,7 +65,7 @@ const actions = [
   },
   {
     path: '/rag',
-    name: 'Knowledge Q&A',
+    name: 'RAG Agent',
     desc: 'Upload documents and ask questions. Powered by RAG for grounded answers.',
     icon: BookOpen,
     bg: '#fdf4ff',
