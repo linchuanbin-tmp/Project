@@ -489,15 +489,33 @@ onMounted(() => {
 
 /* ── Editor Card ── */
 .editor-card, .result-card, .schema-card {
-  border-radius: 16px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.008);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
   background: #ffffff;
-  transition: box-shadow 0.2s;
+  transition: all 0.25s ease;
+  overflow: hidden;
 }
 
 .editor-card:hover, .result-card:hover, .schema-card:hover {
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+/* Minimalism Top Accents */
+.editor-card {
+  border-top: 3px solid #6366f1; /* Indigo brand accent */
+}
+
+.review-card {
+  border-top: 3px solid #10b981; /* Emerald green accent */
+}
+
+.result-card {
+  border-top: 3px solid #f59e0b; /* Amber warning/status accent */
+}
+
+.schema-card {
+  border-top: 3px solid #64748b; /* Slate gray accent */
 }
 
 .card-header {
@@ -527,16 +545,14 @@ onMounted(() => {
   font-size: 11px;
   font-weight: 600;
   color: #6366f1;
-  background: #e0e7ff;
+  background: #eff6ff;
   padding: 4px 10px;
   border-radius: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .step-badge.step-2 {
   color: #10b981;
-  background: #d1fae5;
+  background: #f0fdf4;
 }
 
 .prompt-textarea :deep(.el-textarea__inner) {
@@ -577,21 +593,22 @@ onMounted(() => {
 }
 
 .template-tag {
-  background: #f3f4f6;
+  background: transparent;
   color: #4b5563;
   font-size: 12px;
   padding: 5px 12px;
   border-radius: 20px;
   cursor: pointer;
   transition: all 0.15s;
-  border: 1px solid transparent;
+  border: 1px solid #e2e8f0;
   font-weight: 500;
 }
 
 .template-tag:hover {
-  background: #111827;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.15);
+  background: #f8fafc;
+  color: #6366f1;
+  border-color: #6366f1;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.05);
 }
 
 .card-actions {
@@ -830,16 +847,18 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #f1f5f9;
+  border-left: 3px solid #6366f1;
   transition: all 0.15s;
 }
 
 .table-schema-item:hover {
-  background: #f3f4f6;
+  background: #f1f5f9;
   border-color: #cbd5e1;
+  border-left-color: #4f46e5;
 }
 
 .table-name-tag code {
