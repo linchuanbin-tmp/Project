@@ -77,7 +77,7 @@ const services = [
   { name: 'Gateway',    status: 'online',  label: 'Online' },
   { name: 'User',       status: 'online',  label: 'Online' },
   { name: 'Tool Agent', status: 'online',  label: 'Online' },
-  { name: 'SQL Agent',  status: 'offline', label: 'Coming soon' },
+  { name: 'SQL Agent',  status: 'online',  label: 'Online' },
   { name: 'RAG Agent',  status: 'offline', label: 'Coming soon' },
 ]
 </script>
