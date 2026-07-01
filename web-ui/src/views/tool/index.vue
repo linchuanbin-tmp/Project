@@ -1,8 +1,10 @@
 <template>
   <div class="tool-container">
     <div class="page-header">
-      <h1 class="page-title">Tool Call Agent</h1>
-      <p class="page-sub">Book meeting rooms, detect schedule conflicts, and plan routes using natural language.</p>
+      <div class="header-left">
+        <h1 class="page-title">Tool Call Agent</h1>
+        <p class="page-sub">Book meeting rooms, detect schedule conflicts, and plan routes using natural language.</p>
+      </div>
     </div>
 
     <el-row :gutter="20" style="margin-top: 20px;">
@@ -381,8 +383,18 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.tool-container { padding: 8px 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-.page-header { padding-bottom: 16px; border-bottom: 1px solid #f3f4f6; margin-bottom: 24px; }
+.tool-container {
+  padding: 16px 0;
+  max-width: 1200px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 30px;
+  padding-top: 20px;
+}
 .page-title { font-size: 24px; font-weight: 700; color: #111827; margin: 0 0 6px 0; }
 .page-sub { font-size: 14px; color: #9ca3af; margin: 0; }
 :deep(.el-tabs--border-card) { background: #ffffff; border: 1px solid #f0f0f0; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.015); overflow: hidden; height: 100%; display: flex; flex-direction: column; }

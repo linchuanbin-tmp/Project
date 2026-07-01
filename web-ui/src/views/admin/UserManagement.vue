@@ -50,17 +50,19 @@
         <!-- Status -->
         <el-table-column label="Status" min-width="120">
           <template #default="{ row }">
-            <el-switch
-              v-model="row.status"
-              :active-value="1"
-              :inactive-value="0"
-              active-text="Active"
-              inactive-text="Disabled"
-              inline-prompt
-              :before-change="() => beforeStatusChange(row)"
-              @change="(val) => handleStatusChange(row, val)"
-              class="custom-switch"
-            />
+            <div class="status-cell">
+              <el-switch
+                v-model="row.status"
+                :active-value="1"
+                :inactive-value="0"
+                :before-change="() => beforeStatusChange(row)"
+                @change="(val) => handleStatusChange(row, val)"
+                class="custom-switch"
+              />
+              <span class="status-text-label" :class="{ 'is-active': row.status === 1 }">
+                {{ row.status === 1 ? 'Active' : 'Disabled' }}
+              </span>
+            </div>
           </template>
         </el-table-column>
 
@@ -185,8 +187,14 @@ const translateDesc = (desc: string) => {
   if (desc === '拥有系统所有管理权限' || desc.includes('管理') || desc.includes('ADMIN')) {
     return 'Has all system management privileges'
   }
-  if (desc === '拥有微服务基础调用权限' || desc.includes('微服务') || desc.includes('USER')) {
-    return 'Has standard service calling privileges'
+  if (
+    desc === '拥有微服务基础调用权限' || 
+    desc.includes('微服务') || 
+    desc.includes('USER') ||
+    desc.includes('知识库') ||
+    desc.includes('使用Agent')
+  ) {
+    return 'Access to knowledge base retrieval, code generation, and tool call agents'
   }
   return desc
 }
@@ -441,19 +449,26 @@ onMounted(() => {
 }
 
 /* Custom Switch overrides */
-.custom-switch :deep(.el-switch__core) {
-  border-radius: 20px;
-  height: 22px;
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.custom-switch :deep(.el-switch__label) {
-  font-size: 11px;
+.status-text-label {
+  font-size: 13px;
   font-weight: 500;
   color: #9ca3af;
+  transition: color 0.15s;
 }
 
-.custom-switch :deep(.el-switch__label.is-active) {
-  color: #374151;
+.status-text-label.is-active {
+  color: #10b981;
+}
+
+.custom-switch :deep(.el-switch__core) {
+  border-radius: 20px;
+  height: 20px;
 }
 
 .action-btn {
@@ -463,6 +478,8 @@ onMounted(() => {
   color: #374151 !important;
   font-size: 12.5px !important;
   font-weight: 500 !important;
+  height: 32px !important;
+  padding: 0 16px !important;
   transition: all 0.15s;
 }
 
@@ -540,8 +557,8 @@ onMounted(() => {
 }
 
 :deep(.el-select-dropdown__item) {
-  height: 54px !important;
-  padding: 6px 12px !important;
+  height: auto !important;
+  padding: 8px 12px !important;
 }
 
 .dialog-btn-cancel {

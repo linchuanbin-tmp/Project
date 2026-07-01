@@ -61,6 +61,10 @@
             <template #title>User Management</template>
             <Users :size="16" :stroke-width="1.6" />
           </el-menu-item>
+          <el-menu-item index="/app/admin/resources">
+            <template #title>Resource Management</template>
+            <Database :size="16" :stroke-width="1.6" />
+          </el-menu-item>
         </template>
       </el-menu>
 
@@ -121,7 +125,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@stores/modules/user'
 import {
   Home, Wrench, FileText, BookOpen,
-  Settings, ChevronDown, Users,
+  Settings, ChevronDown, Users, Database,
   PanelLeftClose, PanelLeftOpen, Menu
 } from 'lucide-vue-next'
 

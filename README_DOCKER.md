@@ -173,3 +173,23 @@ docker compose down -v
 > net stop redis
 > # 或者直接在“服务”管理器 (services.msc) 中手动停用对应的 MySQL 或 Redis 服务
 > ```
+
+---
+
+## 💎 五、🚀 新增功能说明 (管理员后台资产系统)
+
+为了提供更完善的后台治理能力，本项目新增了管理员专属的资产配置功能：
+
+### 1. 资产与日程管理（Resource & Asset Management）
+* **路径**：以管理员身份登录后，左下角侧边栏可进入 **Resource Management** 菜单。
+* **双标签管理工作流**：
+  * **Meeting Rooms（会议室维护）**：支持对物理会议室资源进行全生命周期管理（列表、新增、编辑、删除、运行/维护状态切换）。设施录入由原始逗号输入框升级为**高保真多选器材列表**（支持 Projector、Whiteboard、Video Conference、Audio System 等多种规格设备）。
+  * **Schedules & Bookings（预约与排期管理）**：支持对全局预约进行统一监控与调度。管理员可随时修改预约主题、时间范围（精确至秒级日期时间），并提供一键取消（Cancel）预约、自动关联物理会议室名称等能力。
+
+### 2. 全量初始数据英文转译（Localization Clean-up）
+* 我们对 Docker 启动时加载的初始 SQL 脚本进行了全量重构。
+* 默认初始化构建出的数据全部切换为英文（包括 `sys_user` 真实姓名 `Administrator`、各系统的角色的英文描述 `Employee`，以及会议室与其附属设施的英文名称）。
+* 这确保了任何团队成员重新通过 Docker 拉起全新的数据库容器时，系统即刻处于完全脱汉的纯英文界面。
+
+### 3. 微服务级 X-User-Roles 鉴权
+* 配合 Gateway 网关对安全 JWT 字段解析，在下游 `tool-agent` 服务中加入了安全拦截，对所有管理员相关的资源/排期 CRUD 接口执行 `X-User-Roles` 请求头校验，确保非 Admin 权限的恶意请求无法越权调用后台功能。

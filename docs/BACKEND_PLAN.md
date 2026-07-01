@@ -13,6 +13,7 @@
 | RBAC 用户权限系统 | **6月20日** | ✅ 已完成 |
 | user-service JWT 过滤器 | **6月20日** | ✅ 已完成 |
 | Gateway JWT 过滤器 | **6月20日** | ✅ 已完成 |
+| code-agent 模块集成及 Docker 化 | **7月1日** | ✅ 已完成 |
 | 任务中心（task-service） | **6月30日** | 🔴 未开始 |
 | 服务器部署（DigitalOcean） | **6月30日** | 🔴 未开始 |
 
@@ -20,7 +21,7 @@
 
 ## 二、已完成工作
 
-### ✅ Docker 全量容器化（2026-06-16 完成）
+### ✅ Docker 全量容器化（2026-06-16 完成，2026-07-01 升级支持 Code Agent）
 
 **新增文件：**
 
@@ -28,12 +29,20 @@
 |------|------|
 | `.env` | ⭐ 核心配置文件，所有端口/密码/API Key 集中在这里，切换环境只改这一个文件（已被 .gitignore 排除） |
 | `.env.example` | `.env` 模板，会 commit 到仓库让组员知道需要哪些变量 |
-| `docker-compose.yml` | 全量重写，包含 MySQL、Redis、gateway、user-service、task-service、tool-agent、web-ui 共 7 个服务 |
-| `user-service/Dockerfile` | 多阶段构建，Maven build + JRE runtime，`-Xmx256m` |
+| `docker-compose.yml` | 全量重写，包含 MySQL, Redis, gateway, user-service, task-service, tool-agent, web-ui, code-agent, code-agent-python 共 9 个服务 |
+| `user-service/Dockerfile` | 多阶段构建，使用 Maven + standard JRE 17 以支持 ARM64/AMD64 跨平台编译，限制 `-Xmx256m` |
 | `gateway-service/Dockerfile` | 同上 |
-| `task-service/Dockerfile` | 同上（task-service 功能待实现，但 Dockerfile 已就绪） |
+| `task-service/Dockerfile` | 同上 |
 | `tool-agent/Dockerfile` | 同上 |
+| `code-agent/Dockerfile` | 同上（为新增的 code-agent 模块构建 Java 镜像） |
+| `code-agent/data/Dockerfile` | 新增 python:3.10-slim 镜像，构建 Flask Text-to-SQL 推理服务 |
 | `web-ui/Dockerfile` | Node 20 Alpine，Vite dev server，`--host 0.0.0.0` |
+
+**修改与整合工作（2026-07-01 追加）：**
+- **修复 Code Agent 路由 404 Bug**：修正 `CodeAgentController` 的 `@RequestMapping` 基地址为 `/code`，以配合网关的 `StripPrefix=1`。
+- **网关路由**：在 `gateway-service/application.yml` 添加了 `code-agent` 动态代理映射（路由到 `http://code-agent:8084`），并强制通过 JWT 权限检查过滤器。
+- **环境参数化**：将 `code-agent` 的数据库、Redis、Python推理服务 URL 全部配置化，支持环境变量覆盖。
+- **开发脚本更新**：在 `dev.sh` 中添加了本地一键拉起全套微服务（包括 `task-service`、`code-agent` 和 Python 推理服务）终端的功能。
 
 **修改文件：**
 
@@ -80,6 +89,13 @@
 |------|------|
 | `TaskApplication.java` | 空启动类 |
 | `application.yml` | 只有 `server.port: 8082` |
+
+### code-agent & code-agent-python (2026-07-01 合并)
+
+| 模块 | 现状 |
+|------|------|
+| `code-agent` (Java) | ✅ 已整合。支持自然语言生成 SQL 并通过白名单校验后直接在 MySQL 执行并返回结果。端口 8084。 |
+| `code-agent-python` (Python) | ✅ 已整合。提供 Flask + OpenAI/DeepSeek API 推理服务。端口 8090。 |
 
 ---
 
@@ -194,15 +210,17 @@ task_record (
 | user-service | ~250 MB |
 | task-service | ~250 MB |
 | tool-agent | ~300 MB |
+| code-agent (Java) | ~250 MB |
+| code-agent-python (Flask) | ~100 MB |
 | web-ui (Node) | ~150 MB |
-| **合计** | **~1.5 GB** ✅ 可以跑 |
+| **合计** | **~1.85 GB** ✅ 可以跑 |
 
 **AI Agent 资源（给组长参考）：**
 
 | Agent | GPU 需求 | 推荐 |
 |-------|---------|------|
 | Tool Agent | ❌ | 当前服务器即可 |
-| Code Agent | ❌ ONNX CPU | 可加一台 2-4 GB Droplet |
+| Code Agent | ❌ ONNX/LLM CPU | 通过 Flask 调用 API，内存资源开销低 |
 | RAG Agent | ✅ 需要 GPU | RunPod / AutoDL 按小时计费 |
 
 ---

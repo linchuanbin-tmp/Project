@@ -28,10 +28,10 @@ CREATE TABLE `meeting_room` (
   COMMENT='会议室表';
 
 INSERT INTO `meeting_room` VALUES
-  (1, '301会议室', 3, 10, '投影仪,白板',              1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
-  (2, '302会议室', 3, 20, '投影仪,视频会议',           1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
-  (3, '201会议室', 2,  8, '白板',                      1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
-  (4, '501大会议室', 5, 50, '投影仪,音响,视频会议',    1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
+  (1, 'Room 301', 3, 10, 'Projector,Whiteboard',              1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
+  (2, 'Room 302', 3, 20, 'Projector,Video Conference',        1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
+  (3, 'Room 201', 2,  8, 'Whiteboard',                 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
+  (4, 'Room 501 (Large)', 5, 50, 'Projector,Audio,Video Conference', 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
 
 -- ----------------------------
 -- 会议/日程预约表
@@ -77,7 +77,7 @@ CREATE TABLE `sys_user` (
 
 -- 默认账号: admin / 123456（BCrypt 加密）
 INSERT INTO `sys_user` VALUES
-  (1, 'admin', '$2a$10$bdMiyhFCbgwNNG54h69C5OswCHC4458VEMYcLJ/GI8iR/O7bxxFdy', '管理员', 'admin', 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
+  (1, 'admin', '$2a$10$bdMiyhFCbgwNNG54h69C5OswCHC4458VEMYcLJ/GI8iR/O7bxxFdy', 'Administrator', 'admin', 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
 
 -- ----------------------------
 -- 角色表
@@ -100,8 +100,8 @@ CREATE TABLE `sys_role` (
   COMMENT='系统角色表';
 
 INSERT INTO `sys_role` VALUES
-  (1, 'ROLE_ADMIN', '系统管理员', '管理系统内的员工账号与权限配置', 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
-  (2, 'ROLE_USER', '普通员工', '使用Agent进行知识库检索、代码或工具调用', 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
+  (1, 'ROLE_ADMIN', 'System Administrator', 'Has all system management privileges', 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
+  (2, 'ROLE_USER', 'Employee', 'Access to knowledge base retrieval, code generation, and tool call agents', 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
 
 -- ----------------------------
 -- 权限表
@@ -126,12 +126,12 @@ CREATE TABLE `sys_permission` (
   COMMENT='系统权限表';
 
 INSERT INTO `sys_permission` VALUES
-  (1, 'user:view',   '查看员工列表',   '/admin/users',       'GET',  2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
-  (2, 'user:role',   '分配员工角色',   '/admin/user/role',   'POST', 2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
-  (3, 'user:status', '启用禁用员工',   '/admin/user/status', 'PUT',  2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
-  (4, 'role:view',   '查看角色列表',   '/admin/roles',       'GET',  2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
-  (5, 'task:submit', '提交Agent任务',  '/task/submit',       'POST', 2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
-  (6, 'task:query',  '查询Agent任务',  '/task/**',           'GET',  2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
+  (1, 'user:view',   'View Employee List',   '/admin/users',       'GET',  2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
+  (2, 'user:role',   'Assign Employee Role',   '/admin/user/role',   'POST', 2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
+  (3, 'user:status', 'Enable/Disable Employee',   '/admin/user/status', 'PUT',  2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
+  (4, 'role:view',   'View Role List',   '/admin/roles',       'GET',  2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
+  (5, 'task:submit', 'Submit Agent Task',  '/task/submit',       'POST', 2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
+  (6, 'task:query',  'Query Agent Task',  '/task/**',           'GET',  2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
 
 -- ----------------------------
 -- 用户与角色关联表

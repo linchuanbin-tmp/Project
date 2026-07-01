@@ -48,7 +48,7 @@ const userStore = useUserStore()
 
 const actions = [
   {
-    path: '/tool',
+    path: '/app/tool',
     name: 'Tool Agent',
     desc: 'Meeting rooms, schedule conflicts, and route planning via natural language.',
     icon: Wrench,
@@ -56,7 +56,7 @@ const actions = [
     color: '#0ea5e9',
   },
   {
-    path: '/code',
+    path: '/app/code',
     name: 'Code Agent',
     desc: 'Describe what data you need and let the agent write the query for you.',
     icon: FileText,
@@ -64,7 +64,7 @@ const actions = [
     color: '#22c55e',
   },
   {
-    path: '/rag',
+    path: '/app/rag',
     name: 'RAG Agent',
     desc: 'Upload documents and ask questions. Powered by RAG for grounded answers.',
     icon: BookOpen,

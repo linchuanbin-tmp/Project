@@ -59,6 +59,12 @@ const routes = [
                 name: 'UserManagement',
                 component: () => import('@views/admin/UserManagement.vue'),
                 meta: { title: 'User Management', requiresRole: 'ROLE_ADMIN' }
+            },
+            {
+                path: 'admin/resources',
+                name: 'ResourceManagement',
+                component: () => import('@views/admin/ResourceManagement.vue'),
+                meta: { title: 'Resource Management', requiresRole: 'ROLE_ADMIN' }
             }
         ]
     },

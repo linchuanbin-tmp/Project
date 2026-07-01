@@ -1,5 +1,6 @@
 <template>
-  <div class="sql-generator-container">
+  <div class="sql-generator-wrapper">
+    <div class="sql-generator-container">
     <!-- Page Header -->
     <div class="page-header">
       <div class="header-left">
@@ -25,30 +26,42 @@
     <div class="main-layout">
       <!-- Left side: Prompt Editor, Code Verification & Results -->
       <div class="editor-section">
-        <!-- Input Card -->
-        <el-card class="editor-card" shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span class="card-title-text">
-                <Sparkles :size="16" class="icon-sparkles" />
-                Describe Your Query
-              </span>
-              <span class="step-badge">Step 1: Write Prompt</span>
+        
+        <!-- Modern Prompt Card (Without horizontal header lines) -->
+        <div class="premium-card">
+          <div class="card-header-simple">
+            <span class="card-title-text">
+              <Sparkles :size="16" class="icon-sparkles" />
+              Describe Your Query
+            </span>
+            <span class="step-badge">Step 1: Write Prompt</span>
+          </div>
+
+          <!-- Modern Chat-like Input Container -->
+          <div class="modern-input-container">
+            <textarea
+              v-model="question"
+              rows="3"
+              placeholder="e.g. Calculate the average balance for each account type, show all high risk customers..."
+              class="modern-textarea"
+            ></textarea>
+            
+            <div class="modern-input-footer">
+              <div class="footer-spacer"></div>
+              <button
+                :disabled="queryLoading"
+                class="modern-btn-generate"
+                @click="handleGenerate"
+              >
+                <span v-if="queryLoading">Generating...</span>
+                <span v-else>Generate SQL Query</span>
+              </button>
             </div>
-          </template>
+          </div>
 
-          <el-input
-            v-model="question"
-            type="textarea"
-            :rows="3"
-            placeholder="e.g. Calculate the average balance for each account type, show all high risk customers..."
-            resize="none"
-            class="prompt-textarea"
-          />
-
-          <!-- Quick Templates -->
-          <div class="templates-section">
-            <span class="label-text">Try these:</span>
+          <!-- Quick Templates (Outside the prompt container) -->
+          <div class="templates-section-outside">
+            <span class="label-text">Try these prompts:</span>
             <div class="template-tags">
               <span
                 v-for="tmpl in quickTemplates"
@@ -56,34 +69,21 @@
                 class="template-tag"
                 @click="useTemplate(tmpl.en)"
               >
-                {{ tmpl.label }}
+                {{ tmpl.en }}
               </span>
             </div>
           </div>
+        </div>
 
-          <div class="card-actions">
-            <el-button
-              type="primary"
-              :loading="queryLoading"
-              class="btn-generate"
-              @click="handleGenerate"
-            >
-              Generate SQL Query
-            </el-button>
+        <!-- Step 2: SQL Review & Edit Card (Without horizontal header lines) -->
+        <div v-if="generatedSql || generateError" class="premium-card review-card">
+          <div class="card-header-simple">
+            <span class="card-title-text">
+              <Database :size="16" class="icon-database" />
+              SQL Query Review
+            </span>
+            <span class="step-badge step-2">Step 2: Verify & Edit</span>
           </div>
-        </el-card>
-
-        <!-- Step 2: SQL Review & Edit Card -->
-        <el-card v-if="generatedSql || generateError" class="editor-card review-card" shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span class="card-title-text">
-                <Database :size="16" class="icon-database" />
-                SQL Query Review
-              </span>
-              <span class="step-badge step-2">Step 2: Verify & Edit</span>
-            </div>
-          </template>
 
           <!-- Generation Error Alert -->
           <el-alert
@@ -99,10 +99,10 @@
             <div class="editor-wrapper">
               <div class="editor-header">
                 <span class="editor-label">Generated MySQL SELECT statement (You can edit it below)</span>
-                <el-button size="small" @click="copySQL" class="btn-copy">
+                <button @click="copySQL" class="btn-copy">
                   <component :is="copied ? Check : Copy" :size="12" style="margin-right: 4px;" />
                   {{ copied ? 'Copied' : 'Copy' }}
-                </el-button>
+                </button>
               </div>
 
               <!-- Interactive dark code editor -->
@@ -130,39 +130,37 @@
             </div>
 
             <div class="card-actions">
-              <el-button
-                type="success"
-                :loading="executionLoading"
-                class="btn-execute"
+              <button
+                :disabled="executionLoading"
+                class="modern-btn-execute"
                 @click="handleExecute"
               >
-                <Play :size="14" class="btn-icon" /> Run Query
+                <span v-if="executionLoading">Running...</span>
+                <span v-else>Run Query</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Query Results Card (Without horizontal header lines) -->
+        <div v-if="executionResult || executeError" class="premium-card result-card">
+          <div class="card-header-simple">
+            <span class="card-title-text">
+              <Database :size="16" class="icon-result" />
+              Query Results
+            </span>
+            <div v-if="executionResult && executionResult.success" class="result-actions">
+              <el-button
+                v-if="executionResult.rows && executionResult.rows.length"
+                size="small"
+                @click="exportCSV"
+                class="btn-export"
+              >
+                <FileSpreadsheet :size="14" style="margin-right: 4px;" />
+                Export CSV
               </el-button>
             </div>
           </div>
-        </el-card>
-
-        <!-- Step 3: Query Results Card -->
-        <el-card v-if="executionResult || executeError" class="result-card" shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span class="card-title-text">
-                <Database :size="16" class="icon-result" />
-                Query Results
-              </span>
-              <div v-if="executionResult && executionResult.success" class="result-actions">
-                <el-button
-                  v-if="executionResult.rows && executionResult.rows.length"
-                  size="small"
-                  @click="exportCSV"
-                  class="btn-export"
-                >
-                  <FileSpreadsheet :size="14" style="margin-right: 4px;" />
-                  Export CSV
-                </el-button>
-              </div>
-            </div>
-          </template>
 
           <!-- Execution Error Display -->
           <el-alert
@@ -214,20 +212,18 @@
               Query executed successfully, but returned 0 rows.
             </div>
           </div>
-        </el-card>
+        </div>
       </div>
 
-      <!-- Right Column: Database Schema/Metadata -->
+      <!-- Right Column: Database Schema/Metadata (Without horizontal header lines) -->
       <div class="schema-section">
-        <el-card class="schema-card" shadow="never">
-          <template #header>
-            <div class="card-header-schema">
-              <span class="card-title-text-schema">
-                <Database :size="16" class="icon-db-list" />
-                Available Schema
-              </span>
-            </div>
-          </template>
+        <div class="premium-card schema-card">
+          <div class="card-header-simple">
+            <span class="card-title-text">
+              <Database :size="16" class="icon-db-list" />
+              Available Schema
+            </span>
+          </div>
 
           <div v-if="metadataLoading" class="loading-schema">
             <el-skeleton :rows="6" animated />
@@ -245,16 +241,26 @@
               Only SELECT queries covering these whitelisted tables are permitted.
             </div>
           </div>
-        </el-card>
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- Reusable Agent Thinking Modal -->
+  <AgentThinking
+    :visible="queryLoading"
+    title="Agent is thinking"
+    footer="Please wait while LLM formulates the query..."
+    :steps="thoughtMessages"
+  />
+</div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Sparkles, Database, Play, RefreshCw, Copy, Check, FileSpreadsheet } from 'lucide-vue-next'
+import AgentThinking from '@components/AgentThinking.vue'
 import { 
   generateSQLOnly, 
   executeSQLDirectly,
@@ -285,6 +291,15 @@ const executionResult = ref<any>(null)
 const executeError = ref('')
 
 const copied = ref(false)
+
+// Thinking Modal Custom Thought Messages
+const thoughtMessages = [
+  'Analyzing database table schemas...',
+  'Matching prompt keywords with table white-list...',
+  'Connecting to DeepSeek LLM inference service...',
+  'Drafting MySQL SELECT statement query...',
+  'Applying safety checks on query complexity...'
+]
 
 // Fetch table names in schema
 const fetchMetadata = async () => {
@@ -327,6 +342,7 @@ const handleGenerate = async () => {
     return
   }
   queryLoading.value = true
+  
   generatedSql.value = ''
   generateError.value = ''
   executionResult.value = null
@@ -346,7 +362,10 @@ const handleGenerate = async () => {
     generateError.value = e.message || 'Server error occurred during SQL generation'
     ElMessage.error('Generation failed')
   } finally {
-    queryLoading.value = false
+    // Provide a small delay so the progress bar reaches 100% smoothly before overlay fades out
+    setTimeout(() => {
+      queryLoading.value = false
+    }, 450)
   }
 }
 
@@ -427,7 +446,8 @@ onMounted(() => {
 
 <style scoped>
 .sql-generator-container {
-  padding: 8px 0;
+  padding: 16px 0;
+  max-width: 1200px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -435,9 +455,8 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e5e7eb;
-  margin-bottom: 24px;
+  margin-bottom: 30px;
+  padding-top: 20px;
 }
 
 .page-title {
@@ -450,7 +469,7 @@ onMounted(() => {
 
 .page-sub {
   font-size: 14px;
-  color: #6b7280;
+  color: #9ca3af;
   margin: 0;
 }
 
@@ -487,32 +506,34 @@ onMounted(() => {
   gap: 24px;
 }
 
-/* ── Editor Card ── */
-.editor-card, .result-card, .schema-card {
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+/* ── Premium Minimalist Cards (Without Divider Lines) ── */
+.premium-card {
   background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   transition: all 0.2s ease;
 }
 
-.editor-card:hover, .result-card:hover, .schema-card:hover {
+.premium-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
-.card-header {
+.card-header-simple {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px; /* Spacer instead of a divider line */
 }
 
 .card-title-text {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: #0f172a;
 }
 
 .icon-sparkles {
@@ -537,35 +558,58 @@ onMounted(() => {
   background: #f0fdf4;
 }
 
-.prompt-textarea :deep(.el-textarea__inner) {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  font-size: 14px;
-  padding: 14px;
-  line-height: 1.5;
-  transition: all 0.15s;
-}
-
-.prompt-textarea :deep(.el-textarea__inner:focus) {
-  border-color: #111827;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08) !important;
-}
-
-/* ── Quick Templates ── */
-.templates-section {
-  margin-top: 14px;
+/* ── Modern Chat-like Input Container (ChatGPT Style) ── */
+.modern-input-container {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc; /* Sleek light slate background */
+  padding: 16px;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 16px;
+  transition: all 0.2s ease;
 }
 
-.label-text {
+.modern-input-container:focus-within {
+  border-color: #6366f1;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.08);
+}
+
+.modern-textarea {
+  width: 100%;
+  border: none;
+  background: transparent;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 14px;
+  color: #1e293b;
+  line-height: 1.6;
+  min-height: 60px;
+}
+
+.modern-textarea::placeholder {
+  color: #94a3b8;
+}
+
+.modern-input-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.templates-section-outside {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.templates-section-outside .label-text {
   font-size: 12px;
   font-weight: 600;
-  color: #9ca3af;
-  flex-shrink: 0;
+  color: #94a3b8;
 }
 
 .template-tags {
@@ -575,73 +619,51 @@ onMounted(() => {
 }
 
 .template-tag {
-  background: transparent;
-  color: #4b5563;
+  background: #f8fafc;
+  color: #475569;
   font-size: 12px;
-  padding: 5px 12px;
+  padding: 6px 14px;
   border-radius: 20px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
   border: 1px solid #e2e8f0;
   font-weight: 500;
 }
 
 .template-tag:hover {
-  background: #f8fafc;
+  background: #ffffff;
   color: #6366f1;
   border-color: #6366f1;
   box-shadow: 0 2px 6px rgba(99, 102, 241, 0.05);
 }
 
-.card-actions {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
+.modern-btn-generate {
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.btn-generate :deep(.el-button--primary), :deep(.el-button--primary) {
-  background-color: #111827 !important;
-  border: none !important;
-  border-radius: 10px !important;
-  height: 42px;
-  font-weight: 500;
-  padding: 10px 20px;
-  transition: all 0.15s;
-}
-
-.btn-generate:hover, :deep(.el-button--primary:hover) {
-  opacity: 0.88;
+.modern-btn-generate:hover:not(:disabled) {
+  background: #1e293b;
   transform: translateY(-1px);
 }
 
-.btn-generate:active, :deep(.el-button--primary:active) {
+.modern-btn-generate:active:not(:disabled) {
   transform: translateY(0);
 }
 
-.btn-execute :deep(.el-button--success), :deep(.el-button--success) {
-  background-color: #10b981 !important;
-  border: none !important;
-  border-radius: 10px !important;
-  height: 42px;
-  font-weight: 500;
-  padding: 10px 20px;
-  transition: all 0.15s;
+.modern-btn-generate:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
 }
 
-.btn-execute:hover, :deep(.el-button--success:hover) {
-  opacity: 0.88;
-  transform: translateY(-1px);
-}
-
-.btn-execute:active, :deep(.el-button--success:active) {
-  transform: translateY(0);
-}
-
-.btn-icon {
-  margin-right: 6px;
-}
-
-/* ── Code Editor Component ── */
+/* ── SQL Review Styles ── */
 .editor-wrapper {
   margin-bottom: 18px;
 }
@@ -656,39 +678,50 @@ onMounted(() => {
 .editor-label {
   font-size: 13px;
   font-weight: 600;
-  color: #4b5563;
+  color: #475569;
 }
 
 .btn-copy {
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s;
+}
+
+.btn-copy:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
 .code-editor-container {
   position: relative;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid #334155;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  border: 1px solid #0f172a;
 }
 
 .code-textarea {
   width: 100%;
   box-sizing: border-box;
-  background: #0f172a; /* Premium Slate 900 */
-  color: #38bdf8; /* Ocean blue code text */
+  background: #0f172a;
+  color: #38bdf8;
   font-family: Consolas, SFMono-Regular, "Liberation Mono", Menlo, Courier, monospace;
   font-size: 14px;
   line-height: 1.6;
   border: none;
-  padding: 18px 18px 32px;
+  padding: 16px 16px 28px;
   resize: vertical;
   outline: none;
   transition: all 0.2s;
 }
 
 .code-textarea:focus {
-  background: #020617; /* Slate 950 */
+  background: #020617;
 }
 
 .editor-status-tag {
@@ -703,38 +736,15 @@ onMounted(() => {
   pointer-events: none;
 }
 
-/* ── Result Display ── */
-.result-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-export {
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-}
-
-.result-alert {
-  border-radius: 10px;
-  margin-bottom: 16px;
-}
-
-.error-detail {
-  font-size: 12.5px;
-  color: #ef4444;
-  margin-top: 4px;
-}
-
-/* ── Stats Bar ── */
 .stats-bar-inner {
   display: flex;
   flex-wrap: wrap;
   gap: 24px;
   padding: 12px 18px;
-  background: #f9fafb;
+  background: #f8fafc;
   border-radius: 10px;
   margin-bottom: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
 }
 
 .stat-item {
@@ -745,18 +755,13 @@ onMounted(() => {
 }
 
 .stat-label {
-  color: #6b7280;
+  color: #64748b;
   font-weight: 500;
 }
 
 .stat-value {
-  color: #111827;
+  color: #0f172a;
   font-weight: 600;
-}
-
-.text-sec {
-  color: #4b5563;
-  font-weight: 500;
 }
 
 .danger-text {
@@ -776,10 +781,59 @@ onMounted(() => {
   border-color: #10b981 !important;
 }
 
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.modern-btn-execute {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modern-btn-execute:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.modern-btn-execute:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* ── Result Display ── */
+.result-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-export {
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.result-alert {
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.error-detail {
+  font-size: 12.5px;
+  color: #ef4444;
+  margin-top: 4px;
+}
+
 .table-container {
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
 }
 
 :deep(.el-table) {
@@ -787,26 +841,26 @@ onMounted(() => {
 }
 
 :deep(.el-table th.el-table__cell) {
-  background-color: #f9fafb;
-  color: #111827;
+  background-color: #f8fafc;
+  color: #0f172a;
   font-weight: 600;
 }
 
 .empty-rows-message {
   text-align: center;
   padding: 32px;
-  color: #6b7280;
+  color: #64748b;
   font-size: 13.5px;
-  background: #f9fafb;
+  background: #f8fafc;
   border-radius: 12px;
   border: 1px dashed #cbd5e1;
 }
 
-/* ── Schema Column ── */
+/* ── Schema Explorer ── */
 .card-header-schema {
   font-size: 14px;
   font-weight: 600;
-  color: #111827;
+  color: #0f172a;
 }
 
 .card-title-text-schema {
@@ -816,7 +870,7 @@ onMounted(() => {
 }
 
 .icon-db-list {
-  color: #4b5563;
+  color: #475569;
 }
 
 .tables-list {
@@ -850,7 +904,7 @@ onMounted(() => {
 
 .schema-footer-note {
   font-size: 11.5px;
-  color: #9ca3af;
+  color: #94a3b8;
   line-height: 1.4;
   margin-top: 14px;
   text-align: center;
