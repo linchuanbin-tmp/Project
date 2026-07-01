@@ -30,7 +30,8 @@ request.interceptors.response.use(
     (response) => {
         const res = response.data
 
-        if (res.code !== 200) {
+        // Check if response is wrapped in a standard Result class
+        if (res.code !== undefined && res.code !== 200) {
             ElMessage.error(res.message || 'Request failed')
 
             // 401: Token expired — only show dialog when inside the app, not on auth pages
@@ -51,7 +52,8 @@ request.interceptors.response.use(
             return Promise.reject(new Error(res.message || 'Error'))
         }
 
-        return res.data
+        // Return unwrapped data if wrapped, otherwise return raw payload
+        return res.code !== undefined ? res.data : res
     },
     (error) => {
         const response = error.response
