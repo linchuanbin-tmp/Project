@@ -2,20 +2,17 @@
 FROM maven:3.9-eclipse-temurin-17 AS builder
 WORKDIR /build
 
-COPY pom.xml .
-COPY user-service/pom.xml user-service/
-COPY gateway-service/pom.xml gateway-service/
-COPY task-service/pom.xml task-service/
-COPY tool-agent/pom.xml tool-agent/
+# Copy pom.xml and download dependencies
+COPY code-agent/pom.xml .
+RUN mvn dependency:go-offline -B
 
-RUN mvn install -N -q
-
-COPY gateway-service/src gateway-service/src
-RUN mvn package -pl gateway-service -DskipTests -q
+# Copy source files and compile
+COPY code-agent/src ./src
+RUN mvn package -DskipTests -q
 
 # ── Stage 2: Runtime ─────────────────────────────────────────
 FROM eclipse-temurin:17-jre
 WORKDIR /app
-COPY --from=builder /build/gateway-service/target/*.jar app.jar
+COPY --from=builder /build/target/*.jar app.jar
 ENV JAVA_OPTS="-Xmx256m -Xms128m"
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

@@ -1,9 +1,11 @@
 package com.agent.code.service;
 
+import com.agent.code.config.CodeAgentProperties;
 import com.agent.code.dto.CodeGenerationRequest;
 import com.agent.code.dto.CodeGenerationResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -22,9 +24,11 @@ import java.time.Duration;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 @ConditionalOnProperty(name = "code-agent.onnx.enabled", havingValue = "true")
 public class OnnxCodeGenerationService implements CodeGenerationService {
 
+    private final CodeAgentProperties codeAgentProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
@@ -40,7 +44,7 @@ public class OnnxCodeGenerationService implements CodeGenerationService {
                     java.util.Map.of("question", question));
 
             HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create("http://localhost:8090/infer"))
+                    .uri(URI.create(codeAgentProperties.getOnnx().getServerUrl()))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .timeout(Duration.ofSeconds(60))

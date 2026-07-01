@@ -35,7 +35,13 @@ open_new_terminal "Gateway (8080)"      "$JDK17 && cd '$PROJECT_DIR/gateway-serv
 sleep 1
 open_new_terminal "User Service (8081)" "$JDK17 && cd '$PROJECT_DIR/user-service'     && mvn spring-boot:run -DskipTests"
 sleep 1
+open_new_terminal "Task Service (8082)" "$JDK17 && cd '$PROJECT_DIR/task-service'     && mvn spring-boot:run -DskipTests"
+sleep 1
 open_new_terminal "Tool Agent (8083)"   "$JDK17 && cd '$PROJECT_DIR/tool-agent'       && mvn spring-boot:run -DskipTests"
+sleep 1
+open_new_terminal "Code Agent (8084)"   "$JDK17 && cd '$PROJECT_DIR/code-agent'       && mvn spring-boot:run -DskipTests"
+sleep 1
+open_new_terminal "Code Agent Python (8090)" "cd '$PROJECT_DIR/code-agent/data'       && python infer_server.py"
 sleep 1
 
 echo "🎨 启动前端..."

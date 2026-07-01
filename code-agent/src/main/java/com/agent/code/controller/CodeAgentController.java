@@ -22,7 +22,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/code")
+@RequestMapping("/code")
 @RequiredArgsConstructor
 public class CodeAgentController {
 

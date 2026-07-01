@@ -1,5 +1,5 @@
 # ── Stage 1: Build ──────────────────────────────────────────
-FROM maven:3.9-eclipse-temurin-17-alpine AS builder
+FROM maven:3.9-eclipse-temurin-17 AS builder
 WORKDIR /build
 
 COPY pom.xml .
@@ -14,7 +14,7 @@ COPY tool-agent/src tool-agent/src
 RUN mvn package -pl tool-agent -DskipTests -q
 
 # ── Stage 2: Runtime ─────────────────────────────────────────
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=builder /build/tool-agent/target/*.jar app.jar
 ENV JAVA_OPTS="-Xmx256m -Xms128m"

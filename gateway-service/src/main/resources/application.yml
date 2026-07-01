@@ -48,6 +48,14 @@ spring:
           filters:
             - SetPath=/tool/ws
 
+        # Code Agent 路由
+        - id: code-agent
+          uri: ${CODE_SERVICE_URI:http://localhost:8084}
+          predicates:
+            - Path=/api/code/**
+          filters:
+            - StripPrefix=1
+
   redis:
     host: localhost
     port: 6379
