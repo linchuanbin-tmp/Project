@@ -7,7 +7,13 @@
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# ⚠️  强制 Maven 使用 JDK 17（Homebrew 安装的 Maven 默认绑定 Java 26，会导致 Lombok 崩溃）
+# Load environment variables from .env if present
+if [ -f "$PROJECT_DIR/.env" ]; then
+    export $(grep -v '^#' "$PROJECT_DIR/.env" | xargs)
+    export DB_USER=$DB_USERNAME
+fi
+
+# ⚠️  强制 Maven 使用 JDK 17（Homebrew 安装 of Maven 默认绑定 Java 26，会导致 Lombok 崩溃）
 export JAVA_HOME=/Users/mitsuhahi/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home
 
 echo "🚀 启动基础设施（MySQL + Redis）..."
@@ -41,7 +47,7 @@ open_new_terminal "Tool Agent (8083)"   "$JDK17 && cd '$PROJECT_DIR/tool-agent' 
 sleep 1
 open_new_terminal "Code Agent (8084)"   "$JDK17 && cd '$PROJECT_DIR/code-agent'       && mvn spring-boot:run -DskipTests"
 sleep 1
-open_new_terminal "Code Agent Python (8090)" "cd '$PROJECT_DIR/code-agent/data'       && python3 infer_server.py"
+open_new_terminal "Code Agent Python (8090)" "export DB_PASSWORD='${DB_PASSWORD:-123456}' && export DB_USER='${DB_USERNAME:-root}' && cd '$PROJECT_DIR/code-agent/data'       && python3 infer_server.py"
 sleep 1
 
 echo "🎨 启动前端..."
