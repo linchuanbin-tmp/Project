@@ -491,31 +491,13 @@ onMounted(() => {
 .editor-card, .result-card, .schema-card {
   border-radius: 12px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   background: #ffffff;
-  transition: all 0.25s ease;
-  overflow: hidden;
+  transition: all 0.2s ease;
 }
 
 .editor-card:hover, .result-card:hover, .schema-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-}
-
-/* Minimalism Top Accents */
-.editor-card {
-  border-top: 3px solid #6366f1; /* Indigo brand accent */
-}
-
-.review-card {
-  border-top: 3px solid #10b981; /* Emerald green accent */
-}
-
-.result-card {
-  border-top: 3px solid #f59e0b; /* Amber warning/status accent */
-}
-
-.schema-card {
-  border-top: 3px solid #64748b; /* Slate gray accent */
 }
 
 .card-header {
@@ -850,15 +832,13 @@ onMounted(() => {
   padding: 8px 12px;
   background: #f8fafc;
   border-radius: 6px;
-  border: 1px solid #f1f5f9;
-  border-left: 3px solid #6366f1;
+  border: 1px solid #e2e8f0;
   transition: all 0.15s;
 }
 
 .table-schema-item:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
-  border-left-color: #4f46e5;
 }
 
 .table-name-tag code {
