@@ -27,6 +27,11 @@ export const getCodeMetadata = () => {
   return request.get('/code/metadata')
 }
 
+// 直接执行校阅后的 SQL (支持 Human-in-the-Loop)
+export const executeSQLDirectly = (data: { sql: string }) => {
+  return request.post('/code/execute', data)
+}
+
 // 刷新元数据
 export const refreshCodeMetadata = () => {
   return request.post('/code/metadata/refresh')
