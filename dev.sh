@@ -41,7 +41,7 @@ open_new_terminal "Tool Agent (8083)"   "$JDK17 && cd '$PROJECT_DIR/tool-agent' 
 sleep 1
 open_new_terminal "Code Agent (8084)"   "$JDK17 && cd '$PROJECT_DIR/code-agent'       && mvn spring-boot:run -DskipTests"
 sleep 1
-open_new_terminal "Code Agent Python (8090)" "cd '$PROJECT_DIR/code-agent/data'       && python infer_server.py"
+open_new_terminal "Code Agent Python (8090)" "cd '$PROJECT_DIR/code-agent/data'       && python3 infer_server.py"
 sleep 1
 
 echo "🎨 启动前端..."
