@@ -68,7 +68,7 @@
               class="btn-generate"
               @click="handleGenerate"
             >
-              <Sparkles :size="14" class="btn-icon" /> Generate SQL Query
+              Generate SQL Query
             </el-button>
           </div>
         </el-card>
