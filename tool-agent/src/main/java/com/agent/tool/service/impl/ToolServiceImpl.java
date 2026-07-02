@@ -195,14 +195,14 @@ public class ToolServiceImpl implements ToolService {
         JsonNode aiResult = parseJson(aiJson);
 
         List<Map<String, Object>> rooms = List.of(
-                Map.of("id", "A-101", "name", "第一会议室", "capacity", 20,
-                        "location", "1号楼3层", "equipment", List.of("投影仪", "白板"),
+                Map.of("id", "A-101", "name", "Conference Room A", "capacity", 20,
+                        "location", "Building 1, Floor 3", "equipment", List.of("Projector", "Whiteboard"),
                         "available", true, "aiMatchScore", 95,
-                        "aiReasoning", aiResult.path("reasoning").asText("符合要求")),
-                Map.of("id", "A-102", "name", "第二会议室", "capacity", 10,
-                        "location", "1号楼3层", "equipment", List.of("白板"),
+                        "aiReasoning", aiResult.path("reasoning").asText("Meets requirements")),
+                Map.of("id", "A-102", "name", "Meeting Room B", "capacity", 10,
+                        "location", "Building 1, Floor 3", "equipment", List.of("Whiteboard"),
                         "available", true, "aiMatchScore", 60,
-                        "aiReasoning", "容量偏小，但可用")
+                        "aiReasoning", "Smaller capacity but available")
         );
 
         Map<String, Object> data = new HashMap<>();

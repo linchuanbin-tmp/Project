@@ -58,22 +58,7 @@
               {{ isExecuting ? 'Processing...' : 'Send to AI' }}
             </el-button>
 
-            <!-- Real-time progress bar -->
-            <div v-if="taskStatus" class="progress-section">
-              <el-divider />
-              <div class="progress-info">
-                <span class="status-label">{{ taskMessage }}</span>
-                <span class="progress-percent">{{ taskProgress }}%</span>
-              </div>
-              <el-progress
-                  :percentage="taskProgress"
-                  :status="taskStatus === 'completed' ? 'success' : taskStatus === 'error' ? 'exception' : ''"
-                  :stroke-width="10"
-                  striped
-                  striped-flow
-                  :duration="10"
-              />
-            </div>
+            <AgentThinking :visible="isExecuting" />
 
             <!-- AI result (shown after task completes) -->
             <div v-if="aiResponse" class="ai-result">
@@ -84,10 +69,18 @@
               <div v-if="aiResponse.aiParsed">
                 <el-descriptions :column="1" border size="small">
                   <el-descriptions-item label="Intent">{{ aiResponse.aiParsed.intent || 'Query' }}</el-descriptions-item>
-                  <el-descriptions-item label="Date">{{ aiResponse.aiParsed.date || 'Today' }}</el-descriptions-item>
-                  <el-descriptions-item label="Time range">{{ aiResponse.aiParsed.timeRange || 'Not specified' }}</el-descriptions-item>
-                  <el-descriptions-item label="Capacity">{{ aiResponse.aiParsed.capacity || 'Not specified' }}</el-descriptions-item>
-                  <el-descriptions-item v-if="aiResponse.aiParsed.equipment" label="Equipment">{{ aiResponse.aiParsed.equipment?.join(', ') || 'None' }}</el-descriptions-item>
+                  <el-descriptions-item label="Date">
+                    {{ aiResponse.aiParsed.parameters?.date || aiResponse.aiParsed.date || 'Today' }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="Time range">
+                    {{ aiResponse.aiParsed.parameters?.timeRange || aiResponse.aiParsed.timeRange || 'Not specified' }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="Capacity">
+                    {{ aiResponse.aiParsed.parameters?.capacity || aiResponse.aiParsed.capacity || 'Not specified' }}
+                  </el-descriptions-item>
+                  <el-descriptions-item v-if="aiResponse.aiParsed.parameters?.equipment || aiResponse.aiParsed.equipment" label="Equipment">
+                    {{ (aiResponse.aiParsed.parameters?.equipment || aiResponse.aiParsed.equipment)?.join(', ') || 'None' }}
+                  </el-descriptions-item>
                 </el-descriptions>
               </div>
 
@@ -153,6 +146,7 @@ import { wsClient } from '@utils/websocket'
 import MeetingAgent from './components/MeetingAgent.vue'
 import ScheduleAgent from './components/ScheduleAgent.vue'
 import RouteAgent from './components/RouteAgent.vue'
+import AgentThinking from '@/components/AgentThinking.vue'
 
 const router = useRouter()
 const activeTab = ref('meeting')
@@ -162,23 +156,92 @@ const meetingAgentRef = ref<any>(null)
 const scheduleAgentRef = ref<any>(null)
 const routeAgentRef = ref<any>(null)
 
+// Extract standard yyyy-MM-dd date from English months text
+const tryParseEnglishDate = (str: string): string | null => {
+  const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+  const shortMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+  
+  const text = str.toLowerCase()
+  let monthIndex = -1
+  let day = -1
+  
+  for (let i = 0; i < 12; i++) {
+    if (text.includes(months[i])) {
+      monthIndex = i
+      break
+    }
+  }
+  
+  if (monthIndex === -1) {
+    for (let i = 0; i < 12; i++) {
+      if (text.includes(shortMonths[i])) {
+        monthIndex = i
+        break
+      }
+    }
+  }
+  
+  if (monthIndex !== -1) {
+    const dayMatch = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\b/)
+    if (dayMatch) {
+      day = Number(dayMatch[1])
+    }
+  }
+  
+  if (monthIndex !== -1 && day !== -1) {
+    const year = 2026
+    const mStr = String(monthIndex + 1).padStart(2, '0')
+    const dStr = String(day).padStart(2, '0')
+    return `${year}-${mStr}-${dStr}`
+  }
+  
+  return null
+}
+
 // Extract date, capacity, time range from natural language
 const extractFromQuery = (query: string) => {
-  const dateMatch = query.match(/(\d{1,2})月(\d{1,2})[日号]/)
-  const capMatch = query.match(/(\d+)[人个位]/)
-  const rangeMatch = query.match(/(\d{1,2})月(\d{1,2})[日号][至到](\d{1,2})月(\d{1,2})[日号]/)
+  // Chinese matches
+  const dateMatchCh = query.match(/(\d{1,2})月(\d{1,2})[日号]/)
+  const capMatchCh = query.match(/(\d+)[人个位]/)
+  const rangeMatchCh = query.match(/(\d{1,2})月(\d{1,2})[日号][至到](\d{1,2})月(\d{1,2})[日号]/)
+
+  // English matches
+  const capMatchEn = query.match(/\b(\d+)\s*(people|person|users?|pax)\b/i)
+  const timeRangeMatchEn = query.match(/\b(\d{1,2}):(\d{2})\s*(?:-|to)\s*(\d{1,2}):(\d{2})\b/i)
+
+  const standardDate = tryParseEnglishDate(query)
+
+  let date = null
+  if (dateMatchCh) {
+    date = `2026-${dateMatchCh[1].padStart(2,'0')}-${dateMatchCh[2].padStart(2,'0')}`
+  } else if (standardDate) {
+    date = standardDate
+  }
+
+  let capacity = null
+  if (capMatchCh) {
+    capacity = Number(capMatchCh[1])
+  } else if (capMatchEn) {
+    capacity = Number(capMatchEn[1])
+  }
 
   let timeRange = null
-  if (rangeMatch) {
-    const start = `2026-${rangeMatch[1].padStart(2,'0')}-${rangeMatch[2].padStart(2,'0')}`
-    const end = `2026-${rangeMatch[3].padStart(2,'0')}-${rangeMatch[4].padStart(2,'0')}`
+  if (rangeMatchCh) {
+    const start = `2026-${rangeMatchCh[1].padStart(2,'0')}-${rangeMatchCh[2].padStart(2,'0')}`
+    const end = `2026-${rangeMatchCh[3].padStart(2,'0')}-${rangeMatchCh[4].padStart(2,'0')}`
     timeRange = `${start} to ${end}`
+  } else if (timeRangeMatchEn) {
+    const sh = timeRangeMatchEn[1].padStart(2, '0')
+    const sm = timeRangeMatchEn[2]
+    const eh = timeRangeMatchEn[3].padStart(2, '0')
+    const em = timeRangeMatchEn[4]
+    timeRange = `${sh}:${sm} to ${eh}:${em}`
   }
 
   return {
-    date: dateMatch ? `2026-${dateMatch[1].padStart(2,'0')}-${dateMatch[2].padStart(2,'0')}` : null,
-    capacity: capMatch ? Number(capMatch[1]) : null,
-    timeRange: timeRange
+    date,
+    capacity,
+    timeRange
   }
 }
 
@@ -310,28 +373,39 @@ const fetchTaskResult = async () => {
 
     } else if (targetTab === 'schedule') {
       const extracted = extractFromQuery(naturalQuery.value)
+      const aiParams = payload.aiParsed?.parameters || {}
+      
       if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
-      aiResponse.value.aiParsed.date = 'N/A'
-      aiResponse.value.aiParsed.timeRange = extracted.timeRange || 'N/A'
-      aiResponse.value.aiParsed.capacity = 'N/A'
-      aiResponse.value.aiParsed.equipment = null
+      if (!aiResponse.value.aiParsed.parameters) aiResponse.value.aiParsed.parameters = {}
 
+      // Prefer AI-extracted parameters
+      const parsedTimeRangeStr = aiParams.timeRange || extracted.timeRange || 'Not specified'
+      const parsedAttendees = aiParams.attendees || []
+      
+      aiResponse.value.aiParsed.parameters.timeRange = parsedTimeRangeStr
+      aiResponse.value.aiParsed.parameters.attendees = parsedAttendees
+      aiResponse.value.aiParsed.parameters.date = aiParams.date || extracted.date || 'Today'
+      
       let timeRange: Date[] = []
-      let attendees: string[] = []
+      let attendees: string[] = parsedAttendees
 
-      if (extracted.timeRange) {
-        const parts = extracted.timeRange.split(' to ')
+      // Parse time range to dates
+      if (parsedTimeRangeStr && parsedTimeRangeStr !== 'Not specified') {
+        const parts = parsedTimeRangeStr.split(' to ')
         if (parts.length === 2) {
           timeRange = [new Date(parts[0] + 'T00:00:00'), new Date(parts[1] + 'T00:00:00')]
         }
       }
 
-      const userMatch = naturalQuery.value.match(/(admin|user|zhangsan|lisi|张三|李四)/i)
-      if (userMatch) {
-        const userMap: Record<string, string> = {
-          'admin': 'admin', 'user': 'user', 'zhangsan': 'zhangsan', '张三': 'zhangsan', 'lisi': 'lisi', '李四': 'lisi'
+      // Fallback attendee regex if AI didn't catch it
+      if (attendees.length === 0) {
+        const userMatch = naturalQuery.value.match(/(admin|user|zhangsan|lisi|张三|李四)/i)
+        if (userMatch) {
+          const userMap: Record<string, string> = {
+            'admin': 'admin', 'user': 'user', 'zhangsan': 'zhangsan', '张三': 'zhangsan', 'lisi': 'lisi', '李四': 'lisi'
+          }
+          attendees = [userMap[userMatch[0].toLowerCase()] || userMatch[0]]
         }
-        attendees = [userMap[userMatch[0].toLowerCase()] || userMatch[0]]
       }
 
       scheduleAgentRef.value?.setScheduleData({ timeRange, attendees })
@@ -346,17 +420,43 @@ const fetchTaskResult = async () => {
 
     } else if (targetTab === 'meeting') {
       const extracted = extractFromQuery(naturalQuery.value)
+      const aiParams = payload.aiParsed?.parameters || {}
+      
       const updateData: any = {}
-      if (extracted.date) updateData.date = new Date(extracted.date + 'T00:00:00')
-      if (extracted.capacity) updateData.capacity = extracted.capacity
+      
+      // Determine final date string
+      const aiDate = aiParams.date || extracted.date
+      let finalDateStr = extracted.date
+      if (aiDate) {
+        if (aiDate.toLowerCase() === 'today') {
+          finalDateStr = new Date().toISOString().split('T')[0]
+        } else if (aiDate.toLowerCase() === 'tomorrow') {
+          const tom = new Date()
+          tom.setDate(tom.getDate() + 1)
+          finalDateStr = tom.toISOString().split('T')[0]
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(aiDate)) {
+          finalDateStr = aiDate
+        } else {
+          const parsed = tryParseEnglishDate(aiDate)
+          finalDateStr = parsed || aiDate
+        }
+      }
+      
+      const finalCapacity = aiParams.capacity ? Number(aiParams.capacity) : extracted.capacity
+
+      if (finalDateStr) updateData.date = new Date(finalDateStr + 'T00:00:00')
+      if (finalCapacity) updateData.capacity = finalCapacity
 
       meetingAgentRef.value?.setMeetingData(updateData)
       await meetingAgentRef.value?.queryMeetingRooms()
 
       if (aiResponse.value) {
         if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
-        aiResponse.value.aiParsed.date = extracted.date || aiResponse.value.aiParsed.date || 'Today'
-        aiResponse.value.aiParsed.capacity = extracted.capacity ? String(extracted.capacity) : (aiResponse.value.aiParsed.capacity || 'Not specified')
+        if (!aiResponse.value.aiParsed.parameters) aiResponse.value.aiParsed.parameters = {}
+        
+        aiResponse.value.aiParsed.parameters.date = finalDateStr || 'Today'
+        aiResponse.value.aiParsed.parameters.capacity = finalCapacity ? String(finalCapacity) : 'Not specified'
+        aiResponse.value.aiParsed.parameters.timeRange = aiParams.timeRange || extracted.timeRange || 'Not specified'
         
         aiResponse.value.rooms = (meetingAgentRef.value?.meetingRooms || []).map((room: any) => ({
           id: room.id,

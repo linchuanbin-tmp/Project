@@ -54,11 +54,14 @@ public class MeetingRoomServiceImpl extends ServiceImpl<MeetingRoomMapper, Meeti
             map.put("id", room.getId().toString());
             map.put("name", room.getRoomName());
             map.put("capacity", room.getCapacity());
-            map.put("location", room.getFloor() + "号楼");
+            String building = room.getBuilding();
+            String floor = room.getFloor();
+            String location = (building != null && !building.trim().isEmpty() ? building + ", " : "") + "Floor " + floor;
+            map.put("location", location);
             map.put("equipment", equipment);
-            map.put("available", !isBooked);      // true=可预定, false=已预定
-            map.put("statusText", isBooked ? "已预定" : "可预定");
-            map.put("nextBooking", isBooked ? "该时段已被预定" : "");
+            map.put("available", !isBooked);
+            map.put("statusText", isBooked ? "Booked" : "Available");
+            map.put("nextBooking", isBooked ? "This time slot is already booked" : "");
             result.add(map);
         }
         return result;
@@ -88,7 +91,7 @@ public class MeetingRoomServiceImpl extends ServiceImpl<MeetingRoomMapper, Meeti
     }
 
     @Override
-    public void addPersonalSchedule(ScheduleCreateRequest request) {
+    public MeetingSchedule addPersonalSchedule(ScheduleCreateRequest request) {
         MeetingSchedule schedule = new MeetingSchedule();
         schedule.setRoomId(0L); // 0 表示个人日程，无会议室
         schedule.setBooker(request.getUserId());
@@ -97,5 +100,32 @@ public class MeetingRoomServiceImpl extends ServiceImpl<MeetingRoomMapper, Meeti
         schedule.setTopic(request.getEventName());
         schedule.setStatus(1);
         scheduleMapper.insert(schedule);
+        return schedule;
+    }
+
+    @Override
+    public List<Map<String, Object>> getSchedulesForUsers(List<String> users, LocalDateTime startTime, LocalDateTime endTime) {
+        LambdaQueryWrapper<MeetingSchedule> query = new LambdaQueryWrapper<>();
+        query.eq(MeetingSchedule::getStatus, 1);
+        if (users != null && !users.isEmpty()) {
+            query.in(MeetingSchedule::getBooker, users);
+        }
+        query.ge(MeetingSchedule::getEndTime, startTime);
+        query.le(MeetingSchedule::getStartTime, endTime);
+        query.orderByAsc(MeetingSchedule::getStartTime);
+
+        List<MeetingSchedule> list = scheduleMapper.selectList(query);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (MeetingSchedule schedule : list) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", schedule.getId());
+            map.put("booker", schedule.getBooker());
+            map.put("startTime", schedule.getStartTime());
+            map.put("endTime", schedule.getEndTime());
+            map.put("topic", schedule.getTopic());
+            map.put("roomId", schedule.getRoomId());
+            result.add(map);
+        }
+        return result;
     }
 }

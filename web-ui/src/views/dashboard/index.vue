@@ -134,13 +134,12 @@ const services = [
   flex-direction: column;
   align-items: flex-start;
   gap: 0;
-  transition: box-shadow 0.15s, border-color 0.15s, transform 0.12s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .action-card:hover {
-  box-shadow: 0 4px 20px rgba(0,0,0,0.07);
+  background: #f9fafb;
   border-color: #e5e7eb;
-  transform: translateY(-2px);
 }
 
 .action-icon-wrap {

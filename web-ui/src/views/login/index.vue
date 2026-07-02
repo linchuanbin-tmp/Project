@@ -59,7 +59,7 @@ const userStore = useUserStore()
 const loading = ref(false)
 const formRef = ref()
 
-const form = reactive({ username: 'admin', password: '123456' })
+const form = reactive({ username: '', password: '' })
 
 const rules = {
   username: [

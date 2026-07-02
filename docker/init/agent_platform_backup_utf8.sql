@@ -14,7 +14,8 @@ DROP TABLE IF EXISTS `meeting_room`;
 CREATE TABLE `meeting_room` (
   `id`          bigint      NOT NULL AUTO_INCREMENT,
   `room_name`   varchar(50) NOT NULL           COMMENT '会议室名称',
-  `floor`       int         NOT NULL           COMMENT '楼层',
+  `building`    varchar(100) DEFAULT NULL      COMMENT '楼宇',
+  `floor`       varchar(20) NOT NULL           COMMENT '楼层',
   `capacity`    int         NOT NULL           COMMENT '容纳人数',
   `facilities`  varchar(200) DEFAULT NULL      COMMENT '设备（投影仪/白板等）',
   `status`      int          DEFAULT '1'       COMMENT '1可用 0维护中',
@@ -28,10 +29,10 @@ CREATE TABLE `meeting_room` (
   COMMENT='会议室表';
 
 INSERT INTO `meeting_room` VALUES
-  (1, 'Room 301', 3, 10, 'Projector,Whiteboard',              1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
-  (2, 'Room 302', 3, 20, 'Projector,Video Conference',        1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
-  (3, 'Room 201', 2,  8, 'Whiteboard',                 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
-  (4, 'Room 501 (Large)', 5, 50, 'Projector,Audio,Video Conference', 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
+  (1, 'Room 301', 'Building A', '3', 10, 'Projector,Whiteboard',              1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
+  (2, 'Room 302', 'Building A', '3', 20, 'Projector,Video Conference',        1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
+  (3, 'Room 201', 'Building A', '2',  8, 'Whiteboard',                 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
+  (4, 'Room 501 (Large)', 'Building B', '5', 50, 'Projector,Audio,Video Conference', 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
 
 -- ----------------------------
 -- 会议/日程预约表

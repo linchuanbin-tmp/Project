@@ -64,7 +64,7 @@ const startThinkingAnimation = () => {
     if (props.steps.length === 0) return
     messageIndex = (messageIndex + 1) % props.steps.length
     currentThoughtMessage.value = props.steps[messageIndex]
-  }, 900)
+  }, 2000)
 
   progressInterval = setInterval(() => {
     if (progressPercentage.value < 92) {

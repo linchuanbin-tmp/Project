@@ -46,7 +46,7 @@ public class MeetingRoomAdminController {
             if (!StringUtils.hasText(room.getRoomName())) {
                 return Result.error("Room name is required");
             }
-            if (room.getFloor() == null) {
+            if (!StringUtils.hasText(room.getFloor())) {
                 return Result.error("Floor is required");
             }
             if (room.getCapacity() == null || room.getCapacity() <= 0) {
