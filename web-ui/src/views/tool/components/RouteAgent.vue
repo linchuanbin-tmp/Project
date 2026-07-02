@@ -40,24 +40,13 @@
         </el-form>
       </div>
 
-      <!-- Results panel OR loading messages -->
-      <div v-if="loading || routePath.length > 0" class="panel-results-section">
-        <el-divider class="panel-divider" />
-        
-        <!-- Loading Carousel -->
-        <div v-if="loading" class="loading-carousel-container">
-          <div class="carousel-track">
-            <transition name="carousel-blur-fade" mode="out-in">
-              <div :key="currentLoadingMsg" class="carousel-slide-item">
-                <div class="pulse-ring-loader"></div>
-                <span class="carousel-text">{{ currentLoadingMsg }}</span>
-              </div>
-            </transition>
-          </div>
-        </div>
-
+    <!-- Results panel -->
+    <div v-if="routePath.length > 0" class="panel-results-section">
+      <el-divider class="panel-divider" />
+      
+      <div>
         <!-- Real Results Section -->
-        <div v-else>
+        <div>
           <div class="compact-stats">
             <div class="compact-stat-item">
               <span class="stat-lbl">Time</span>
@@ -97,12 +86,22 @@
       </div>
     </div>
   </div>
+    
+    <!-- Premium Agent Thinking Modal for Route Planning -->
+    <AgentThinking
+      :visible="loading"
+      title="Route Agent is planning"
+      footer="Please wait while Route Agent queries routing engine..."
+      :steps="routeThoughtSteps"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onUnmounted } from 'vue'
+import { ref, reactive, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import MapContainer from '@components/MapContainer.vue'
+import AgentThinking from '@components/AgentThinking.vue'
 import { planRoute as planRouteApi } from '@api/tool'
 
 const loading = ref(false)
@@ -148,45 +147,18 @@ const routeForm = reactive({
   mode: 'driving'
 })
 
-// Loading carousel messages
-const loadingMessages = [
-  'Planning route...',
-  'Locating coordinates...',
-  'Calculating optimal path...',
-  'Analyzing traffic conditions...',
-  'Generating directions steps...',
-  'Rendering path on map...'
+// Specific thought messages for Route Agent
+const routeThoughtSteps = [
+  'Resolving origin and destination coordinates...',
+  'Querying real-time traffic conditions...',
+  'Calculating optimal path via routing engine...',
+  'Generating step-by-step navigation instructions...',
+  'Rendering coordinates path onto Map stage...'
 ]
-const currentMsgIndex = ref(0)
-const currentLoadingMsg = computed(() => loadingMessages[currentMsgIndex.value])
-let loadingIntervalId: any = null
 
-const startLoadingCarousel = () => {
-  currentMsgIndex.value = 0
-  if (loadingIntervalId) clearInterval(loadingIntervalId)
-  loadingIntervalId = setInterval(() => {
-    currentMsgIndex.value = (currentMsgIndex.value + 1) % loadingMessages.length
-  }, 1800)
-}
 
-const stopLoadingCarousel = () => {
-  if (loadingIntervalId) {
-    clearInterval(loadingIntervalId)
-    loadingIntervalId = null
-  }
-}
 
-watch(loading, (newVal) => {
-  if (newVal) {
-    startLoadingCarousel()
-  } else {
-    stopLoadingCarousel()
-  }
-})
 
-onUnmounted(() => {
-  stopLoadingCarousel()
-})
 
 const getTrafficClass = (status: string) => {
   if (!status) return 'traffic-clear'
@@ -438,63 +410,7 @@ defineExpose({ setRouteData })
   background-color: currentColor;
 }
 
-/* Loading Carousel styling */
-.loading-carousel-container {
-  padding: 16px 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-.carousel-track {
-  width: 100%;
-  height: 36px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  position: relative;
-}
-.carousel-slide-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #007aff;
-}
-.pulse-ring-loader {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: #007aff;
-  box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.7);
-  animation: ring-pulse 1.2s infinite cubic-bezier(0.66, 0, 0, 1);
-}
-@keyframes ring-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 6px rgba(0, 122, 255, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(0, 122, 255, 0);
-  }
-}
-/* Blur transition animations */
-.carousel-blur-fade-enter-active,
-.carousel-blur-fade-leave-active {
-  transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
-  position: absolute;
-}
-.carousel-blur-fade-enter-from {
-  opacity: 0;
-  filter: blur(8px);
-}
-.carousel-blur-fade-leave-to {
-  opacity: 0;
-  filter: blur(8px);
-}
+
 
 /* Scrollable Directions inside Floating Panel */
 .panel-directions-list {

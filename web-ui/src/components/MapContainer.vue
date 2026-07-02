@@ -78,6 +78,11 @@ const initMap = async () => {
 
     // 地图加载完成后绘制路线
     map.on('complete', () => {
+      try {
+        map.setLang('en')
+      } catch (e) {
+        console.warn('Failed to set map language to English:', e)
+      }
       isMapLoaded.value = true
       updateRoute()
     })

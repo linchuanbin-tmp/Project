@@ -2,10 +2,13 @@ package com.agent.tool.controller;
 
 import com.agent.tool.dto.*;
 import com.agent.tool.entity.MeetingRoom;
+import com.agent.tool.entity.MeetingSchedule;
 import com.agent.tool.service.AmapService;
 import com.agent.tool.service.MeetingRoomService;
+import com.agent.tool.service.MeetingScheduleService;
 import com.agent.tool.service.ScheduleService;
 import com.agent.tool.service.ToolService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.ArrayList;
 
 @Slf4j
 @RestController
@@ -26,6 +30,7 @@ public class ToolController {
     private final AmapService amapService;
     private final MeetingRoomService meetingRoomService;
     private final ScheduleService scheduleService;
+    private final MeetingScheduleService meetingScheduleService;
 
     @PostMapping("/execute")
     public Result<Map<String, Object>> executeTool(@RequestBody ToolRequest request) {
@@ -87,6 +92,10 @@ public class ToolController {
         String startTimeStr = (String) request.get("startTime");
         String endTimeStr = (String) request.get("endTime");
 
+        if (attendees == null || attendees.isEmpty()) {
+            return Result.error("Please select at least one attendee to check conflict.");
+        }
+
         LocalDateTime startTime = parseTime(startTimeStr);
         LocalDateTime endTime = endTimeStr != null ? parseTime(endTimeStr) : startTime.plusHours(1);
 
@@ -108,7 +117,7 @@ public class ToolController {
         result.put("conflictType", hasConflict ? "TIME_CONFLICT" : "NONE");
         result.put("conflictUser", hasConflict ? conflictUser : "");
         result.put("suggestedTime", hasConflict ? List.of() : List.of());
-        result.put("message", hasConflict ? "用户 " + conflictUser + " 日程冲突" : "时段可用");
+        result.put("message", hasConflict ? "User " + conflictUser + " has a schedule conflict" : "All attendees are available during this time slot");
         return Result.success(result);
     }
 
@@ -117,18 +126,18 @@ public class ToolController {
      */
     @PostMapping("/schedule/create")
     public Result<String> createSchedule(@RequestBody ScheduleCreateRequest request) {
-        // 1. 写入数据库（meeting_schedule 表，roomId=0 表示个人日程）
-        meetingRoomService.addPersonalSchedule(request);
+        // 1. 写入数据库（meeting_schedule 表，roomId=0 表示个人日程）并且返回带主键的对象
+        MeetingSchedule schedule = meetingRoomService.addPersonalSchedule(request);
 
-        // 2. 写入 Redis（用于快速冲突检测）
+        // 2. 写入 Redis（用于快速冲突检测），使用 event_ + id 作为唯一标识
         scheduleService.addSchedule(
                 request.getUserId(),
-                request.getEventId(),
+                "event_" + schedule.getId(),
                 request.getStartTime(),
                 request.getEndTime()
         );
 
-        return Result.success("日程添加成功");
+        return Result.success("Schedule added successfully");
     }
 
     @PostMapping("/schedule/add")
@@ -139,13 +148,100 @@ public class ToolController {
                 request.getStartTime(),
                 request.getEndTime()
         );
-        return Result.success("日程添加成功");
+        return Result.success("Schedule added successfully");
     }
 
     @PostMapping("/schedule/remove")
     public Result<String> removeSchedule(@RequestParam String userId, @RequestParam String eventId) {
         scheduleService.removeSchedule(userId, eventId);
-        return Result.success("日程删除成功");
+        return Result.success("Schedule deleted successfully");
+    }
+
+    @GetMapping("/schedules")
+    public Result<List<Map<String, Object>>> getSchedules(
+            @RequestParam String date,
+            @RequestParam(required = false) List<String> users) {
+        try {
+            java.time.LocalDate d = java.time.LocalDate.parse(date);
+            LocalDateTime startOfDay = d.atStartOfDay();
+            LocalDateTime endOfDay = d.atTime(23, 59, 59);
+
+            List<Map<String, Object>> list = meetingRoomService.getSchedulesForUsers(users, startOfDay, endOfDay);
+            return Result.success(list);
+        } catch (Exception e) {
+            log.error("Failed to query schedules", e);
+            return Result.error(e.getMessage());
+        }
+    }
+
+    @GetMapping("/my-schedules")
+    public Result<List<Map<String, Object>>> getMySchedules(
+            @RequestHeader(value = "X-User-Name", required = true) String username) {
+        try {
+            LambdaQueryWrapper<MeetingSchedule> query = new LambdaQueryWrapper<>();
+            query.eq(MeetingSchedule::getBooker, username)
+                 .eq(MeetingSchedule::getStatus, 1)
+                 .orderByDesc(MeetingSchedule::getStartTime);
+            List<MeetingSchedule> list = meetingScheduleService.list(query);
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (MeetingSchedule schedule : list) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", schedule.getId());
+                map.put("booker", schedule.getBooker());
+                map.put("startTime", schedule.getStartTime());
+                map.put("endTime", schedule.getEndTime());
+                map.put("topic", schedule.getTopic());
+                map.put("roomId", schedule.getRoomId());
+                
+                if (schedule.getRoomId() != null && schedule.getRoomId() > 0) {
+                    MeetingRoom room = meetingRoomService.getById(schedule.getRoomId());
+                    if (room != null) {
+                        map.put("roomName", room.getRoomName());
+                        map.put("location", (room.getBuilding() != null && !room.getBuilding().trim().isEmpty() ? room.getBuilding() + ", " : "") + "Floor " + room.getFloor());
+                    } else {
+                        map.put("roomName", "Room " + schedule.getRoomId());
+                        map.put("location", "Unknown Location");
+                    }
+                } else {
+                    map.put("roomName", "Personal Schedule");
+                    map.put("location", "N/A");
+                }
+                result.add(map);
+            }
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("Failed to query user schedules", e);
+            return Result.error(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/my-schedule/{id}")
+    public Result<String> deleteMySchedule(
+            @RequestHeader(value = "X-User-Name", required = true) String username,
+            @PathVariable Long id) {
+        try {
+            MeetingSchedule schedule = meetingScheduleService.getById(id);
+            if (schedule == null) {
+                return Result.error("Schedule not found");
+            }
+            if (!username.equals(schedule.getBooker())) {
+                return Result.error("Permission denied: You do not own this schedule");
+            }
+            
+            // Set status to 0 to cancel
+            schedule.setStatus(0);
+            meetingScheduleService.updateById(schedule);
+            
+            // If personal schedule, remove from Redis
+            if (schedule.getRoomId() == null || schedule.getRoomId() == 0) {
+                scheduleService.removeSchedule(username, "event_" + id);
+            }
+            
+            return Result.success("Schedule cancelled successfully");
+        } catch (Exception e) {
+            log.error("Failed to cancel schedule", e);
+            return Result.error(e.getMessage());
+        }
     }
 
     @GetMapping("/route")

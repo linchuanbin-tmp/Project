@@ -1,31 +1,32 @@
 <template>
-  <div>
-    <el-form :model="meetingForm" label-position="top">
-      <el-row :gutter="20">
-        <el-col :xs="24" :sm="14">
+  <div class="meeting-agent-container">
+    <div class="search-bar-wrap">
+      <el-form :model="meetingForm" label-position="top" class="search-inline-form">
+        <div class="form-field date-field">
           <el-form-item label="Date">
             <el-date-picker
                 v-model="meetingForm.date"
                 type="date"
                 placeholder="Select date"
+                :disabled-date="disabledDate"
                 style="width: 100%;"
             />
           </el-form-item>
-        </el-col>
-        <el-col :xs="24" :sm="10">
+        </div>
+        
+        <div class="form-field capacity-field">
           <el-form-item label="Capacity">
             <el-input-number v-model="meetingForm.capacity" :min="1" :max="100" style="width: 100%;" />
           </el-form-item>
-        </el-col>
-      </el-row>
-      <el-form-item style="margin-top: 10px; margin-bottom: 0;">
-        <el-button type="primary" @click="queryMeetingRooms" :loading="loading">
-          Query Available Rooms
-        </el-button>
-      </el-form-item>
-    </el-form>
+        </div>
 
-    <el-divider />
+        <div class="form-field button-field">
+          <el-button type="primary" class="query-btn" @click="queryMeetingRooms" :loading="loading">
+            Search Rooms
+          </el-button>
+        </div>
+      </el-form>
+    </div>
 
     <div v-if="meetingRooms.length > 0" class="room-results-section">
       <h4 class="results-heading">Available Rooms</h4>
@@ -83,7 +84,13 @@
         </el-col>
       </el-row>
     </div>
-    <el-empty v-else description="Search for meeting rooms by choosing a date above" />
+    <div v-else class="empty-state-card">
+      <div class="empty-icon-box">
+        <Calendar class="empty-icon" :size="20" :stroke-width="1.8" />
+      </div>
+      <h5 class="empty-title">Find Available Rooms</h5>
+      <p class="empty-desc">Select a date and capacity above to query available meeting rooms.</p>
+    </div>
   </div>
 </template>
 
@@ -91,10 +98,16 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getMeetingRooms } from '@api/tool'
+import { Calendar } from 'lucide-vue-next'
 
 const loading = ref(false)
 const bookingRoomId = ref<string | null>(null)
 const meetingRooms = ref<any[]>([])
+
+const disabledDate = (time: Date) => {
+  // Prevent choosing any date before today (8.64e7 ms is exactly 1 day)
+  return time.getTime() < Date.now() - 8.64e7
+}
 
 const meetingForm = reactive({
   date: '' as any,
@@ -335,10 +348,11 @@ defineExpose({ setMeetingData, queryMeetingRooms, meetingRooms })
   background-color: #111827 !important;
   border: none !important;
   border-radius: 10px !important;
-  height: 42px;
+  height: 38px !important;
   font-weight: 500;
   transition: all 0.15s;
-  padding: 10px 20px;
+  padding: 8px 18px !important;
+  font-size: 13.5px !important;
 }
 :deep(.el-button--primary:hover) {
   opacity: 0.88;
@@ -346,6 +360,105 @@ defineExpose({ setMeetingData, queryMeetingRooms, meetingRooms })
 }
 :deep(.el-button--primary:active) {
   transform: translateY(0);
+}
+
+/* Container wrapper to prevent wide stretching */
+.meeting-agent-container {
+  width: 100%;
+  margin: 0;
+}
+
+.search-bar-wrap {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.search-inline-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.form-field {
+  flex: 1;
+  min-width: 140px;
+}
+
+.date-field {
+  flex: 2; /* Date field gets double width */
+  min-width: 180px;
+}
+
+.capacity-field {
+  flex: 1.2;
+  min-width: 120px;
+}
+
+.button-field {
+  flex: 1;
+  min-width: 130px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+:deep(.search-inline-form .el-form-item) {
+  margin-bottom: 0 !important;
+  width: 100%;
+}
+
+.query-btn {
+  width: 100%;
+}
+
+/* Custom premium empty state card */
+.empty-state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+  background: #fafafa;
+  border: 1px dashed #e5e7eb;
+  border-radius: 14px;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.empty-icon-box {
+  width: 44px;
+  height: 44px;
+  background: #f3f4f6;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  margin-bottom: 14px;
+}
+
+.empty-icon {
+  flex-shrink: 0;
+}
+
+.empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.2px;
+}
+
+.empty-desc {
+  font-size: 12.5px;
+  color: #9ca3af;
+  max-width: 320px;
+  margin: 0;
+  line-height: 1.5;
 }
 </style>
 

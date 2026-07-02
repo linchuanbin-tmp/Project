@@ -45,10 +45,13 @@
                 </template>
               </el-table-column>
 
-              <!-- Floor -->
-              <el-table-column label="Floor" min-width="100">
+              <!-- Location -->
+              <el-table-column label="Location" min-width="150">
                 <template #default="{ row }">
-                  <span class="floor-badge">{{ row.floor }}F</span>
+                  <div class="location-wrap">
+                    <span v-if="row.building" class="building-badge">{{ row.building }}</span>
+                    <span class="floor-badge">Floor {{ row.floor }}</span>
+                  </div>
                 </template>
               </el-table-column>
 
@@ -210,16 +213,20 @@
 
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="Floor" required>
-                <el-input-number v-model="roomForm.floor" :min="-2" :max="100" style="width: 100%" />
+              <el-form-item label="Building">
+                <el-input v-model="roomForm.building" placeholder="e.g. Building A" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="Capacity" required>
-                <el-input-number v-model="roomForm.capacity" :min="1" :max="1000" style="width: 100%" />
+              <el-form-item label="Floor" required>
+                <el-input v-model="roomForm.floor" placeholder="e.g. 3, B1" />
               </el-form-item>
             </el-col>
           </el-row>
+
+          <el-form-item label="Capacity" required>
+            <el-input-number v-model="roomForm.capacity" :min="1" :max="1000" style="width: 100%" />
+          </el-form-item>
 
           <!-- Facilities Selection -->
           <el-form-item label="Facilities / Equipment">
@@ -279,7 +286,7 @@
                 v-for="room in rooms" 
                 :key="room.id" 
                 :value="room.id!" 
-                :label="`${room.roomName} (${room.floor}F - Cap: ${room.capacity})`" 
+                :label="`${room.roomName} (${room.building ? room.building + ', ' : ''}Floor ${room.floor} - Cap: ${room.capacity})`" 
               />
             </el-select>
           </el-form-item>
@@ -345,7 +352,8 @@ import { RefreshCw } from 'lucide-vue-next'
 interface MeetingRoom {
   id?: number
   roomName: string
-  floor: number
+  building?: string
+  floor: string
   capacity: number
   facilities: string
   status: number
@@ -388,7 +396,8 @@ const scheduleDialogVisible = ref(false)
 const roomForm = reactive<MeetingRoom>({
   id: undefined,
   roomName: '',
-  floor: 3,
+  building: '',
+  floor: '3',
   capacity: 10,
   facilities: '',
   status: 1
@@ -476,7 +485,8 @@ const openAddRoomDialog = () => {
   isEdit.value = false
   roomForm.id = undefined
   roomForm.roomName = ''
-  roomForm.floor = 3
+  roomForm.building = ''
+  roomForm.floor = '3'
   roomForm.capacity = 10
   roomForm.facilities = ''
   selectedFacilities.value = []
@@ -488,6 +498,7 @@ const openEditRoomDialog = (row: MeetingRoom) => {
   isEdit.value = true
   roomForm.id = row.id
   roomForm.roomName = row.roomName
+  roomForm.building = row.building || ''
   roomForm.floor = row.floor
   roomForm.capacity = row.capacity
   roomForm.facilities = row.facilities || ''
@@ -505,7 +516,7 @@ const handleRoomSubmit = async () => {
     ElMessage.warning('Room name is required')
     return
   }
-  if (roomForm.floor === undefined || roomForm.floor === null) {
+  if (roomForm.floor === undefined || roomForm.floor === null || (typeof roomForm.floor === 'string' && !roomForm.floor.trim())) {
     ElMessage.warning('Floor is required')
     return
   }
@@ -540,6 +551,7 @@ const handleRoomStatusToggle = async (row: MeetingRoom, val: number) => {
     await request.put('/tool/admin/meeting-rooms', {
       id: row.id,
       roomName: row.roomName,
+      building: row.building,
       floor: row.floor,
       capacity: row.capacity,
       facilities: row.facilities,
@@ -548,7 +560,7 @@ const handleRoomStatusToggle = async (row: MeetingRoom, val: number) => {
     ElMessage.success(`Room status updated to ${val === 1 ? 'Active' : 'Maintenance'}`)
   } catch (error: any) {
     row.status = val === 1 ? 0 : 1
-    ElMessage.error('Failed to update status')
+    ElMessage.error('Status toggle failed: ' + (error.message || 'Server error'))
   }
 }
 
@@ -800,12 +812,27 @@ onMounted(async () => {
   font-size: 14px;
 }
 
+.location-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.building-badge {
+  background: #e0e7ff;
+  color: #4f46e5;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .floor-badge {
   background: #f3f4f6;
   color: #4b5563;
   padding: 3px 8px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
 }
 

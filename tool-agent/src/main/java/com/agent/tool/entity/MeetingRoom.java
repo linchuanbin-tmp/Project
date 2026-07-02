@@ -10,7 +10,8 @@ public class MeetingRoom {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String roomName;
-    private Integer floor;
+    private String building;
+    private String floor;
     private Integer capacity;
     private String facilities;
     private Integer status;

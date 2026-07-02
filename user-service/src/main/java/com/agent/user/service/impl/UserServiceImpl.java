@@ -1,9 +1,6 @@
 package com.agent.user.service.impl;
 
-import com.agent.user.dto.LoginRequest;
-import com.agent.user.dto.LoginResponse;
-import com.agent.user.dto.RegisterRequest;
-import com.agent.user.dto.UserResponse;
+import com.agent.user.dto.*;
 import com.agent.user.entity.*;
 import com.agent.user.mapper.*;
 import com.agent.user.service.UserService;
@@ -201,5 +198,37 @@ public class UserServiceImpl implements UserService {
     public List<String> getPermissionsByUserId(Long userId) {
         List<SysPermission> permissions = sysPermissionMapper.selectPermissionsByUserId(userId);
         return permissions.stream().map(SysPermission::getPermCode).collect(Collectors.toList());
+    }
+
+    @Override
+    public void updateProfile(String username, UpdateProfileRequest request) {
+        User user = userMapper.selectOne(
+                new LambdaQueryWrapper<User>().eq(User::getUsername, username)
+        );
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+        user.setRealName(request.getRealName());
+        user.setUpdateTime(LocalDateTime.now());
+        userMapper.updateById(user);
+    }
+
+    @Override
+    public void changePassword(String username, ChangePasswordRequest request) {
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new RuntimeException("New passwords do not match");
+        }
+        User user = userMapper.selectOne(
+                new LambdaQueryWrapper<User>().eq(User::getUsername, username)
+        );
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setUpdateTime(LocalDateTime.now());
+        userMapper.updateById(user);
     }
 }

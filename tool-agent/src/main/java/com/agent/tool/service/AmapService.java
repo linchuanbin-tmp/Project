@@ -25,6 +25,7 @@ public class AmapService {
     private String amapKey;
 
     private final ObjectMapper objectMapper;
+    private final DeepSeekService deepSeekService;
     private final RestTemplate restTemplate = new RestTemplate();
 
     public Map<String, Object> planDrivingRoute(String from, String to, int strategy) {
@@ -88,6 +89,12 @@ public class AmapService {
             result.put("from", from);
             result.put("to", to);
             result.put("source", "amap");
+
+            try {
+                translateRouteResultToEnglish(result);
+            } catch (Exception e) {
+                log.warn("Failed to translate route instructions using AI", e);
+            }
 
             return result;
 
@@ -266,6 +273,78 @@ public class AmapService {
             return "拥堵";
         } catch (Exception e) {
             return "未知";
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void translateRouteResultToEnglish(Map<String, Object> result) {
+        try {
+            // Extract the fields we want to translate
+            Map<String, Object> translationPayload = new HashMap<>();
+            translationPayload.put("trafficStatus", result.get("trafficStatus"));
+            translationPayload.put("toll", result.get("toll"));
+            
+            List<Map<String, String>> steps = (List<Map<String, String>>) result.get("steps");
+            List<String> instructions = new ArrayList<>();
+            for (Map<String, String> step : steps) {
+                instructions.add(step.get("instruction"));
+            }
+            translationPayload.put("instructions", instructions);
+
+            String rawJson = objectMapper.writeValueAsString(translationPayload);
+
+            String systemPrompt = """
+                You are a translation assistant.
+                Translate the route planning data from Chinese to English.
+                Keep street and location names translated accurately to their standard English or Pinyin forms.
+                Translate traffic status (畅通 -> Clear, 缓行 -> Slow, 拥堵 -> Heavy Traffic, 未知 -> Unknown).
+                Translate toll description (e.g. 5元 -> 5 CNY).
+                Format the response strictly as a JSON object matching this structure:
+                {
+                  "trafficStatus": "English traffic status",
+                  "toll": "English toll description",
+                  "instructions": [
+                    "English instruction for step 1",
+                    "English instruction for step 2",
+                    ...
+                  ]
+                }
+                Only return the JSON object, do not include any other markdown code blocks.
+                """;
+
+            String aiResponse = deepSeekService.chat(systemPrompt, rawJson);
+            JsonNode root = objectMapper.readTree(aiResponse);
+
+            if (root.has("trafficStatus")) {
+                result.put("trafficStatus", root.path("trafficStatus").asText());
+            }
+            if (root.has("toll")) {
+                result.put("toll", root.path("toll").asText());
+            }
+            if (root.has("instructions")) {
+                JsonNode insts = root.path("instructions");
+                for (int i = 0; i < steps.size() && i < insts.size(); i++) {
+                    steps.get(i).put("instruction", insts.get(i).asText());
+                }
+            }
+
+            // Translate duration units and distance units to general English
+            String duration = (String) result.get("duration");
+            if (duration != null) {
+                result.put("duration", duration.replace("小时", "h ").replace("分钟", "m ").replace("秒", "s"));
+            }
+            String distance = (String) result.get("distance");
+            if (distance != null) {
+                result.put("distance", distance.replace("米", "m").replace("公里", "km"));
+            }
+            for (Map<String, String> step : steps) {
+                String sd = step.get("distance");
+                if (sd != null) step.put("distance", sd.replace("米", "m").replace("公里", "km"));
+                String st = step.get("duration");
+                if (st != null) step.put("duration", st.replace("小时", "h ").replace("分钟", "m ").replace("秒", "s"));
+            }
+        } catch (Exception e) {
+            log.error("AI translation of route results failed", e);
         }
     }
 }

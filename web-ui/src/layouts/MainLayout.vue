@@ -38,6 +38,10 @@
           <template #title>Dashboard</template>
           <Home :size="16" :stroke-width="1.6" />
         </el-menu-item>
+        <el-menu-item index="/app/my-schedules">
+          <template #title>My Schedules</template>
+          <CalendarDays :size="16" :stroke-width="1.6" />
+        </el-menu-item>
 
         <div v-if="!collapsed" class="menu-section-title">Agent services</div>
 
@@ -72,10 +76,14 @@
       <div class="sidebar-bottom">
         <div class="bottom-divider"></div>
 
-        <!-- System settings -->
-        <div class="bottom-item settings-item" :class="{ 'icon-only': collapsed }">
+        <!-- Settings -->
+        <div
+          class="bottom-item settings-item"
+          :class="{ 'icon-only': collapsed, 'settings-active': route.path === '/app/settings' }"
+          @click="router.push('/app/settings')"
+        >
           <Settings :size="16" :stroke-width="1.6" class="icon" />
-          <span v-if="!collapsed">System settings</span>
+          <span v-if="!collapsed">Settings</span>
         </div>
 
         <!-- User info & logout -->
@@ -126,7 +134,7 @@ import { useUserStore } from '@stores/modules/user'
 import {
   Home, Wrench, FileText, BookOpen,
   Settings, ChevronDown, Users, Database,
-  PanelLeftClose, PanelLeftOpen, Menu
+  PanelLeftClose, PanelLeftOpen, Menu, CalendarDays
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -325,6 +333,8 @@ const handleCommand = (command: string) => {
 .settings-item .icon { color: #9ca3af; flex-shrink: 0; }
 .settings-item:hover { color: #111827; }
 .settings-item:hover .icon { color: #374151; }
+.settings-active { background: #f0f0f5 !important; color: #111827 !important; font-weight: 500; }
+.settings-active .icon { color: #374151 !important; }
 
 /* Full-width dropdown trigger so collapsed items can center */
 .sidebar-bottom :deep(.el-dropdown) {

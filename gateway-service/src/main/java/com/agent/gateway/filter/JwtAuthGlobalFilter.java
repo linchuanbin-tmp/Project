@@ -31,7 +31,8 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     // 白名单接口，直接放行
     private static final List<String> WHITELIST = Arrays.asList(
             "/api/user/login",
-            "/api/user/register"
+            "/api/user/register",
+            "/ws"
     );
 
     private SecretKey getKey() {
