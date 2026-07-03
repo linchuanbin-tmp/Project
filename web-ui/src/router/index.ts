@@ -6,20 +6,20 @@ const routes = [
     {
         // Auth pages share a persistent background via AuthLayout
         path: '/',
-        component: () => import(/* @vite-prefetch */ '@layouts/AuthLayout.vue'),
+        component: () => import('@layouts/AuthLayout.vue'),
         redirect: '/login',
         meta: { public: true },
         children: [
             {
                 path: 'login',
                 name: 'Login',
-                component: () => import(/* @vite-prefetch */ '@views/login/index.vue'),
+                component: () => import('@views/login/index.vue'),
                 meta: { public: true }
             },
             {
                 path: 'register',
                 name: 'Register',
-                component: () => import(/* @vite-prefetch */ '@views/register/index.vue'),
+                component: () => import('@views/register/index.vue'),
                 meta: { public: true }
             }
         ]
@@ -27,55 +27,55 @@ const routes = [
     {
         path: '/app',
         name: 'Layout',
-        component: () => import(/* @vite-prefetch */ '@layouts/MainLayout.vue'),
+        component: () => import('@layouts/MainLayout.vue'),
         redirect: '/app/dashboard',
         children: [
             {
                 path: 'dashboard',
                 name: 'Dashboard',
-                component: () => import(/* @vite-prefetch */ '@views/dashboard/index.vue'),
+                component: () => import('@views/dashboard/index.vue'),
                 meta: { title: 'Dashboard' }
             },
             {
                 path: 'tool',
                 name: 'ToolAgent',
-                component: () => import(/* @vite-prefetch */ '@views/tool/index.vue'),
+                component: () => import('@views/tool/index.vue'),
                 meta: { title: 'Tool Agent' }
             },
             {
                 path: 'code',
                 name: 'CodeAgent',
-                component: () => import(/* @vite-prefetch */ '@views/code/index.vue'),
+                component: () => import('@views/code/index.vue'),
                 meta: { title: 'Code Agent' }
             },
             {
                 path: 'rag',
                 name: 'RagAgent',
-                component: () => import(/* @vite-prefetch */ '@views/rag/index.vue'),
+                component: () => import('@views/rag/index.vue'),
                 meta: { title: 'RAG Agent' }
             },
             {
                 path: 'admin/users',
                 name: 'UserManagement',
-                component: () => import(/* @vite-prefetch */ '@views/admin/UserManagement.vue'),
+                component: () => import('@views/admin/UserManagement.vue'),
                 meta: { title: 'User Management', requiresRole: 'ROLE_ADMIN' }
             },
             {
                 path: 'admin/resources',
                 name: 'ResourceManagement',
-                component: () => import(/* @vite-prefetch */ '@views/admin/ResourceManagement.vue'),
+                component: () => import('@views/admin/ResourceManagement.vue'),
                 meta: { title: 'Resource Management', requiresRole: 'ROLE_ADMIN' }
             },
             {
                 path: 'settings',
                 name: 'Settings',
-                component: () => import(/* @vite-prefetch */ '@views/settings/index.vue'),
+                component: () => import('@views/settings/index.vue'),
                 meta: { title: 'Settings' }
             },
             {
                 path: 'my-schedules',
                 name: 'MySchedules',
-                component: () => import(/* @vite-prefetch */ '@views/tool/MySchedules.vue'),
+                component: () => import('@views/tool/MySchedules.vue'),
                 meta: { title: 'My Schedules' }
             }
         ]
