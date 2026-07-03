@@ -1,5 +1,6 @@
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY target/*.jar app.jar
+# 明确指定 jar 名称，避免 macOS rsync 产生的 ._*.jar 被 COPY target/*.jar 误匹配
+COPY target/user-service-1.0.0-SNAPSHOT.jar app.jar
 ENV JAVA_OPTS="-Xmx256m -Xms128m"
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

@@ -22,3 +22,8 @@ services:
     build:
       context: ./gateway-service
       dockerfile: Dockerfile.prod
+
+  code-agent:
+    build:
+      context: ./code-agent
+      dockerfile: Dockerfile.prod
