@@ -1,0 +1,211 @@
+# ============================================================
+# Agent Platform — 全量 Docker Compose
+# 用法：docker compose up -d
+# 切换本地/云服务器：只改根目录的 .env 文件
+# ============================================================
+
+services:
+
+  # ─────────────────────────────────────────────────────────
+  # 基础设施
+  # ─────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0.33
+    container_name: agent_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "${MYSQL_EXPOSED_PORT}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/init/agent_platform_backup_utf8.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-time-zone=+08:00
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: agent_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_EXPOSED_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ─────────────────────────────────────────────────────────
+  # 后端微服务
+  # ─────────────────────────────────────────────────────────
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    container_name: agent_user_service
+    restart: unless-stopped
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+    ports:
+      - "${USER_SERVICE_PORT}:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  task-service:
+    build:
+      context: .
+      dockerfile: task-service/Dockerfile
+    container_name: agent_task_service
+    restart: unless-stopped
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - TOOL_SERVICE_URI=${TOOL_SERVICE_URI}
+    ports:
+      - "${TASK_SERVICE_PORT}:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  tool-agent:
+    build:
+      context: .
+      dockerfile: tool-agent/Dockerfile
+    container_name: agent_tool_agent
+    restart: unless-stopped
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
+      - AI_DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - AI_DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL}
+      - AI_DEEPSEEK_MODEL=${DEEPSEEK_MODEL}
+      - AMAP_KEY=${AMAP_KEY}
+    ports:
+      - "${TOOL_AGENT_PORT}:8083"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  code-agent-python:
+    build:
+      context: ./code-agent/data
+      dockerfile: Dockerfile
+    container_name: agent_code_agent_python
+    restart: unless-stopped
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+    ports:
+      - "8090:8090"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  code-agent:
+    build:
+      context: .
+      dockerfile: code-agent/Dockerfile
+    container_name: agent_code_agent
+    restart: unless-stopped
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
+      - CODE_AGENT_PYTHON_URL=http://code-agent-python:8090/infer
+      - CODE_AGENT_ONNX_ENABLED=${CODE_AGENT_ONNX_ENABLED:-true}
+    ports:
+      - "8084:8084"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      code-agent-python:
+        condition: service_started
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: gateway-service/Dockerfile
+    container_name: agent_gateway
+    restart: unless-stopped
+    environment:
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
+      - USER_SERVICE_URI=${USER_SERVICE_URI}
+      - TASK_SERVICE_URI=${TASK_SERVICE_URI}
+      - TOOL_SERVICE_URI=${TOOL_SERVICE_URI}
+      - CODE_SERVICE_URI=http://code-agent:8084
+      - JWT_SECRET=${JWT_SECRET}
+      - TOOL_SERVICE_WS_URI=ws://tool-agent:8083
+    ports:
+      - "${GATEWAY_PORT}:8080"
+    depends_on:
+      - user-service
+      - task-service
+      - tool-agent
+      - code-agent
+
+  # ─────────────────────────────────────────────────────────
+  # Nginx反向代理与前端静态托管
+  # ─────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: agent_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./web-ui/dist:/usr/share/nginx/html:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - gateway-service
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local

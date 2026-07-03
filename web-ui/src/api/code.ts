@@ -1,57 +1,38 @@
-const BASE = '/api/code'
+import request from '@utils/request'
 
-async function post(path: string, body: any): Promise<any> {
-    const token = localStorage.getItem('token')
-        || localStorage.getItem('access_token')
-        || sessionStorage.getItem('token')
-        || ''
-
-    const res = await fetch(`${BASE}${path}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(body)
-    })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    return res.json()
+export interface CodeQueryRequest {
+  question: string
 }
 
-async function get(path: string): Promise<any> {
-    const token = localStorage.getItem('token')
-        || localStorage.getItem('access_token')
-        || sessionStorage.getItem('token')
-        || ''
-
-    const res = await fetch(`${BASE}${path}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-    })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    return res.json()
+export interface CodeGenerateRequest {
+  question: string
 }
 
-// 一键查询：自然语言 → SQL 生成 + 执行
-export const codeQuery = (question: string) =>
-    post('/query', { question })
+export interface CodeValidateRequest {
+  sql: string
+}
 
-// 仅生成 SQL（不执行）
-export const codeGenerate = (question: string) =>
-    post('/generate', { question })
+// 自然语言转 SQL 并执行
+export const executeCodeQuery = (data: CodeQueryRequest) => {
+  return request.post('/code/query', data)
+}
 
-// 校验 SQL 白名单
-export const codeValidate = (sql: string) =>
-    post('/validate', { sql })
+// 仅生成 SQL，不执行
+export const generateSQLOnly = (data: CodeGenerateRequest) => {
+  return request.post('/code/generate', data)
+}
 
-// 执行已校验的 SQL
-export const codeExecute = (sql: string) =>
-    post('/execute', { sql })
+// 获取元数据列表
+export const getCodeMetadata = () => {
+  return request.get('/code/metadata')
+}
 
-// 获取元数据
-export const codeMetadata = () => get('/metadata')
+// 直接执行校阅后的 SQL (支持 Human-in-the-Loop)
+export const executeSQLDirectly = (data: { sql: string }) => {
+  return request.post('/code/execute', data)
+}
 
-// 刷新元数据缓存
-export const codeMetadataRefresh = () => post('/metadata/refresh', {})
-
-// 健康检查
-export const codeHealth = () => get('/health')
+// 刷新元数据
+export const refreshCodeMetadata = () => {
+  return request.post('/code/metadata/refresh')
+}

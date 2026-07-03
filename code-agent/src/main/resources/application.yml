@@ -5,14 +5,14 @@ spring:
   application:
     name: code-agent
   datasource:
-    url: jdbc:mysql://localhost:3306/agent_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: root
-    password: 123456
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/agent_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
       timeout: 3000ms
       lettuce:
         pool:
@@ -25,6 +25,8 @@ code-agent:
   # LLM 推理（通过 Python 推理服务调用）
   onnx:
     model-path: classpath:models/text2sql.onnx
+    server-url: ${CODE_AGENT_PYTHON_URL:http://localhost:8090/infer}
+    enabled: ${CODE_AGENT_ONNX_ENABLED:true}  # true = LLM 推理, false = 模板引擎 fallback
   # SQL 白名单配置
   whitelist:
     # 只允许这些操作

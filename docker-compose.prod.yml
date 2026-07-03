@@ -1,0 +1,29 @@
+# docker-compose.prod.yml — 覆盖文件
+# 使用本地预编译好的 JAR，不在服务器上运行 Maven，节省内存
+# 用法: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+services:
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile.prod
+
+  task-service:
+    build:
+      context: ./task-service
+      dockerfile: Dockerfile.prod
+
+  tool-agent:
+    build:
+      context: ./tool-agent
+      dockerfile: Dockerfile.prod
+
+  gateway-service:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile.prod
+
+  code-agent:
+    build:
+      context: ./code-agent
+      dockerfile: Dockerfile.prod

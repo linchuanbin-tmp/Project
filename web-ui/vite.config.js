@@ -32,17 +32,16 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true,  // 自动打开浏览器
+    host: '0.0.0.0',  // Docker 容器内需要监听所有网卡
+    open: false,       // Docker 容器内无法自动打开浏览器
     proxy: {
-      // 代理配置：所有 /api 请求转发到 Gateway (8080端口)
+      // 代理配置：GATEWAY_URL 由环境变量注入（Docker 用服务名，本地用 localhost）
       '/api': {
-        target: 'http://localhost:8080',
+        target: process.env.GATEWAY_URL || 'http://localhost:8080',
         changeOrigin: true,
-        // rewrite: (path) => path.replace(/^\/api/, ''), // 如果后端不需要/api前缀则开启
       },
-      // WebSocket代理（实时推送任务进度）
       '/ws': {
-        target: 'ws://localhost:8080',
+        target: (process.env.GATEWAY_URL || 'http://localhost:8080').replace(/^http/, 'ws'),
         ws: true,
         changeOrigin: true,
       }

@@ -25,7 +25,7 @@ public class TaskProgressWebSocketHandler extends TextWebSocketHandler {
         String taskId = getTaskId(session);
         sessions.put(taskId, session);
         log.info("WebSocket 连接建立: taskId={}", taskId);
-        sendMessage(taskId, Map.of("progress", 0, "status", "connected", "message", "已连接，等待任务..."));
+        sendMessage(taskId, Map.of("progress", 0, "status", "connected", "message", "Connected, waiting for task..."));
     }
 
     @Override
@@ -40,11 +40,11 @@ public class TaskProgressWebSocketHandler extends TextWebSocketHandler {
 
     private void runTask(String taskId) {
         String[] steps = {
-                "正在解析自然语言...",
-                "正在查询数据库...",
-                "正在调用 AI 模型推理...",
-                "正在整理返回结果...",
-                "任务完成！"
+                "Analyzing natural language query...",
+                "Querying database for available slots...",
+                "Invoking AI model inference...",
+                "Consolidating task execution results...",
+                "Task completed successfully!"
         };
         for (int i = 0; i <= 100; i += 20) {
             int stepIndex = Math.min(i / 20, steps.length - 1);

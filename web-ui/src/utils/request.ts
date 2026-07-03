@@ -2,18 +2,16 @@ import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@stores/modules/user'
 import router from '@router/index'
-import i18n from '@/i18n'
 
-// 创建axios实例
 const request = axios.create({
-    baseURL: '/api',  // 对应vite配置的代理
-    timeout: 60000,   // 60秒超时（AI请求可能较慢）
+    baseURL: '/api',  // proxied via Vite config
+    timeout: 60000,   // 60s timeout for potentially slow AI requests
     headers: {
         'Content-Type': 'application/json'
     }
 })
 
-// 请求拦截器
+// Request interceptor
 request.interceptors.request.use(
     (config) => {
         const userStore = useUserStore()
@@ -27,38 +25,49 @@ request.interceptors.request.use(
     }
 )
 
-// 响应拦截器
+// Response interceptor
 request.interceptors.response.use(
     (response) => {
         const res = response.data
 
-        // 如果后端返回的code不为200，视为错误
-        if (res.code !== 200) {
-            ElMessage.error(res.message || i18n.global.t('request.failed'))
+        // Check if response is wrapped in a standard Result class
+        if (res.code !== undefined && res.code !== 200) {
+            ElMessage.error(res.message || 'Request failed')
 
-            // 401: Token过期或未登录
+            // 401: Token expired — only show dialog when inside the app, not on auth pages
             if (res.code === 401) {
-                ElMessageBox.confirm(
-                    i18n.global.t('request.sessionExpired'),
-                    i18n.global.t('request.tip'),
-                    {
-                        confirmButtonText: i18n.global.t('request.relogin'),
-                        cancelButtonText: i18n.global.t('request.cancel'),
+                const publicPaths = ['/login', '/register']
+                const isPublic = publicPaths.some(p => router.currentRoute.value.path.startsWith(p))
+                if (!isPublic) {
+                    ElMessageBox.confirm('Session expired. Please log in again.', 'Notice', {
+                        confirmButtonText: 'Log in',
+                        cancelButtonText: 'Cancel',
                         type: 'warning'
-                    }
-                ).then(() => {
-                    const userStore = useUserStore()
-                    userStore.logout()
-                    router.push('/login')
-                })
+                    }).then(() => {
+                        const userStore = useUserStore()
+                        userStore.logout()
+                    }).catch(() => {})
+                }
             }
             return Promise.reject(new Error(res.message || 'Error'))
         }
 
-        return res.data
+        // Return unwrapped data if wrapped, otherwise return raw payload
+        return res.code !== undefined ? res.data : res
     },
     (error) => {
-        ElMessage.error(error.message || i18n.global.t('request.networkError'))
+        const response = error.response
+        if (response && response.status === 401) {
+            const publicPaths = ['/login', '/register']
+            const isPublic = publicPaths.some(p => router.currentRoute.value.path.startsWith(p))
+            if (!isPublic) {
+                const userStore = useUserStore()
+                userStore.logout()
+                ElMessage.error('Session expired. Please log in again.')
+            }
+        } else {
+            ElMessage.error(error.message || 'Network error')
+        }
         return Promise.reject(error)
     }
 )

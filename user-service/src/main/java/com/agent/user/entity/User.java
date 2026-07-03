@@ -21,6 +21,13 @@ public class User {
 
     private Integer status;
 
+    private Long deptId;
+
+    private Integer clearanceLevel;
+
+    @TableField(exist = false)
+    private String deptName;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

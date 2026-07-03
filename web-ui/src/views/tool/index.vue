@@ -1,192 +1,41 @@
 <template>
   <div class="tool-container">
-    <el-page-header @back="router.back()" :title="$t('tool.pageTitle')" />
+    <div class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">Tool Call Agent</h1>
+        <p class="page-sub">Book meeting rooms, detect schedule conflicts, and plan routes using natural language.</p>
+      </div>
+    </div>
 
     <el-row :gutter="20" style="margin-top: 20px;">
-      <!-- 左侧：功能选择 -->
+      <!-- Left panel: feature tabs -->
       <el-col :xs="24" :sm="24" :md="16">
         <el-tabs v-model="activeTab" type="border-card" class="tool-tabs">
-          <!-- 会议室查询 -->
-          <el-tab-pane :label="$t('tool.tabs.meeting')" name="meeting">
-            <el-form :model="meetingForm" label-width="100px">
-              <el-form-item :label="$t('tool.meeting.date')">
-                <el-date-picker
-                    v-model="meetingForm.date"
-                    type="date"
-                    :placeholder="$t('tool.meeting.date')"
-                    style="width: 100%;"
-                />
-              </el-form-item>
-              <el-form-item :label="$t('tool.meeting.capacity')">
-                <el-input-number v-model="meetingForm.capacity" :min="1" :max="100" />
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary" @click="queryMeetingRooms" :loading="loading">
-                  {{ $t('tool.meeting.queryBtn') }}
-                </el-button>
-              </el-form-item>
-            </el-form>
-
-            <el-divider />
-
-            <div v-if="meetingRooms.length > 0">
-              <h4>{{ $t('tool.meeting.resultTitle') }}</h4>
-              <el-row :gutter="10">
-                <el-col :span="12" v-for="room in meetingRooms" :key="room.id">
-                  <el-card :class="{ 'room-available': room.available, 'room-occupied': !room.available }" shadow="hover">
-                    <h5>{{ room.name }} ({{ room.id }})</h5>
-                    <p>{{ $t('tool.meeting.capacity') }}: {{ room.capacity }}{{ $t('tool.meeting.capacityUnit') }} | {{ $t('tool.meeting.location') }}: {{ room.location }}</p>
-                    <p>{{ $t('tool.meeting.equipment') }}: {{ room.equipment.join(', ') }}</p>
-                    <el-tag :type="room.available ? 'success' : 'danger'">
-                      {{ room.available ? $t('tool.meeting.available') : $t('tool.meeting.occupied') }}
-                    </el-tag>
-                    <div style="margin-top: 10px;">
-                      <el-button
-                          v-if="room.available"
-                          type="primary"
-                          size="small"
-                          @click="bookRoom(room)"
-                          :loading="bookingRoomId === room.id"
-                      >
-                        {{ $t('tool.meeting.bookNow') }}
-                      </el-button>
-                      <el-button
-                          v-else
-                          type="danger"
-                          size="small"
-                          disabled
-                      >
-                        {{ $t('tool.meeting.booked') }}
-                      </el-button>
-                    </div>
-                  </el-card>
-                </el-col>
-              </el-row>
-            </div>
+          <!-- Meeting room booking -->
+          <!-- Meeting room booking -->
+          <el-tab-pane label="Meeting rooms" name="meeting">
+            <MeetingAgent ref="meetingAgentRef" />
           </el-tab-pane>
 
-          <!-- 日程冲突检测 -->
-          <el-tab-pane :label="$t('tool.tabs.schedule')" name="schedule">
-            <!-- 添加日程表单 -->
-            <el-form :model="addScheduleForm" label-width="120px" style="margin-bottom: 20px;">
-              <el-form-item :label="$t('tool.schedule.person')">
-                <el-input v-model="addScheduleForm.userId" :placeholder="$t('tool.schedule.personPlaceholder')" />
-              </el-form-item>
-              <el-form-item :label="$t('tool.schedule.eventId')">
-                <el-input v-model="addScheduleForm.eventId" :placeholder="$t('tool.schedule.eventIdPlaceholder')" />
-              </el-form-item>
-              <el-form-item :label="$t('tool.schedule.eventName')">
-                <el-input v-model="addScheduleForm.eventName" :placeholder="$t('tool.schedule.eventNamePlaceholder')" />
-              </el-form-item>
-              <el-form-item :label="$t('tool.schedule.timeRange')">
-                <el-date-picker
-                    v-model="addScheduleForm.timeRange"
-                    type="datetimerange"
-                    :range-separator="$t('tool.schedule.to')"
-                    :start-placeholder="$t('tool.schedule.startTime')"
-                    :end-placeholder="$t('tool.schedule.endTime')"
-                    style="width: 100%;"
-                />
-              </el-form-item>
-              <el-form-item label=" ">
-                <el-button type="primary" @click="createSchedule" :loading="loading">
-                  {{ $t('tool.schedule.addBtn') }}
-                </el-button>
-              </el-form-item>
-            </el-form>
-
-            <el-divider />
-
-            <el-form :model="scheduleForm" label-width="120px">
-              <el-form-item :label="$t('tool.schedule.meetingTime')">
-                <el-date-picker
-                    v-model="scheduleForm.timeRange"
-                    type="datetimerange"
-                    :range-separator="$t('tool.schedule.to')"
-                    :start-placeholder="$t('tool.schedule.startTime')"
-                    :end-placeholder="$t('tool.schedule.endTime')"
-                />
-              </el-form-item>
-              <el-form-item :label="$t('tool.schedule.attendees')">
-                <el-select
-                    v-model="scheduleForm.attendees"
-                    :placeholder="$t('tool.schedule.selectAttendees')"
-                    multiple
-                    clearable
-                    style="width: 100%;"
-                >
-                  <el-option
-                      v-for="item in userOptions"
-                      :key="item.value"
-                      :label="item.label"
-                      :value="item.value"
-                  />
-                </el-select>
-              </el-form-item>
-              <el-form-item label=" ">
-                <el-button type="primary" @click="checkConflict" :loading="loading">
-                  {{ $t('tool.schedule.conflictBtn') }}
-                </el-button>
-              </el-form-item>
-            </el-form>
-
-            <el-divider />
-
-            <div v-if="conflictResult">
-              <el-alert
-                  :title="conflictResult.message"
-                  :type="conflictResult.hasConflict ? 'warning' : 'success'"
-                  :closable="false"
-                  show-icon
-              />
-            </div>
+          <!-- Schedule conflict detection -->
+          <el-tab-pane label="Schedule check" name="schedule">
+            <ScheduleAgent ref="scheduleAgentRef" />
           </el-tab-pane>
 
-          <!-- 路线规划 -->
-          <el-tab-pane :label="$t('tool.tabs.route')" name="route">
-            <el-form :model="routeForm" label-width="100px">
-              <el-form-item :label="$t('tool.route.from')">
-                <el-input v-model="routeForm.from" :placeholder="$t('tool.route.fromPlaceholder')" />
-              </el-form-item>
-              <el-form-item :label="$t('tool.route.to')">
-                <el-input v-model="routeForm.to" :placeholder="$t('tool.route.toPlaceholder')" />
-              </el-form-item>
-              <el-form-item :label="$t('tool.route.mode')">
-                <el-radio-group v-model="routeForm.mode">
-                  <el-radio label="driving">{{ $t('tool.route.driving') }}</el-radio>
-                  <el-radio label="transit">{{ $t('tool.route.transit') }}</el-radio>
-                  <el-radio label="walking">{{ $t('tool.route.walking') }}</el-radio>
-                </el-radio-group>
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary" @click="planRoute" :loading="loading">
-                  {{ $t('tool.route.planBtn') }}
-                </el-button>
-              </el-form-item>
-            </el-form>
-
-            <el-divider />
-
-            <div v-if="routePath.length > 0">
-              <MapContainer
-                  :path="routePath"
-                  :start-point="routeStart"
-                  :end-point="routeEnd"
-              />
-            </div>
-
-            <el-empty v-else :description="$t('tool.route.mapEmptyDesc')" />
+          <!-- Route planning -->
+          <el-tab-pane label="Route planning" name="route">
+            <RouteAgent ref="routeAgentRef" />
           </el-tab-pane>
         </el-tabs>
       </el-col>
 
-      <!-- 右侧：AI 助手模式 + WebSocket 实时进度 -->
+      <!-- Right panel: AI assistant with real-time progress -->
       <el-col :xs="24" :sm="24" :md="8">
-        <el-card>
+        <el-card class="ai-card">
           <template #header>
             <div class="card-header">
-              <span>{{ $t('tool.ai.title') }}</span>
-              <el-tag v-if="isExecuting" type="warning" effect="dark">{{ $t('tool.ai.executing') }}</el-tag>
+              <span>AI Assistant</span>
+              <el-tag v-if="isExecuting" type="warning" effect="dark">Running</el-tag>
             </div>
           </template>
 
@@ -195,7 +44,7 @@
                 v-model="naturalQuery"
                 type="textarea"
                 :rows="4"
-                :placeholder="$t('tool.ai.placeholder')"
+                placeholder="e.g. 'Help me book a meeting room for June 2nd, capacity 10', 'Check if admin is free between June 2nd and 3rd', 'Plan a route from HKU to HK Airport'"
                 :disabled="isExecuting"
             />
 
@@ -206,71 +55,64 @@
                 :loading="isExecuting"
                 :disabled="!naturalQuery.trim()"
             >
-              {{ isExecuting ? $t('tool.ai.executingDot') : $t('tool.ai.sendBtn') }}
+              {{ isExecuting ? 'Processing...' : 'Send to AI' }}
             </el-button>
 
-            <!-- 实时进度显示 -->
-            <div v-if="taskStatus" class="progress-section">
-              <el-divider />
-              <div class="progress-info">
-                <span class="status-label">{{ taskMessage }}</span>
-                <span class="progress-percent">{{ taskProgress }}%</span>
-              </div>
-              <el-progress
-                  :percentage="taskProgress"
-                  :status="taskStatus === 'completed' ? 'success' : taskStatus === 'error' ? 'exception' : ''"
-                  :stroke-width="10"
-                  striped
-                  striped-flow
-                  :duration="10"
-              />
-            </div>
+            <AgentThinking :visible="isExecuting" />
 
-            <!-- AI 助手模式卡片内，进度条下方 -->
+            <!-- AI result (shown after task completes) -->
             <div v-if="aiResponse" class="ai-result">
               <el-divider />
-              <h4>{{ $t('tool.ai.resultTitle') }}</h4>
+              <h4>AI analysis</h4>
 
-              <!-- 意图解析 -->
+              <!-- Parsed intent from AI -->
               <div v-if="aiResponse.aiParsed">
                 <el-descriptions :column="1" border size="small">
-                  <el-descriptions-item :label="$t('tool.ai.intent')">{{ aiResponse.aiParsed.intent || $t('tool.ai.query') }}</el-descriptions-item>
-                  <el-descriptions-item :label="$t('tool.ai.date')">{{ aiResponse.aiParsed.date || $t('tool.ai.today') }}</el-descriptions-item>
-                  <el-descriptions-item :label="$t('tool.ai.timeRange')">{{ aiResponse.aiParsed.timeRange || $t('tool.ai.unspecified') }}</el-descriptions-item>
-                  <el-descriptions-item :label="$t('tool.ai.capacity')">{{ aiResponse.aiParsed.capacity || $t('tool.ai.unspecified') }}</el-descriptions-item>
-                  <el-descriptions-item v-if="aiResponse.aiParsed.equipment" :label="$t('tool.ai.equipment')">{{ aiResponse.aiParsed.equipment?.join(', ') || $t('tool.ai.none') }}</el-descriptions-item>
+                  <el-descriptions-item label="Intent">{{ aiResponse.aiParsed.intent || 'Query' }}</el-descriptions-item>
+                  <el-descriptions-item label="Date">
+                    {{ aiResponse.aiParsed.parameters?.date || aiResponse.aiParsed.date || 'Today' }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="Time range">
+                    {{ aiResponse.aiParsed.parameters?.timeRange || aiResponse.aiParsed.timeRange || 'Not specified' }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="Capacity">
+                    {{ aiResponse.aiParsed.parameters?.capacity || aiResponse.aiParsed.capacity || 'Not specified' }}
+                  </el-descriptions-item>
+                  <el-descriptions-item v-if="aiResponse.aiParsed.parameters?.equipment || aiResponse.aiParsed.equipment" label="Equipment">
+                    {{ (aiResponse.aiParsed.parameters?.equipment || aiResponse.aiParsed.equipment)?.join(', ') || 'None' }}
+                  </el-descriptions-item>
                 </el-descriptions>
               </div>
 
-              <!-- 推荐结果 -->
+              <!-- Recommended meeting rooms -->
               <div v-if="aiResponse.rooms" style="margin-top: 10px;">
-                <h5>{{ $t('tool.ai.recommendedRoom') }}</h5>
+                <h5>Recommended rooms</h5>
                 <el-card v-for="room in aiResponse.rooms" :key="room.id" class="room-card" shadow="hover">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span><strong>{{ room.name }}</strong> ({{ room.id }})</span>
                     <el-tag :type="room.available ? 'success' : 'danger'">
-                      {{ room.available ? $t('tool.meeting.available') : $t('tool.meeting.occupied') }}
+                      {{ room.available ? 'Available' : 'Occupied' }}
                     </el-tag>
                   </div>
                   <p style="margin: 5px 0; color: #666; font-size: 12px;">
-                    {{ $t('tool.meeting.capacity') }}: {{ room.capacity }}{{ $t('tool.meeting.capacityUnit') }} | {{ $t('tool.meeting.location') }}: {{ room.location }} | {{ $t('tool.meeting.equipment') }}: {{ room.equipment?.join(', ') }}
+                    Capacity: {{ room.capacity }} people | Location: {{ room.location }} | Equipment: {{ room.equipment?.join(', ') }}
                   </p>
                   <p v-if="room.aiMatchScore" style="margin: 0; color: #409EFF; font-size: 12px;">
-                    {{ $t('tool.ai.aiMatchScore') }}: {{ room.aiMatchScore }}% - {{ room.aiReasoning }}
+                    🤖 AI Match: {{ room.aiMatchScore }}% - {{ room.aiReasoning }}
                   </p>
                 </el-card>
               </div>
 
-              <!-- 路线规划结果 -->
+              <!-- Route planning result -->
               <div v-if="aiResponse.distance">
                 <el-descriptions :column="2" border>
-                  <el-descriptions-item :label="$t('tool.ai.distance')">{{ aiResponse.distance }}</el-descriptions-item>
-                  <el-descriptions-item :label="$t('tool.ai.duration')">{{ aiResponse.duration }}</el-descriptions-item>
-                  <el-descriptions-item :label="$t('tool.ai.trafficStatus')">{{ aiResponse.trafficStatus }}</el-descriptions-item>
+                  <el-descriptions-item label="Distance">{{ aiResponse.distance }}</el-descriptions-item>
+                  <el-descriptions-item label="Duration">{{ aiResponse.duration }}</el-descriptions-item>
+                  <el-descriptions-item label="Traffic">{{ aiResponse.trafficStatus }}</el-descriptions-item>
                 </el-descriptions>
               </div>
 
-              <!-- 日程冲突结果 -->
+              <!-- Schedule conflict result -->
               <div v-if="aiResponse.hasConflict !== undefined">
                 <el-alert
                     :title="aiResponse.message"
@@ -279,9 +121,9 @@
                 />
               </div>
 
-              <!-- 原始JSON（调试用，可折叠） -->
+              <!-- Raw JSON response (collapsible) -->
               <el-collapse style="margin-top: 10px;">
-                <el-collapse-item :title="$t('tool.ai.rawData')">
+                <el-collapse-item title="Raw response">
                   <pre style="font-size: 11px; background: #f5f7fa; padding: 8px;">{{ JSON.stringify(aiResponse, null, 2) }}</pre>
                 </el-collapse-item>
               </el-collapse>
@@ -294,283 +136,122 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onUnmounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import MapContainer from '@components/MapContainer.vue'
-import { getMeetingRooms, checkScheduleConflict, planRoute as planRouteApi, executeTool } from '@api/tool'
+import { executeTool } from '@api/tool'
 import { wsClient } from '@utils/websocket'
 
+// Sub-components import
+import MeetingAgent from './components/MeetingAgent.vue'
+import ScheduleAgent from './components/ScheduleAgent.vue'
+import RouteAgent from './components/RouteAgent.vue'
+import AgentThinking from '@/components/AgentThinking.vue'
+
 const router = useRouter()
-const { t } = useI18n()
-const loading = ref(false)
 const activeTab = ref('meeting')
-const routePath = ref<number[][]>([])
-const routeStart = ref<number[]>([])
-const routeEnd = ref<number[]>([])
-const bookingRoomId = ref<string | null>(null)
 
-const getToken = () => {
-  return localStorage.getItem('token')
-      || localStorage.getItem('access_token')
-      || sessionStorage.getItem('token')
-      || ''
+// Component template refs
+const meetingAgentRef = ref<any>(null)
+const scheduleAgentRef = ref<any>(null)
+const routeAgentRef = ref<any>(null)
+
+// Extract standard yyyy-MM-dd date from English months text
+const tryParseEnglishDate = (str: string): string | null => {
+  const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+  const shortMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+  
+  const text = str.toLowerCase()
+  let monthIndex = -1
+  let day = -1
+  
+  for (let i = 0; i < 12; i++) {
+    if (text.includes(months[i])) {
+      monthIndex = i
+      break
+    }
+  }
+  
+  if (monthIndex === -1) {
+    for (let i = 0; i < 12; i++) {
+      if (text.includes(shortMonths[i])) {
+        monthIndex = i
+        break
+      }
+    }
+  }
+  
+  if (monthIndex !== -1) {
+    const dayMatch = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\b/)
+    if (dayMatch) {
+      day = Number(dayMatch[1])
+    }
+  }
+  
+  if (monthIndex !== -1 && day !== -1) {
+    const year = 2026
+    const mStr = String(monthIndex + 1).padStart(2, '0')
+    const dStr = String(day).padStart(2, '0')
+    return `${year}-${mStr}-${dStr}`
+  }
+  
+  return null
 }
 
-// 时间格式化：Date -> "yyyy-MM-dd HH:mm:ss"
-const formatDateTime = (date: Date): string => {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  const h = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-  const s = String(date.getSeconds()).padStart(2, '0')
-  return `${y}-${m}-${d} ${h}:${min}:${s}`
-}
-
-// 从自然语言中提取日期、人数、时间段
+// Extract date, capacity, time range from natural language
 const extractFromQuery = (query: string) => {
-  // 提取日期：X月X日
-  const dateMatch = query.match(/(\d{1,2})月(\d{1,2})[日号]/)
-  // 提取人数：X人
-  const capMatch = query.match(/(\d+)[人个位]/)
-  // 提取时间段：X月X日至X月X日 或 X月X日到X月X日
-  const rangeMatch = query.match(/(\d{1,2})月(\d{1,2})[日号][至到](\d{1,2})月(\d{1,2})[日号]/)
+  // Chinese matches
+  const dateMatchCh = query.match(/(\d{1,2})月(\d{1,2})[日号]/)
+  const capMatchCh = query.match(/(\d+)[人个位]/)
+  const rangeMatchCh = query.match(/(\d{1,2})月(\d{1,2})[日号][至到](\d{1,2})月(\d{1,2})[日号]/)
+
+  // English matches
+  const capMatchEn = query.match(/\b(\d+)\s*(people|person|users?|pax)\b/i)
+  const timeRangeMatchEn = query.match(/\b(\d{1,2}):(\d{2})\s*(?:-|to)\s*(\d{1,2}):(\d{2})\b/i)
+
+  const standardDate = tryParseEnglishDate(query)
+
+  let date = null
+  if (dateMatchCh) {
+    date = `2026-${dateMatchCh[1].padStart(2,'0')}-${dateMatchCh[2].padStart(2,'0')}`
+  } else if (standardDate) {
+    date = standardDate
+  }
+
+  let capacity = null
+  if (capMatchCh) {
+    capacity = Number(capMatchCh[1])
+  } else if (capMatchEn) {
+    capacity = Number(capMatchEn[1])
+  }
 
   let timeRange = null
-  if (rangeMatch) {
-    const start = `2026-${rangeMatch[1].padStart(2,'0')}-${rangeMatch[2].padStart(2,'0')}`
-    const end = `2026-${rangeMatch[3].padStart(2,'0')}-${rangeMatch[4].padStart(2,'0')}`
-    timeRange = `${start} ${t('tool.schedule.to')} ${end}`
+  if (rangeMatchCh) {
+    const start = `2026-${rangeMatchCh[1].padStart(2,'0')}-${rangeMatchCh[2].padStart(2,'0')}`
+    const end = `2026-${rangeMatchCh[3].padStart(2,'0')}-${rangeMatchCh[4].padStart(2,'0')}`
+    timeRange = `${start} to ${end}`
+  } else if (timeRangeMatchEn) {
+    const sh = timeRangeMatchEn[1].padStart(2, '0')
+    const sm = timeRangeMatchEn[2]
+    const eh = timeRangeMatchEn[3].padStart(2, '0')
+    const em = timeRangeMatchEn[4]
+    timeRange = `${sh}:${sm} to ${eh}:${em}`
   }
 
   return {
-    date: dateMatch ? `2026-${dateMatch[1].padStart(2,'0')}-${dateMatch[2].padStart(2,'0')}` : null,
-    capacity: capMatch ? Number(capMatch[1]) : null,
-    timeRange: timeRange
+    date,
+    capacity,
+    timeRange
   }
 }
 
-// ==================== 会议室查询 ====================
-const meetingForm = reactive({
-  date: '',
-  capacity: 10
-})
-const meetingRooms = ref<any[]>([])
-
-const queryMeetingRooms = async () => {
-  if (!meetingForm.date) {
-    ElMessage.warning(t('tool.meeting.selectDateFirst'))
-    return
-  }
-  loading.value = true
-  try {
-    const date = new Date(meetingForm.date)
-    const startTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0)
-    const endTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 11, 0, 0)
-
-    const res: any = await getMeetingRooms({
-      startTime: formatDateTime(startTime),
-      endTime: formatDateTime(endTime),
-      capacity: meetingForm.capacity
-    })
-    meetingRooms.value = res || []
-    ElMessage.success(t('tool.meeting.found', { count: meetingRooms.value.length }))
-  } catch (error) {
-    console.error(error)
-    ElMessage.error(t('tool.meeting.queryFailed'))
-  } finally {
-    loading.value = false
-  }
-}
-
-const bookRoom = async (room: any) => {
-  if (!meetingForm.date) {
-    ElMessage.warning(t('tool.meeting.selectDateToBook'))
-    return
-  }
-
-  bookingRoomId.value = room.id
-  try {
-    const token = getToken()
-    const date = new Date(meetingForm.date)
-    const startTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0)
-    const endTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 11, 0, 0)
-
-    const res = await fetch('/api/tool/meeting-room/book', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : ''
-      },
-      body: JSON.stringify({
-        roomId: room.id,
-        booker: 'admin',
-        startTime: formatDateTime(startTime),
-        endTime: formatDateTime(endTime),
-        topic: t('tool.meeting.topic')
-      })
-    })
-    const data = await res.json()
-    if (data.code === 200) {
-      ElMessage.success(t('tool.meeting.bookSuccess'))
-      // 本地立即标记为已预定，UI 瞬间变红
-      const idx = meetingRooms.value.findIndex((r: any) => r.id === room.id)
-      if (idx !== -1) {
-        meetingRooms.value[idx].available = false
-        meetingRooms.value[idx].statusText = t('tool.meeting.booked')
-      }
-      // 同时重新查询数据库确保同步
-      await queryMeetingRooms()
-    } else {
-      ElMessage.error(data.message || t('tool.meeting.bookFailed'))
-    }
-  } catch (error) {
-    console.error(error)
-    ElMessage.error(t('tool.meeting.bookRequestFailed'))
-  } finally {
-    bookingRoomId.value = null
-  }
-}
-
-// ==================== 日程冲突检测 ====================
-const scheduleForm = reactive({
-  timeRange: [] as Date[],
-  attendees: [] as string[]
-})
-
-// 添加日程表单
-const addScheduleForm = reactive({
-  userId: 'admin',
-  eventId: '',
-  eventName: '',
-  timeRange: [] as Date[]
-})
-
-const userOptions = computed(() => [
-  { label: 'admin', value: 'admin' },
-  { label: 'user', value: 'user' },
-  { label: 'zhangsan', value: 'zhangsan' },
-  { label: 'lisi', value: 'lisi' }
-])
-const conflictResult = ref<any>(null)
-
-const checkConflict = async () => {
-  if (scheduleForm.timeRange.length !== 2) {
-    ElMessage.warning(t('tool.schedule.selectFullTimeRange'))
-    return
-  }
-
-  loading.value = true
-  try {
-    const res: any = await checkScheduleConflict({
-      startTime: scheduleForm.timeRange[0].toISOString(),
-      endTime: scheduleForm.timeRange[1].toISOString(),
-      attendees: scheduleForm.attendees
-    })
-    conflictResult.value = res
-  } catch (error) {
-    console.error(error)
-    ElMessage.error(t('tool.schedule.checkFailed'))
-  } finally {
-    loading.value = false
-  }
-}
-
-const createSchedule = async () => {
-  if (addScheduleForm.timeRange.length !== 2) {
-    ElMessage.warning(t('tool.schedule.selectFullTimeRange'))
-    return
-  }
-  if (!addScheduleForm.eventId || !addScheduleForm.eventName) {
-    ElMessage.warning(t('tool.schedule.fillEventInfo'))
-    return
-  }
-
-  loading.value = true
-  try {
-    const token = getToken()
-    const res = await fetch('/api/tool/schedule/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : ''
-      },
-      body: JSON.stringify({
-        userId: addScheduleForm.userId,
-        eventId: addScheduleForm.eventId,
-        eventName: addScheduleForm.eventName,
-        startTime: addScheduleForm.timeRange[0].toISOString(),
-        endTime: addScheduleForm.timeRange[1].toISOString()
-      })
-    })
-    const data = await res.json()
-    if (data.code === 200) {
-      ElMessage.success(t('tool.schedule.addSuccess'))
-      addScheduleForm.eventId = ''
-      addScheduleForm.eventName = ''
-      addScheduleForm.timeRange = []
-    } else {
-      ElMessage.error(data.message || t('tool.schedule.addFailed'))
-    }
-  } catch (error) {
-    console.error(error)
-    ElMessage.error(t('tool.schedule.addRequestFailed'))
-  } finally {
-    loading.value = false
-  }
-}
-
-// ==================== 路线规划 ====================
-const routeForm = reactive({
-  from: '公司',
-  to: '机场',
-  mode: 'driving'
-})
-const routeResult = ref<any>(null)
-
-const planRoute = async () => {
-  if (!routeForm.to) {
-    ElMessage.warning(t('tool.route.enterDestination'))
-    return
-  }
-  loading.value = true
-  try {
-    const res: any = await planRouteApi({
-      from: routeForm.from,
-      to: routeForm.to,
-      mode: routeForm.mode
-    })
-
-    if (res.path && res.path.length > 0) {
-      routePath.value = res.path
-      routeStart.value = res.startPoint || []
-      routeEnd.value = res.endPoint || []
-    } else {
-      routeStart.value = [116.321, 39.894]
-      routeEnd.value = [116.412, 39.509]
-      routePath.value = [
-        [116.321, 39.894], [116.35, 39.85], [116.38, 39.78],
-        [116.40, 39.65], [116.41, 39.55], [116.412, 39.509]
-      ]
-      ElMessage.info(t('tool.route.demoRoute'))
-    }
-  } catch (error) {
-    console.error(error)
-    ElMessage.error(t('tool.route.planFailed'))
-  } finally {
-    loading.value = false
-  }
-}
-
-// ==================== WebSocket AI 助手 ====================
+// --- WebSocket AI assistant ---
 const naturalQuery = ref('')
 const aiResponse = ref<any>(null)
 
 const taskProgress = ref(0)
 const taskStatus = ref('')
-const taskMessage = ref(t('tool.ai.waiting'))
+const taskMessage = ref('Waiting for task to start...')
 const isExecuting = ref(false)
 let hasFetchedResult = false
 
@@ -578,7 +259,7 @@ const generateTaskId = () => 'task_' + Date.now() + '_' + Math.random().toString
 
 const executeWithWebSocket = async () => {
   if (!naturalQuery.value.trim()) {
-    ElMessage.warning(t('tool.ai.enterQuery'))
+    ElMessage.warning('Please enter search query')
     return
   }
 
@@ -587,16 +268,16 @@ const executeWithWebSocket = async () => {
   hasFetchedResult = false
   taskProgress.value = 0
   taskStatus.value = 'connected'
-  taskMessage.value = t('tool.ai.connecting')
+  taskMessage.value = 'Connecting to server...'
   aiResponse.value = null
 
-  // 关闭旧连接，防止事件堆积
   wsClient.close?.()
 
-  const wsUrl = `ws://localhost:8080/ws?taskId=${taskId}`
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = window.location.host
+  const wsUrl = `${protocol}//${host}/ws/?taskId=${taskId}`
   wsClient.connect(wsUrl)
 
-  // 监听消息（兼容字符串和对象）
   wsClient.on('message', (rawData: any) => {
     const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
 
@@ -606,29 +287,29 @@ const executeWithWebSocket = async () => {
 
     if (data.status === 'completed' && !hasFetchedResult) {
       hasFetchedResult = true
-      taskMessage.value = t('tool.ai.fetchingResult')
+      taskMessage.value = 'Fetching result...'
       fetchTaskResult().then(() => {
         taskProgress.value = 100
         isExecuting.value = false
-        ElMessage.success(t('tool.ai.complete'))
+        ElMessage.success('Task execution completed!')
       }).catch(() => {
         isExecuting.value = false
       })
     } else if (data.status === 'error') {
       isExecuting.value = false
-      taskMessage.value = data.message || t('tool.ai.error')
-      ElMessage.error(data.message || t('tool.ai.error'))
+      taskMessage.value = data.message || 'Execution error'
+      ElMessage.error(data.message || 'Execution error')
     }
   })
 
   wsClient.on('error', () => {
     taskStatus.value = 'error'
-    taskMessage.value = t('tool.ai.connectionError')
+    taskMessage.value = 'Connection error occurred'
     isExecuting.value = false
   })
 
   wsClient.on('open', () => {
-    taskMessage.value = t('tool.ai.connected')
+    taskMessage.value = 'Connected, sending task...'
     wsClient.send(JSON.stringify({
       taskType: 'AI',
       query: naturalQuery.value,
@@ -645,119 +326,139 @@ const fetchTaskResult = async () => {
       naturalLanguage: naturalQuery.value
     })
 
-    // 解包后端统一返回结构 Result<T>
     const payload = res?.data ?? res
     aiResponse.value = payload
-    console.log('AI原始响应:', res)
-    console.log('AI解析结果:', payload)
-
     if (!payload) {
-      ElMessage.warning(t('tool.ai.aiEmpty'))
+      ElMessage.warning('AI returned empty result')
       return
     }
 
-    // 根据意图自动跳转 Tab 并回填数据
     const intentRaw = payload.aiParsed?.intent || payload.intent || ''
     const intent = intentRaw.toLowerCase()
 
     let targetTab = 'meeting'
-    // 扩展支持中英文意图关键词匹配
-    if (intent.includes('route') || intent.includes('路线') || intent.includes('導航') || intent.includes('导航') || intent.includes('nav') || intent.includes('path') || intent.includes('map')) {
+    if (intent.includes('route') || intent.includes('路线') || intent.includes('path') || intent.includes('map')) {
       targetTab = 'route'
-    } else if (intent.includes('schedule') || intent.includes('冲突') || intent.includes('衝突') || intent.includes('日程') || intent.includes('会议时间') || intent.includes('會議時間') || intent.includes('conflict') || intent.includes('有没有空') || intent.includes('有空') || intent.includes('空')) {
+    } else if (intent.includes('schedule') || intent.includes('冲突') || intent.includes('日程') || intent.includes('conflict')) {
       targetTab = 'schedule'
-    } else if (intent.includes('meeting') || intent.includes('会议室') || intent.includes('會議室') || intent.includes('room') || intent.includes('预订') || intent.includes('預訂')) {
+    } else if (intent.includes('meeting') || intent.includes('会议室') || intent.includes('room') || intent.includes('预订')) {
       targetTab = 'meeting'
     }
 
     activeTab.value = targetTab
 
     if (targetTab === 'route') {
-      routeForm.from = payload.from || payload.aiParsed?.from || routeForm.from || t('tool.route.fromPlaceholder')
-      routeForm.to = payload.to || payload.aiParsed?.to || routeForm.to || t('tool.route.toPlaceholder')
-      routeForm.mode = payload.mode || payload.aiParsed?.mode || 'driving'
+      const from = payload.from || payload.aiParsed?.from || 'Office'
+      const to = payload.to || payload.aiParsed?.to || 'Airport'
+      const mode = payload.mode || payload.aiParsed?.mode || 'driving'
 
-      if (payload.path && payload.path.length > 0) {
-        routePath.value = payload.path
-        routeStart.value = payload.startPoint || payload.path[0]
-        routeEnd.value = payload.endPoint || payload.path[payload.path.length - 1]
-      } else if (payload.distance || payload.duration) {
-        routeStart.value = payload.startPoint || [116.321, 39.894]
-        routeEnd.value = payload.endPoint || [116.412, 39.509]
-        routePath.value = payload.path || [
-          [116.321, 39.894], [116.35, 39.85], [116.38, 39.78],
-          [116.40, 39.65], [116.41, 39.55], [116.412, 39.509]
-        ]
-        ElMessage.info(t('tool.route.demoRouteNoCoords'))
+      let path = payload.path || []
+      let startPoint = payload.startPoint || []
+      let endPoint = payload.endPoint || []
+
+      if (path.length === 0) {
+        if (payload.distance || payload.duration) {
+          startPoint = payload.startPoint || [114.137, 22.283]
+          endPoint = payload.endPoint || [113.915, 22.309]
+          path = [
+            [114.137, 22.283], [114.115, 22.315], [114.075, 22.335],
+            [114.020, 22.345], [113.965, 22.298], [113.915, 22.309]
+          ]
+        }
       }
-      routeResult.value = payload
+
+      routeAgentRef.value?.setRouteData({
+        from, to, mode, path, startPoint, endPoint, result: payload
+      })
 
     } else if (targetTab === 'schedule') {
-      // === 日程冲突：提取时间段，覆盖后端 Mock 数据 ===
       const extracted = extractFromQuery(naturalQuery.value)
-
+      const aiParams = payload.aiParsed?.parameters || {}
+      
       if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
-      // 日期：日程查询通常没有单一日期的概念，显示"未指定"
-      aiResponse.value.aiParsed.date = t('tool.ai.unspecified')
-      // 时间段：从用户输入提取，如"6月2日至6月3日"
-      aiResponse.value.aiParsed.timeRange = extracted.timeRange || t('tool.ai.unspecified')
-      // 人数：日程冲突一般不涉及人数，显示未指定
-      aiResponse.value.aiParsed.capacity = t('tool.ai.unspecified')
-      // 设备需求：日程冲突没有设备需求，删除（通过模板 v-if 控制）
-      aiResponse.value.aiParsed.equipment = null
+      if (!aiResponse.value.aiParsed.parameters) aiResponse.value.aiParsed.parameters = {}
 
-      // 回填左侧表单
-      if (extracted.timeRange) {
-        const separator = t('tool.schedule.to')
-        const parts = extracted.timeRange.split(` ${separator} `)
+      // Prefer AI-extracted parameters
+      const parsedTimeRangeStr = aiParams.timeRange || extracted.timeRange || 'Not specified'
+      const parsedAttendees = aiParams.attendees || []
+      
+      aiResponse.value.aiParsed.parameters.timeRange = parsedTimeRangeStr
+      aiResponse.value.aiParsed.parameters.attendees = parsedAttendees
+      aiResponse.value.aiParsed.parameters.date = aiParams.date || extracted.date || 'Today'
+      
+      let timeRange: Date[] = []
+      let attendees: string[] = parsedAttendees
+
+      // Parse time range to dates
+      if (parsedTimeRangeStr && parsedTimeRangeStr !== 'Not specified') {
+        const parts = parsedTimeRangeStr.split(' to ')
         if (parts.length === 2) {
-          scheduleForm.timeRange = [new Date(parts[0] + 'T00:00:00'), new Date(parts[1] + 'T00:00:00')]
+          timeRange = [new Date(parts[0] + 'T00:00:00'), new Date(parts[1] + 'T00:00:00')]
         }
       }
 
-      // 提取参会人员（从输入中找用户名）
-      const userMatch = naturalQuery.value.match(/(admin|user|zhangsan|lisi|张三|李四)/i)
-      if (userMatch) {
-        const userMap: Record<string, string> = {
-          'admin': 'admin', 'user': 'user',
-          'zhangsan': 'zhangsan', '张三': 'zhangsan',
-          'lisi': 'lisi', '李四': 'lisi'
+      // Fallback attendee regex if AI didn't catch it
+      if (attendees.length === 0) {
+        const userMatch = naturalQuery.value.match(/(admin|user|zhangsan|lisi|张三|李四)/i)
+        if (userMatch) {
+          const userMap: Record<string, string> = {
+            'admin': 'admin', 'user': 'user', 'zhangsan': 'zhangsan', '张三': 'zhangsan', 'lisi': 'lisi', '李四': 'lisi'
+          }
+          attendees = [userMap[userMatch[0].toLowerCase()] || userMatch[0]]
         }
-        const userKey = userMatch[0].toLowerCase()
-        const userVal = userMap[userKey] || userMatch[0]
-        scheduleForm.attendees = [userVal]
       }
 
-      // 自动执行冲突检测
-      if (scheduleForm.timeRange.length === 2 && scheduleForm.attendees.length > 0) {
-        await checkConflict()
+      scheduleAgentRef.value?.setScheduleData({ timeRange, attendees })
+
+      if (timeRange.length === 2 && attendees.length > 0) {
+        await scheduleAgentRef.value?.checkConflict()
+        if (aiResponse.value && scheduleAgentRef.value?.conflictResult) {
+          aiResponse.value.hasConflict = scheduleAgentRef.value.conflictResult.hasConflict
+          aiResponse.value.message = scheduleAgentRef.value.conflictResult.message
+        }
       }
 
     } else if (targetTab === 'meeting') {
-      // === 会议室查询：用前端提取的真实参数覆盖后端 Mock 数据 ===
       const extracted = extractFromQuery(naturalQuery.value)
-
-      // 1. 更新左侧表单为真实参数
-      if (extracted.date) {
-        meetingForm.date = new Date(extracted.date + 'T00:00:00')
+      const aiParams = payload.aiParsed?.parameters || {}
+      
+      const updateData: any = {}
+      
+      // Determine final date string
+      const aiDate = aiParams.date || extracted.date
+      let finalDateStr = extracted.date
+      if (aiDate) {
+        if (aiDate.toLowerCase() === 'today') {
+          finalDateStr = new Date().toISOString().split('T')[0]
+        } else if (aiDate.toLowerCase() === 'tomorrow') {
+          const tom = new Date()
+          tom.setDate(tom.getDate() + 1)
+          finalDateStr = tom.toISOString().split('T')[0]
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(aiDate)) {
+          finalDateStr = aiDate
+        } else {
+          const parsed = tryParseEnglishDate(aiDate)
+          finalDateStr = parsed || aiDate
+        }
       }
-      if (extracted.capacity) {
-        meetingForm.capacity = extracted.capacity
-      }
+      
+      const finalCapacity = aiParams.capacity ? Number(aiParams.capacity) : extracted.capacity
 
-      // 2. 查询真实数据库（获取 301/302/501，而不是 A-101/A-102）
-      await queryMeetingRooms()
+      if (finalDateStr) updateData.date = new Date(finalDateStr + 'T00:00:00')
+      if (finalCapacity) updateData.capacity = finalCapacity
 
-      // 3. 覆盖 AI 解析结果中的假数据，显示真实解析
+      meetingAgentRef.value?.setMeetingData(updateData)
+      await meetingAgentRef.value?.queryMeetingRooms()
+
       if (aiResponse.value) {
         if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
-        aiResponse.value.aiParsed.date = extracted.date || aiResponse.value.aiParsed.date || t('tool.ai.today')
-        aiResponse.value.aiParsed.capacity = extracted.capacity
-            ? String(extracted.capacity)
-            : (aiResponse.value.aiParsed.capacity || t('tool.ai.unspecified'))
-
-        // 4. 用真实会议室数据覆盖后端返回的 Mock 数据
-        aiResponse.value.rooms = meetingRooms.value.map((room: any) => ({
+        if (!aiResponse.value.aiParsed.parameters) aiResponse.value.aiParsed.parameters = {}
+        
+        aiResponse.value.aiParsed.parameters.date = finalDateStr || 'Today'
+        aiResponse.value.aiParsed.parameters.capacity = finalCapacity ? String(finalCapacity) : 'Not specified'
+        aiResponse.value.aiParsed.parameters.timeRange = aiParams.timeRange || extracted.timeRange || 'Not specified'
+        
+        aiResponse.value.rooms = (meetingAgentRef.value?.meetingRooms || []).map((room: any) => ({
           id: room.id,
           name: room.name,
           capacity: room.capacity,
@@ -765,20 +466,14 @@ const fetchTaskResult = async () => {
           equipment: room.equipment,
           available: room.available,
           aiMatchScore: room.available ? 100 : 0,
-          aiReasoning: room.available ? t('tool.ai.matchedReason') : t('tool.ai.occupiedReason')
+          aiReasoning: room.available ? 'Matches criteria' : 'Unavailable for this period'
         }))
       }
     }
-
-    const intentLabels: Record<string, string> = {
-      route: t('tool.tabs.route').replace(/^[^\s]+\s/, ''),
-      schedule: t('tool.tabs.schedule').replace(/^[^\s]+\s/, ''),
-      meeting: t('tool.tabs.meeting').replace(/^[^\s]+\s/, '')
-    }
-    ElMessage.success(t('tool.ai.intentMatched', { intent: intentLabels[targetTab] || targetTab }))
+    ElMessage.success(`AI recognized as "${targetTab}" intent, result loaded`)
   } catch (error) {
-    console.error('fetchTaskResult 错误:', error)
-    ElMessage.error(t('tool.ai.aiResultFailed'))
+    console.error('fetchTaskResult error:', error)
+    ElMessage.error('Failed to get AI result')
   }
 }
 
@@ -789,72 +484,49 @@ onUnmounted(() => {
 
 <style scoped>
 .tool-container {
-  padding: 20px;
+  padding: 16px 0;
+  max-width: 1200px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-
-.tool-tabs {
-  min-height: 600px;
-}
-
-.room-available {
-  border: 1px solid #67C23A;
-  margin-bottom: 10px;
-}
-
-.room-occupied {
-  border: 1px solid #F56C6C;
-  opacity: 0.7;
-  margin-bottom: 10px;
-}
-
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  font-weight: bold;
+  align-items: flex-start;
+  margin-bottom: 30px;
+  padding-top: 20px;
 }
-
-.chat-mode {
-  display: flex;
-  flex-direction: column;
-}
-
-.progress-section {
-  margin-top: 15px;
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.status-label {
-  color: #606266;
-}
-
-.progress-percent {
-  font-weight: bold;
-  color: #409EFF;
-}
-
-.ai-response {
-  margin-top: 15px;
-}
-
-.ai-response h4 {
-  margin: 0 0 10px 0;
-  color: #303133;
-}
-
-.ai-response pre {
-  margin: 0;
-  padding: 10px;
-  background: #f5f7fa;
-  border-radius: 4px;
-  font-size: 12px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
+.page-title { font-size: 24px; font-weight: 700; color: #111827; margin: 0 0 6px 0; }
+.page-sub { font-size: 14px; color: #9ca3af; margin: 0; }
+:deep(.el-tabs--border-card) { background: #ffffff; border: 1px solid #f0f0f0; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.015); overflow: hidden; height: 100%; display: flex; flex-direction: column; }
+:deep(.el-tabs--border-card > .el-tabs__header) { background-color: #f9fafb; border-bottom: 1px solid #f3f4f6; padding: 0 12px; }
+:deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item) { color: #6b7280; font-weight: 500; font-size: 13.5px; height: 48px; line-height: 48px; transition: all 0.2s; border: none !important; margin: 0 4px; border-bottom: 2px solid transparent !important; }
+:deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item.is-active) { color: #111827; background-color: transparent !important; font-weight: 600; border-bottom: 2px solid #111827 !important; }
+:deep(.el-tabs__content) { padding: 24px; flex-grow: 1; }
+.tool-tabs { height: 100%; min-height: 600px; box-sizing: border-box; }
+.ai-card { border-radius: 16px; border: 1px solid #f0f0f0; box-shadow: 0 4px 24px rgba(0,0,0,0.015); overflow: hidden; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
+:deep(.ai-card .el-card__header) { background: #f9fafb; border-bottom: 1px solid #f3f4f6; padding: 16px 20px; }
+:deep(.ai-card .el-card__body) { flex-grow: 1; display: flex; flex-direction: column; overflow-y: auto; }
+.card-header { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; color: #111827; }
+.chat-mode { display: flex; flex-direction: column; }
+.chat-mode :deep(.el-textarea__inner) { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 13.5px; transition: all 0.15s; padding: 12px; line-height: 1.5; }
+.chat-mode :deep(.el-textarea__inner:focus) { border-color: #111827; background: #fff; box-shadow: 0 0 0 3px rgba(17,24,39,0.08) !important; }
+.progress-section { margin-top: 18px; }
+.progress-info { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+.status-label { color: #6b7280; font-weight: 500; }
+.progress-percent { font-weight: 600; color: #111827; }
+:deep(.el-progress-bar__inner) { background-color: #111827 !important; }
+.ai-result { margin-top: 18px; }
+.ai-result h4 { margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #111827; letter-spacing: -0.2px; }
+.ai-result h5 { margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: #374151; }
+:deep(.el-descriptions) { border-radius: 12px; overflow: hidden; border: 1px solid #f0f0f0; }
+:deep(.el-descriptions__label) { background: #f9fafb !important; font-weight: 600; color: #4b5563; width: 100px; }
+:deep(.el-descriptions__content) { color: #111827; }
+.room-card { margin-bottom: 8px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.01); transition: all 0.2s; padding: 4px; }
+.room-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+:deep(.el-collapse) { border: 1px solid #f0f0f0; border-radius: 12px; overflow: hidden; }
+:deep(.el-collapse-item__header) { padding: 0 16px; font-size: 13px; font-weight: 500; color: #6b7280; background-color: #f9fafb; }
+:deep(.el-collapse-item__content) { padding: 16px; background: #ffffff; }
+:deep(.el-button--primary) { background-color: #111827 !important; border: none !important; border-radius: 10px !important; height: 42px; font-weight: 500; transition: all 0.15s; padding: 10px 20px; }
+:deep(.el-button--primary:hover) { opacity: 0.88; transform: translateY(-1px); }
+:deep(.el-button--primary:active) { transform: translateY(0); }
 </style>

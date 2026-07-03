@@ -21,6 +21,7 @@ public class CodeAgentProperties {
     @Data
     public static class OnnxConfig {
         private String modelPath = "classpath:models/text2sql.onnx";
+        private String serverUrl = "http://localhost:8090/infer";
         private boolean enabled = false;
     }
 
