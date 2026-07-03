@@ -3,27 +3,27 @@
     <!-- Page Header -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">{{ isAdmin ? 'Department Management' : 'My Department' }}</h1>
-        <p class="page-sub">Manage organization structure, department entities, and employee rosters.</p>
+        <h1 class="page-title">{{ isAdmin ? $t('deptAdmin.title') : $t('menu.myDept') }}</h1>
+        <p class="page-sub">{{ $t('deptAdmin.subtitle') }}</p>
       </div>
       <div class="header-actions" v-if="activeTab === 'roster' && selectedDeptId" style="display: flex; gap: 10px; align-items: center;">
         <el-button class="add-members-btn" @click="openAddDialog">
           <Plus :size="14" />
-          Add Employee
+          {{ $t('deptAdmin.addEmployee') }}
         </el-button>
         <el-button class="refresh-btn" @click="fetchMembers" :loading="loading">
           <RefreshCw :size="14" :class="{ 'spin': loading }" />
-          Refresh
+          {{ $t('common.refresh') }}
         </el-button>
       </div>
       <div class="header-actions" v-else-if="activeTab === 'directory' && isAdmin" style="display: flex; gap: 10px; align-items: center;">
         <el-button class="add-members-btn" @click="openDeptDialog(null)">
           <Plus :size="14" />
-          Create Department
+          {{ $t('deptAdmin.createDept') }}
         </el-button>
         <el-button class="refresh-btn" @click="fetchDepartments" :loading="deptListLoading">
           <RefreshCw :size="14" :class="{ 'spin': deptListLoading }" />
-          Refresh
+          {{ $t('common.refresh') }}
         </el-button>
       </div>
     </div>
@@ -36,16 +36,16 @@
           <template #label>
             <span class="tab-label-custom">
               <Users :size="16" />
-              Department Roster
+              {{ $t('deptAdmin.roster') }}
             </span>
           </template>
 
           <div class="roster-selector-bar" v-if="isAdmin">
             <span class="page-sub-select">
-              Select Department:
-              <el-select 
-                v-model="selectedDeptId" 
-                placeholder="Choose Department" 
+              {{ $t('deptAdmin.selectDept') }}:
+              <el-select
+                v-model="selectedDeptId"
+                :placeholder="$t('deptAdmin.chooseDept')"
                 size="small" 
                 style="width: 240px; margin-left: 8px;" 
                 @change="handleDeptChange"
@@ -63,21 +63,21 @@
 
           <div class="roster-selector-bar" v-else>
             <span class="page-sub">
-              Department: <strong>{{ userStore.userInfo?.deptName || 'Unassigned Department' }}</strong>
+              {{ $t('deptAdmin.deptLabel') }}: <strong>{{ userStore.userInfo?.deptName || $t('deptAdmin.unassigned') }}</strong>
             </span>
           </div>
 
           <!-- Empty state if no department selected -->
           <div v-if="!selectedDeptId" class="no-dept-card">
             <Briefcase :size="48" class="no-dept-icon" />
-            <h3 class="no-dept-title">No Department Selected</h3>
-            <p class="no-dept-desc">Please select a department to load and configure its staff roster.</p>
+            <h3 class="no-dept-title">{{ $t('deptAdmin.noDeptSelected') }}</h3>
+            <p class="no-dept-desc">{{ $t('deptAdmin.noDeptDesc') }}</p>
           </div>
 
           <!-- Roster Table -->
           <div v-else class="table-container">
             <el-table :data="members" v-loading="loading" style="width: 100%" class="custom-table">
-              <el-table-column label="Employee" min-width="200">
+              <el-table-column :label="$t('deptAdmin.employee')" min-width="200">
                 <template #default="{ row }">
                   <div class="user-info-cell">
                     <div class="avatar-circle">
@@ -91,7 +91,7 @@
                 </template>
               </el-table-column>
 
-              <el-table-column label="Role" min-width="150">
+              <el-table-column :label="$t('deptAdmin.role')" min-width="150">
                 <template #default="{ row }">
                   <span 
                     v-for="role in row.roles" 
@@ -104,7 +104,7 @@
                 </template>
               </el-table-column>
 
-              <el-table-column label="Clearance" min-width="150">
+              <el-table-column :label="$t('deptAdmin.clearance')" min-width="150">
                 <template #default="{ row }">
                   <span class="clearance-badge" :class="'level-' + (row.clearanceLevel || 1)">
                     Level-{{ row.clearanceLevel || 1 }} ({{ getClearanceLabel(row.clearanceLevel || 1) }})
@@ -112,23 +112,23 @@
                 </template>
               </el-table-column>
 
-              <el-table-column label="Actions" min-width="120" align="right">
+              <el-table-column :label="$t('common.actions')" min-width="120" align="right">
                 <template #default="{ row }">
                   <el-popconfirm
-                    title="Are you sure to remove this employee from the department?"
-                    confirm-button-text="Yes"
-                    cancel-button-text="No"
+                    :title="$t('deptAdmin.confirmRemove')"
+                    :confirm-button-text="$t('common.yes')"
+                    :cancel-button-text="$t('common.no')"
                     @confirm="handleRemoveMember(row)"
                   >
                     <template #reference>
-                      <el-button 
-                        size="small" 
-                        type="danger" 
-                        plain 
+                      <el-button
+                        size="small"
+                        type="danger"
+                        plain
                         class="remove-btn"
                         :disabled="row.username === userStore.userInfo?.username"
                       >
-                        Remove
+                        {{ $t('common.remove') }}
                       </el-button>
                     </template>
                   </el-popconfirm>
@@ -143,34 +143,34 @@
           <template #label>
             <span class="tab-label-custom">
               <Briefcase :size="16" />
-              Departments Directory
+              {{ $t('deptAdmin.directory') }}
             </span>
           </template>
 
           <div class="table-container">
             <el-table :data="departments" v-loading="deptListLoading" style="width: 100%" class="custom-table">
-              <el-table-column label="Department ID" prop="id" width="130" />
-              <el-table-column label="Department Name" min-width="200">
+              <el-table-column :label="$t('deptAdmin.deptId')" prop="id" width="130" />
+              <el-table-column :label="$t('deptAdmin.deptName')" min-width="200">
                 <template #default="{ row }">
                   <span class="dept-dir-name">{{ row.deptName }}</span>
                 </template>
               </el-table-column>
-              <el-table-column label="Description" prop="description" min-width="300" />
-              <el-table-column label="Actions" width="160" align="right">
+              <el-table-column :label="$t('deptAdmin.description')" prop="description" min-width="300" />
+              <el-table-column :label="$t('common.actions')" width="160" align="right">
                 <template #default="{ row }">
                   <div class="action-btn-group">
                     <el-button size="small" @click="openDeptDialog(row)">
-                      Edit
+                      {{ $t('common.edit') }}
                     </el-button>
                     <el-popconfirm
-                      title="Deleting this department will unassign all its members. Proceed?"
-                      confirm-button-text="Yes"
-                      cancel-button-text="No"
+                      :title="$t('deptAdmin.confirmDeleteDept')"
+                      :confirm-button-text="$t('common.yes')"
+                      :cancel-button-text="$t('common.no')"
                       @confirm="handleDeleteDept(row.id)"
                     >
                       <template #reference>
                         <el-button size="small" type="danger" plain>
-                          Delete
+                          {{ $t('common.delete') }}
                         </el-button>
                       </template>
                     </el-popconfirm>
@@ -186,13 +186,13 @@
     <!-- Roster Candidate Selection Dialog -->
     <el-dialog
       v-model="addDialogVisible"
-      title="Add Employee to Department"
+      :title="$t('deptAdmin.addEmployeeTitle')"
       width="500px"
       class="custom-dialog"
     >
       <div class="dialog-body">
         <p class="dialog-desc">
-          Select candidates currently unassigned to any department to join <strong>{{ getActiveDeptName() }}</strong>:
+          {{ $t('deptAdmin.selectCandidatesDesc', { dept: getActiveDeptName() }) }}:
         </p>
 
         <el-table 
@@ -204,7 +204,7 @@
           @selection-change="handleSelectionChange"
         >
           <el-table-column type="selection" width="55" />
-          <el-table-column label="User">
+          <el-table-column :label="$t('deptAdmin.user')">
             <template #default="{ row }">
               <div class="user-info-cell compact">
                 <span class="real-name">{{ row.realName || row.username }}</span>
@@ -212,7 +212,7 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="Role" width="140">
+          <el-table-column :label="$t('deptAdmin.role')" width="140">
             <template #default="{ row }">
                <span class="role-badge user">{{ translateRole(row.roles?.[0] || 'ROLE_USER') }}</span>
             </template>
@@ -220,21 +220,21 @@
         </el-table>
 
         <div v-if="candidates.length === 0 && !candidatesLoading" class="empty-candidates">
-          No unassigned candidates found in the system.
+          {{ $t('deptAdmin.noCandidates') }}
         </div>
       </div>
 
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="addDialogVisible = false" class="dialog-btn-cancel">Cancel</el-button>
-          <el-button 
-            type="primary" 
-            @click="handleAddSubmit" 
-            :loading="submitLoading" 
+          <el-button @click="addDialogVisible = false" class="dialog-btn-cancel">{{ $t('common.cancel') }}</el-button>
+          <el-button
+            type="primary"
+            @click="handleAddSubmit"
+            :loading="submitLoading"
             :disabled="selectedUserIds.length === 0"
             class="dialog-btn-confirm"
           >
-            Add Selected ({{ selectedUserIds.length }})
+            {{ $t('deptAdmin.addSelected', { count: selectedUserIds.length }) }}
           </el-button>
         </span>
       </template>
@@ -243,25 +243,25 @@
     <!-- Create / Edit Department Dialog -->
     <el-dialog
       v-model="deptDialogVisible"
-      :title="deptForm.id ? 'Edit Department Details' : 'Create Department'"
+      :title="deptForm.id ? $t('deptAdmin.editDeptTitle') : $t('deptAdmin.createDeptTitle')"
       width="460px"
       class="custom-dialog"
     >
       <div class="dialog-body">
         <el-form :model="deptForm" label-position="top">
-          <el-form-item label="Department Name" required>
-            <el-input 
-              v-model="deptForm.deptName" 
-              placeholder="E.g. Retail Banking Department" 
+          <el-form-item :label="$t('deptAdmin.deptName')" required>
+            <el-input
+              v-model="deptForm.deptName"
+              :placeholder="$t('deptAdmin.deptNamePlaceholder')"
               class="custom-input"
             />
           </el-form-item>
-          <el-form-item label="Description">
-            <el-input 
-              v-model="deptForm.description" 
-              type="textarea" 
-              :rows="3" 
-              placeholder="Brief description of the department's core responsibilities."
+          <el-form-item :label="$t('deptAdmin.description')">
+            <el-input
+              v-model="deptForm.description"
+              type="textarea"
+              :rows="3"
+              :placeholder="$t('deptAdmin.descriptionPlaceholder')"
               class="custom-textarea"
             />
           </el-form-item>
@@ -269,15 +269,15 @@
       </div>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="deptDialogVisible = false" class="dialog-btn-cancel">Cancel</el-button>
-          <el-button 
-            type="primary" 
-            @click="handleDeptSubmit" 
-            :loading="deptSubmitLoading" 
+          <el-button @click="deptDialogVisible = false" class="dialog-btn-cancel">{{ $t('common.cancel') }}</el-button>
+          <el-button
+            type="primary"
+            @click="handleDeptSubmit"
+            :loading="deptSubmitLoading"
             class="dialog-btn-confirm"
             :disabled="!deptForm.deptName"
           >
-            Save Details
+            {{ $t('common.save') }}
           </el-button>
         </span>
       </template>
@@ -287,9 +287,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { ElMessage } from 'element-plus'
 import { Plus, RefreshCw, Briefcase, Users } from 'lucide-vue-next'
+
+const { t } = useI18n()
 import { 
   getDeptMembers, 
   getDeptCandidates, 
@@ -331,7 +334,7 @@ const isAdmin = computed(() => {
 
 const getActiveDeptName = () => {
   const dept = departments.value.find(d => d.id === selectedDeptId.value)
-  return dept ? dept.deptName : 'Selected Department'
+  return dept ? dept.deptName : t('deptAdmin.selectedDept')
 }
 
 const handleDeptChange = async () => {
@@ -370,7 +373,7 @@ const fetchMembers = async () => {
     members.value = res || []
   } catch (error: any) {
     console.error('Failed to load department members:', error)
-    ElMessage.error(error.message || 'Failed to load department roster')
+    ElMessage.error(error.message || t('request.failed', { msg: '' }))
   } finally {
     loading.value = false
   }
@@ -403,12 +406,12 @@ const handleAddSubmit = async () => {
   submitLoading.value = true
   try {
     await addDeptMembers(selectedUserIds.value, selectedDeptId.value)
-    ElMessage.success('Employees added to department successfully.')
+    ElMessage.success(t('deptAdmin.employeeAdded'))
     addDialogVisible.value = false
     await fetchMembers()
   } catch (error: any) {
     console.error('Failed to add members:', error)
-    ElMessage.error(error.message || 'Failed to add members')
+    ElMessage.error(error.message || t('request.failed', { msg: '' }))
   } finally {
     submitLoading.value = false
   }
@@ -418,11 +421,11 @@ const handleRemoveMember = async (row: any) => {
   if (!selectedDeptId.value) return
   try {
     await removeDeptMember(row.id, selectedDeptId.value)
-    ElMessage.success(`Removed @${row.username} from department.`)
+    ElMessage.success(t('deptAdmin.employeeRemoved', { username: row.username }))
     await fetchMembers()
   } catch (error: any) {
     console.error('Failed to remove member:', error)
-    ElMessage.error(error.message || 'Failed to remove member')
+    ElMessage.error(error.message || t('request.failed', { msg: '' }))
   }
 }
 
@@ -450,16 +453,16 @@ const handleDeptSubmit = async () => {
   try {
     if (deptForm.value.id) {
       await updateDepartment(deptForm.value as any)
-      ElMessage.success('Department details updated successfully.')
+      ElMessage.success(t('deptAdmin.deptUpdated'))
     } else {
       await createDepartment(deptForm.value as any)
-      ElMessage.success('New department created successfully.')
+      ElMessage.success(t('deptAdmin.deptCreated'))
     }
     deptDialogVisible.value = false
     await fetchDepartments()
   } catch (error: any) {
     console.error('Failed to save department:', error)
-    ElMessage.error(error.message || 'Failed to save department details')
+    ElMessage.error(error.message || t('request.failed', { msg: '' }))
   } finally {
     deptSubmitLoading.value = false
   }
@@ -468,7 +471,7 @@ const handleDeptSubmit = async () => {
 const handleDeleteDept = async (id: number) => {
   try {
     await deleteDepartment(id)
-    ElMessage.success('Department deleted successfully.')
+    ElMessage.success(t('deptAdmin.deptDeleted'))
     if (selectedDeptId.value === id) {
       selectedDeptId.value = null
       members.value = []
@@ -476,14 +479,14 @@ const handleDeleteDept = async (id: number) => {
     await fetchDepartments()
   } catch (error: any) {
     console.error('Failed to delete department:', error)
-    ElMessage.error(error.message || 'Failed to delete department')
+    ElMessage.error(error.message || t('request.failed', { msg: '' }))
   }
 }
 
 const translateRole = (role: string) => {
-  if (role === '系统管理员' || role === 'ROLE_ADMIN') return 'System Admin'
-  if (role === '部门管理员' || role === 'ROLE_DEPT_ADMIN') return 'Dept Admin'
-  if (role === '普通员工' || role === 'ROLE_USER') return 'Employee'
+  if (role === '系统管理员' || role === 'ROLE_ADMIN') return t('deptAdmin.roleSystemAdmin')
+  if (role === '部门管理员' || role === 'ROLE_DEPT_ADMIN') return t('deptAdmin.roleDeptAdmin')
+  if (role === '普通员工' || role === 'ROLE_USER') return t('deptAdmin.roleEmployee')
   return role
 }
 
@@ -494,9 +497,9 @@ const getRoleClass = (role: string) => {
 }
 
 const getClearanceLabel = (level: number) => {
-  if (level === 3) return 'Confidential'
-  if (level === 2) return 'Internal'
-  return 'Public'
+  if (level === 3) return t('deptAdmin.clearanceConfidential')
+  if (level === 2) return t('deptAdmin.clearanceInternal')
+  return t('deptAdmin.clearancePublic')
 }
 
 onMounted(async () => {

@@ -3,8 +3,8 @@
     <!-- Header -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">Resource & Asset Management</h1>
-        <p class="page-sub">Maintain meeting room databases, monitor booking schedules, and review reservation statuses.</p>
+        <h1 class="page-title">{{ $t('adminResources.title') }}</h1>
+        <p class="page-sub">{{ $t('adminResources.subtitle') }}</p>
       </div>
       <div class="header-actions">
         <el-button 
@@ -13,7 +13,7 @@
           type="primary" 
           @click="openAddRoomDialog"
         >
-          + Add Meeting Room
+          {{ $t('adminResources.addRoom') }}
         </el-button>
         <el-button 
           v-else
@@ -21,11 +21,11 @@
           type="primary" 
           @click="openAddScheduleDialog"
         >
-          + Create Reservation
+          {{ $t('adminResources.createReservation') }}
         </el-button>
         <el-button class="refresh-btn" @click="handleRefresh" :loading="loading">
           <RefreshCw :size="14" :class="{ 'spin': loading }" />
-          Refresh
+          {{ $t('common.refresh') }}
         </el-button>
       </div>
     </div>
@@ -35,18 +35,18 @@
       <el-tabs v-model="activeTab" class="custom-tabs" @tab-change="handleTabChange">
         
         <!-- Tab 1: Meeting Rooms -->
-        <el-tab-pane label="Meeting Rooms" name="rooms">
+        <el-tab-pane :label="$t('adminResources.tabs.meetingRooms')" name="rooms">
           <div class="table-card">
             <el-table :data="rooms" v-loading="loading" style="width: 100%" class="custom-table">
               <!-- Room Name -->
-              <el-table-column label="Room Name" min-width="160">
+              <el-table-column :label="$t('adminResources.roomName')" min-width="160">
                 <template #default="{ row }">
                   <span class="room-name-text">{{ row.roomName }}</span>
                 </template>
               </el-table-column>
 
               <!-- Location -->
-              <el-table-column label="Location" min-width="150">
+              <el-table-column :label="$t('adminResources.location')" min-width="150">
                 <template #default="{ row }">
                   <div class="location-wrap">
                     <span v-if="row.building" class="building-badge">{{ row.building }}</span>
@@ -56,14 +56,14 @@
               </el-table-column>
 
               <!-- Capacity -->
-              <el-table-column label="Capacity" min-width="120">
+              <el-table-column :label="$t('adminResources.capacity')" min-width="120">
                 <template #default="{ row }">
                   <span class="capacity-text">{{ row.capacity }} people</span>
                 </template>
               </el-table-column>
 
               <!-- Facilities -->
-              <el-table-column label="Facilities" min-width="220">
+              <el-table-column :label="$t('adminResources.facilities')" min-width="220">
                 <template #default="{ row }">
                   <div class="facilities-wrap">
                     <span 
@@ -73,13 +73,13 @@
                     >
                       {{ facility }}
                     </span>
-                    <span v-if="!row.facilities" class="facility-badge empty">None</span>
+                    <span v-if="!row.facilities" class="facility-badge empty">{{ $t('adminResources.none') }}</span>
                   </div>
                 </template>
               </el-table-column>
 
               <!-- Status -->
-              <el-table-column label="Status" min-width="140">
+              <el-table-column :label="$t('adminResources.status')" min-width="140">
                 <template #default="{ row }">
                   <div class="status-cell">
                     <el-switch
@@ -90,29 +90,29 @@
                       class="custom-switch"
                     />
                     <span class="status-text-label" :class="{ 'is-active': row.status === 1 }">
-                      {{ row.status === 1 ? 'Active' : 'Maintenance' }}
+                      {{ row.status === 1 ? $t('adminResources.active') : $t('adminResources.maintenance') }}
                     </span>
                   </div>
                 </template>
               </el-table-column>
 
               <!-- Actions -->
-              <el-table-column label="Actions" min-width="180" align="right">
+              <el-table-column :label="$t('adminResources.actions')" min-width="180" align="right">
                 <template #default="{ row }">
-                  <el-button 
+                  <el-button
                     size="small"
                     class="action-btn edit-btn"
                     @click="openEditRoomDialog(row)"
                   >
-                    Edit
+                    {{ $t('common.edit') }}
                   </el-button>
-                  <el-button 
+                  <el-button
                     size="small"
                     type="danger"
                     class="action-btn delete-btn"
                     @click="confirmDeleteRoom(row)"
                   >
-                    Delete
+                    {{ $t('common.delete') }}
                   </el-button>
                 </template>
               </el-table-column>
@@ -121,21 +121,21 @@
         </el-tab-pane>
 
         <!-- Tab 2: Booking Schedules -->
-        <el-tab-pane label="Schedules & Bookings" name="schedules">
+        <el-tab-pane :label="$t('adminResources.tabs.schedules')" name="schedules">
           <div class="table-card">
             <el-table :data="schedules" v-loading="loading" style="width: 100%" class="custom-table">
               <!-- Booker -->
-              <el-table-column label="Booker" min-width="150">
+              <el-table-column :label="$t('adminResources.booker')" min-width="150">
                 <template #default="{ row }">
                   <span class="booker-name">@{{ row.booker }}</span>
                 </template>
               </el-table-column>
 
               <!-- Room Linkage -->
-              <el-table-column label="Assigned Location" min-width="160">
+              <el-table-column :label="$t('adminResources.assignedLocation')" min-width="160">
                 <template #default="{ row }">
                   <span v-if="row.roomId === 0" class="room-linkage-text personal">
-                    Personal Schedule
+                    {{ $t('adminResources.personalSchedule') }}
                   </span>
                   <span v-else class="room-linkage-text room">
                     {{ getRoomName(row.roomId) }}
@@ -144,49 +144,49 @@
               </el-table-column>
 
               <!-- Topic -->
-              <el-table-column label="Topic / Purpose" min-width="180">
+              <el-table-column :label="$t('adminResources.topic')" min-width="180">
                 <template #default="{ row }">
                   <span class="topic-text">{{ row.topic || '-' }}</span>
                 </template>
               </el-table-column>
 
               <!-- Date & Time Duration -->
-              <el-table-column label="Reservation Period" min-width="300">
+              <el-table-column :label="$t('adminResources.period')" min-width="300">
                 <template #default="{ row }">
                   <div class="time-range-cell">
                     <span class="time-text">{{ formatDate(row.startTime) }}</span>
-                    <span class="time-divider">to</span>
+                    <span class="time-divider">{{ $t('adminResources.to') }}</span>
                     <span class="time-text">{{ formatDate(row.endTime) }}</span>
                   </div>
                 </template>
               </el-table-column>
 
               <!-- Status -->
-              <el-table-column label="Status" min-width="120">
+              <el-table-column :label="$t('adminResources.status')" min-width="120">
                 <template #default="{ row }">
                   <span class="status-pill" :class="row.status === 1 ? 'active' : 'cancelled'">
-                    {{ row.status === 1 ? 'Confirmed' : 'Cancelled' }}
+                    {{ row.status === 1 ? $t('adminResources.confirmed') : $t('adminResources.cancelled') }}
                   </span>
                 </template>
               </el-table-column>
 
               <!-- Actions -->
-              <el-table-column label="Actions" min-width="180" align="right">
+              <el-table-column :label="$t('adminResources.actions')" min-width="180" align="right">
                 <template #default="{ row }">
-                  <el-button 
+                  <el-button
                     size="small"
                     class="action-btn edit-btn"
                     @click="openEditScheduleDialog(row)"
                   >
-                    Edit
+                    {{ $t('common.edit') }}
                   </el-button>
-                  <el-button 
+                  <el-button
                     size="small"
                     type="danger"
                     class="action-btn delete-btn"
                     @click="confirmDeleteSchedule(row)"
                   >
-                    Cancel
+                    {{ $t('common.cancel') }}
                   </el-button>
                 </template>
               </el-table-column>
@@ -200,40 +200,40 @@
     <!-- Room Form Dialog (Add / Edit Room) -->
     <el-dialog
       v-model="roomDialogVisible"
-      :title="isEdit ? 'Edit Meeting Room' : 'Add Meeting Room'"
+      :title="isEdit ? $t('adminResources.editRoom') : $t('adminResources.addRoom')"
       width="440px"
       class="custom-dialog"
       :before-close="closeRoomDialog"
     >
       <div class="dialog-body">
         <el-form :model="roomForm" label-position="top">
-          <el-form-item label="Room Name" required>
-            <el-input v-model="roomForm.roomName" placeholder="e.g. 303 Conference Room" />
+          <el-form-item :label="$t('adminResources.roomName')" required>
+            <el-input v-model="roomForm.roomName" :placeholder="$t('adminResources.roomNamePlaceholder')" />
           </el-form-item>
 
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="Building">
-                <el-input v-model="roomForm.building" placeholder="e.g. Building A" />
+              <el-form-item :label="$t('adminResources.building')">
+                <el-input v-model="roomForm.building" :placeholder="$t('adminResources.buildingPlaceholder')" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="Floor" required>
-                <el-input v-model="roomForm.floor" placeholder="e.g. 3, B1" />
+              <el-form-item :label="$t('adminResources.floor')" required>
+                <el-input v-model="roomForm.floor" :placeholder="$t('adminResources.floorPlaceholder')" />
               </el-form-item>
             </el-col>
           </el-row>
 
-          <el-form-item label="Capacity" required>
+          <el-form-item :label="$t('adminResources.capacity')" required>
             <el-input-number v-model="roomForm.capacity" :min="1" :max="1000" style="width: 100%" />
           </el-form-item>
 
           <!-- Facilities Selection -->
-          <el-form-item label="Facilities / Equipment">
+          <el-form-item :label="$t('adminResources.facilities')">
             <el-select
               v-model="selectedFacilities"
               multiple
-              placeholder="Select room equipment/facilities"
+              :placeholder="$t('adminResources.facilitiesPlaceholder')"
               style="width: 100%"
             >
               <el-option
@@ -245,19 +245,19 @@
             </el-select>
           </el-form-item>
 
-          <el-form-item label="Status">
+          <el-form-item :label="$t('adminResources.status')">
             <el-select v-model="roomForm.status" style="width: 100%">
-              <el-option :value="1" label="Active" />
-              <el-option :value="0" label="In Maintenance" />
+              <el-option :value="1" :label="$t('adminResources.active')" />
+              <el-option :value="0" :label="$t('adminResources.maintenance')" />
             </el-select>
           </el-form-item>
         </el-form>
       </div>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="closeRoomDialog" class="dialog-btn-cancel">Cancel</el-button>
+          <el-button @click="closeRoomDialog" class="dialog-btn-cancel">{{ $t('common.cancel') }}</el-button>
           <el-button type="primary" @click="handleRoomSubmit" :loading="submitLoading" class="dialog-btn-confirm">
-            Save Changes
+            {{ $t('common.save') }}
           </el-button>
         </span>
       </template>
@@ -266,7 +266,7 @@
     <!-- Schedule Form Dialog (Add / Edit Schedule) -->
     <el-dialog
       v-model="scheduleDialogVisible"
-      :title="isEdit ? 'Edit Booking Reservation' : 'Create Booking Reservation'"
+      :title="isEdit ? $t('adminResources.editBooking') : $t('adminResources.createReservation')"
       width="460px"
       class="custom-dialog"
       :before-close="closeScheduleDialog"
@@ -274,14 +274,14 @@
       <div class="dialog-body">
         <el-form :model="scheduleForm" label-position="top">
           <!-- Booker -->
-          <el-form-item label="Booker Account (Username)" required>
-            <el-input v-model="scheduleForm.booker" placeholder="e.g. admin, yjc200212@gmail.com" />
+          <el-form-item :label="$t('adminResources.bookerAccount')" required>
+            <el-input v-model="scheduleForm.booker" :placeholder="$t('adminResources.bookerPlaceholder')" />
           </el-form-item>
 
           <!-- Room Selection -->
-          <el-form-item label="Assigned Location / Meeting Room" required>
-            <el-select v-model="scheduleForm.roomId" placeholder="Select location" style="width: 100%">
-              <el-option :value="0" label="Personal Schedule (No Room Reservation)" />
+          <el-form-item :label="$t('adminResources.assignedLocationRoom')" required>
+            <el-select v-model="scheduleForm.roomId" :placeholder="$t('adminResources.selectLocation')" style="width: 100%">
+              <el-option :value="0" :label="$t('adminResources.personalScheduleOption')" />
               <el-option 
                 v-for="room in rooms" 
                 :key="room.id" 
@@ -292,30 +292,30 @@
           </el-form-item>
 
           <!-- Topic -->
-          <el-form-item label="Topic / Purpose" required>
-            <el-input v-model="scheduleForm.topic" placeholder="e.g. Sprint Planning, Client Review" />
+          <el-form-item :label="$t('adminResources.topic')" required>
+            <el-input v-model="scheduleForm.topic" :placeholder="$t('adminResources.topicPlaceholder')" />
           </el-form-item>
 
           <!-- Start & End Date Time Pickers -->
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="Start Time" required>
+              <el-form-item :label="$t('adminResources.startTime')" required>
                 <el-date-picker
                   v-model="scheduleForm.startTime"
                   type="datetime"
                   value-format="YYYY-MM-DD HH:mm:ss"
-                  placeholder="Start datetime"
+                  :placeholder="$t('adminResources.startTimePlaceholder')"
                   style="width: 100%"
                 />
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="End Time" required>
+              <el-form-item :label="$t('adminResources.endTime')" required>
                 <el-date-picker
                   v-model="scheduleForm.endTime"
                   type="datetime"
                   value-format="YYYY-MM-DD HH:mm:ss"
-                  placeholder="End datetime"
+                  :placeholder="$t('adminResources.endTimePlaceholder')"
                   style="width: 100%"
                 />
               </el-form-item>
@@ -323,19 +323,19 @@
           </el-row>
 
           <!-- Status -->
-          <el-form-item label="Status">
+          <el-form-item :label="$t('adminResources.status')">
             <el-select v-model="scheduleForm.status" style="width: 100%">
-              <el-option :value="1" label="Confirmed" />
-              <el-option :value="0" label="Cancelled" />
+              <el-option :value="1" :label="$t('adminResources.confirmed')" />
+              <el-option :value="0" :label="$t('adminResources.cancelled')" />
             </el-select>
           </el-form-item>
         </el-form>
       </div>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="closeScheduleDialog" class="dialog-btn-cancel">Cancel</el-button>
+          <el-button @click="closeScheduleDialog" class="dialog-btn-cancel">{{ $t('common.cancel') }}</el-button>
           <el-button type="primary" @click="handleScheduleSubmit" :loading="submitLoading" class="dialog-btn-confirm">
-            Save Changes
+            {{ $t('common.save') }}
           </el-button>
         </span>
       </template>
@@ -345,9 +345,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
 import request from '@utils/request'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { RefreshCw } from 'lucide-vue-next'
+
+const { t } = useI18n()
 
 interface MeetingRoom {
   id?: number
@@ -513,15 +516,15 @@ const closeRoomDialog = () => {
 
 const handleRoomSubmit = async () => {
   if (!roomForm.roomName.trim()) {
-    ElMessage.warning('Room name is required')
+    ElMessage.warning(t('adminResources.validation.roomNameRequired'))
     return
   }
   if (roomForm.floor === undefined || roomForm.floor === null || (typeof roomForm.floor === 'string' && !roomForm.floor.trim())) {
-    ElMessage.warning('Floor is required')
+    ElMessage.warning(t('adminResources.validation.floorRequired'))
     return
   }
   if (!roomForm.capacity || roomForm.capacity <= 0) {
-    ElMessage.warning('Capacity must be a positive integer')
+    ElMessage.warning(t('adminResources.validation.capacityRequired'))
     return
   }
 
@@ -532,15 +535,15 @@ const handleRoomSubmit = async () => {
   try {
     if (isEdit.value) {
       await request.put('/tool/admin/meeting-rooms', roomForm)
-      ElMessage.success('Meeting room updated successfully')
+      ElMessage.success(t('adminResources.roomUpdated'))
     } else {
       await request.post('/tool/admin/meeting-rooms', roomForm)
-      ElMessage.success('Meeting room created successfully')
+      ElMessage.success(t('adminResources.roomCreated'))
     }
     closeRoomDialog()
     await fetchRooms()
   } catch (error: any) {
-    ElMessage.error('Save failed: ' + (error.message || 'Server error'))
+    ElMessage.error(t('request.failed', { msg: error.message || 'Server error' }))
   } finally {
     submitLoading.value = false
   }
@@ -557,30 +560,30 @@ const handleRoomStatusToggle = async (row: MeetingRoom, val: number) => {
       facilities: row.facilities,
       status: val
     })
-    ElMessage.success(`Room status updated to ${val === 1 ? 'Active' : 'Maintenance'}`)
+    ElMessage.success(t('adminResources.roomStatusUpdated', { status: val === 1 ? t('adminResources.active') : t('adminResources.maintenance') }))
   } catch (error: any) {
     row.status = val === 1 ? 0 : 1
-    ElMessage.error('Status toggle failed: ' + (error.message || 'Server error'))
+    ElMessage.error(t('adminResources.statusToggleFailed', { msg: error.message || 'Server error' }))
   }
 }
 
 const confirmDeleteRoom = (row: MeetingRoom) => {
   ElMessageBox.confirm(
-    `Are you sure you want to delete "${row.roomName}"? This action cannot be undone.`,
-    'Warning',
+    t('adminResources.confirmDeleteRoom', { name: row.roomName }),
+    t('common.warning'),
     {
-      confirmButtonText: 'Delete',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('common.delete'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning',
       confirmButtonClass: 'el-button--danger'
     }
   ).then(async () => {
     try {
       await request.delete(`/tool/admin/meeting-rooms/${row.id}`)
-      ElMessage.success('Meeting room deleted successfully')
+      ElMessage.success(t('adminResources.roomDeleted'))
       await fetchRooms()
     } catch (error: any) {
-      ElMessage.error('Delete failed')
+      ElMessage.error(t('request.failed', { msg: '' }))
     }
   }).catch(() => {})
 }
@@ -616,15 +619,15 @@ const closeScheduleDialog = () => {
 
 const handleScheduleSubmit = async () => {
   if (!scheduleForm.booker.trim()) {
-    ElMessage.warning('Booker is required')
+    ElMessage.warning(t('adminResources.validation.bookerRequired'))
     return
   }
   if (!scheduleForm.topic.trim()) {
-    ElMessage.warning('Topic/purpose is required')
+    ElMessage.warning(t('adminResources.validation.topicRequired'))
     return
   }
   if (!scheduleForm.startTime || !scheduleForm.endTime) {
-    ElMessage.warning('Start and end times are required')
+    ElMessage.warning(t('adminResources.validation.timeRequired'))
     return
   }
 
@@ -632,15 +635,15 @@ const handleScheduleSubmit = async () => {
   try {
     if (isEdit.value) {
       await request.put('/tool/admin/schedules', scheduleForm)
-      ElMessage.success('Reservation updated successfully')
+      ElMessage.success(t('adminResources.reservationUpdated'))
     } else {
       await request.post('/tool/admin/schedules', scheduleForm)
-      ElMessage.success('Reservation created successfully')
+      ElMessage.success(t('adminResources.reservationCreated'))
     }
     closeScheduleDialog()
     await fetchSchedules()
   } catch (error: any) {
-    ElMessage.error('Save failed: ' + (error.message || 'Server error'))
+    ElMessage.error(t('request.failed', { msg: error.message || 'Server error' }))
   } finally {
     submitLoading.value = false
   }
@@ -648,21 +651,21 @@ const handleScheduleSubmit = async () => {
 
 const confirmDeleteSchedule = (row: MeetingSchedule) => {
   ElMessageBox.confirm(
-    `Are you sure you want to cancel/delete the reservation for "${row.topic}"?`,
-    'Warning',
+    t('adminResources.confirmDeleteReservation', { topic: row.topic }),
+    t('common.warning'),
     {
-      confirmButtonText: 'Confirm',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning',
       confirmButtonClass: 'el-button--danger'
     }
   ).then(async () => {
     try {
       await request.delete(`/tool/admin/schedules/${row.id}`)
-      ElMessage.success('Reservation cancelled successfully')
+      ElMessage.success(t('adminResources.reservationCancelled'))
       await fetchSchedules()
     } catch (error: any) {
-      ElMessage.error('Cancellation failed')
+      ElMessage.error(t('request.failed', { msg: '' }))
     }
   }).catch(() => {})
 }

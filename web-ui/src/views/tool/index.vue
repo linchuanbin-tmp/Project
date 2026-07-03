@@ -23,7 +23,7 @@
           </el-tab-pane>
 
           <!-- Route planning -->
-          <el-tab-pane label="Route planning" name="route">
+          <el-tab-pane :label="$t('tool.tabs.route')" name="route">
             <RouteAgent ref="routeAgentRef" />
           </el-tab-pane>
         </el-tabs>
@@ -34,8 +34,8 @@
         <el-card class="ai-card">
           <template #header>
             <div class="card-header">
-              <span>AI Assistant</span>
-              <el-tag v-if="isExecuting" type="warning" effect="dark">Running</el-tag>
+              <span>{{ $t('tool.ai.title') }}</span>
+              <el-tag v-if="isExecuting" type="warning" effect="dark">{{ $t('tool.ai.running') }}</el-tag>
             </div>
           </template>
 
@@ -44,7 +44,7 @@
                 v-model="naturalQuery"
                 type="textarea"
                 :rows="4"
-                placeholder="e.g. 'Help me book a meeting room for June 2nd, capacity 10', 'Check if admin is free between June 2nd and 3rd', 'Plan a route from HKU to HK Airport'"
+                :placeholder="$t('tool.ai.placeholder')"
                 :disabled="isExecuting"
             />
 
@@ -55,7 +55,7 @@
                 :loading="isExecuting"
                 :disabled="!naturalQuery.trim()"
             >
-              {{ isExecuting ? 'Processing...' : 'Send to AI' }}
+              {{ isExecuting ? $t('tool.ai.processing') : $t('tool.ai.sendBtn') }}
             </el-button>
 
             <AgentThinking :visible="isExecuting" />
@@ -63,30 +63,30 @@
             <!-- AI result (shown after task completes) -->
             <div v-if="aiResponse" class="ai-result">
               <el-divider />
-              <h4>AI analysis</h4>
+              <h4>{{ $t('tool.ai.resultTitle') }}</h4>
 
               <!-- Parsed intent from AI -->
               <div v-if="aiResponse.aiParsed">
                 <el-descriptions :column="1" border size="small">
-                  <el-descriptions-item label="Intent">{{ aiResponse.aiParsed.intent || 'Query' }}</el-descriptions-item>
-                  <el-descriptions-item label="Date">
-                    {{ aiResponse.aiParsed.parameters?.date || aiResponse.aiParsed.date || 'Today' }}
+                  <el-descriptions-item :label="$t('tool.ai.intent')">{{ aiResponse.aiParsed.intent || 'Query' }}</el-descriptions-item>
+                  <el-descriptions-item :label="$t('tool.ai.date')">
+                    {{ aiResponse.aiParsed.parameters?.date || aiResponse.aiParsed.date || $t('tool.ai.today') }}
                   </el-descriptions-item>
-                  <el-descriptions-item label="Time range">
-                    {{ aiResponse.aiParsed.parameters?.timeRange || aiResponse.aiParsed.timeRange || 'Not specified' }}
+                  <el-descriptions-item :label="$t('tool.ai.timeRange')">
+                    {{ aiResponse.aiParsed.parameters?.timeRange || aiResponse.aiParsed.timeRange || $t('tool.ai.unspecified') }}
                   </el-descriptions-item>
-                  <el-descriptions-item label="Capacity">
-                    {{ aiResponse.aiParsed.parameters?.capacity || aiResponse.aiParsed.capacity || 'Not specified' }}
+                  <el-descriptions-item :label="$t('tool.ai.capacity')">
+                    {{ aiResponse.aiParsed.parameters?.capacity || aiResponse.aiParsed.capacity || $t('tool.ai.unspecified') }}
                   </el-descriptions-item>
-                  <el-descriptions-item v-if="aiResponse.aiParsed.parameters?.equipment || aiResponse.aiParsed.equipment" label="Equipment">
-                    {{ (aiResponse.aiParsed.parameters?.equipment || aiResponse.aiParsed.equipment)?.join(', ') || 'None' }}
+                  <el-descriptions-item v-if="aiResponse.aiParsed.parameters?.equipment || aiResponse.aiParsed.equipment" :label="$t('tool.ai.equipment')">
+                    {{ (aiResponse.aiParsed.parameters?.equipment || aiResponse.aiParsed.equipment)?.join(', ') || $t('tool.ai.none') }}
                   </el-descriptions-item>
                 </el-descriptions>
               </div>
 
               <!-- Recommended meeting rooms -->
               <div v-if="aiResponse.rooms" style="margin-top: 10px;">
-                <h5>Recommended rooms</h5>
+                <h5>{{ $t('tool.ai.recommendedRoom') }}</h5>
                 <el-card v-for="room in aiResponse.rooms" :key="room.id" class="room-card" shadow="hover">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span><strong>{{ room.name }}</strong> ({{ room.id }})</span>
@@ -98,7 +98,7 @@
                     Capacity: {{ room.capacity }} people | Location: {{ room.location }} | Equipment: {{ room.equipment?.join(', ') }}
                   </p>
                   <p v-if="room.aiMatchScore" style="margin: 0; color: #409EFF; font-size: 12px;">
-                    🤖 AI Match: {{ room.aiMatchScore }}% - {{ room.aiReasoning }}
+                    {{ $t('tool.ai.aiMatchScore') }}: {{ room.aiMatchScore }}% - {{ room.aiReasoning }}
                   </p>
                 </el-card>
               </div>
@@ -106,9 +106,9 @@
               <!-- Route planning result -->
               <div v-if="aiResponse.distance">
                 <el-descriptions :column="2" border>
-                  <el-descriptions-item label="Distance">{{ aiResponse.distance }}</el-descriptions-item>
-                  <el-descriptions-item label="Duration">{{ aiResponse.duration }}</el-descriptions-item>
-                  <el-descriptions-item label="Traffic">{{ aiResponse.trafficStatus }}</el-descriptions-item>
+                  <el-descriptions-item :label="$t('tool.ai.distance')">{{ aiResponse.distance }}</el-descriptions-item>
+                  <el-descriptions-item :label="$t('tool.ai.duration')">{{ aiResponse.duration }}</el-descriptions-item>
+                  <el-descriptions-item :label="$t('tool.ai.trafficStatus')">{{ aiResponse.trafficStatus }}</el-descriptions-item>
                 </el-descriptions>
               </div>
 
@@ -123,7 +123,7 @@
 
               <!-- Raw JSON response (collapsible) -->
               <el-collapse style="margin-top: 10px;">
-                <el-collapse-item title="Raw response">
+                <el-collapse-item :title="$t('tool.ai.rawData')">
                   <pre style="font-size: 11px; background: #f5f7fa; padding: 8px;">{{ JSON.stringify(aiResponse, null, 2) }}</pre>
                 </el-collapse-item>
               </el-collapse>
@@ -468,7 +468,7 @@ const fetchTaskResult = async () => {
           equipment: room.equipment,
           available: room.available,
           aiMatchScore: room.available ? 100 : 0,
-          aiReasoning: room.available ? 'Matches criteria' : 'Unavailable for this period'
+          aiReasoning: room.available ? t('tool.ai.matchedReason') : t('tool.ai.occupiedReason')
         }))
       }
     }
