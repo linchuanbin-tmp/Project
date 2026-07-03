@@ -110,6 +110,11 @@
           <span v-if="!collapsed">Settings</span>
         </div>
 
+        <!-- Language switcher -->
+        <div class="bottom-lang" :class="{ 'icon-only': collapsed }">
+          <LangSwitcher />
+        </div>
+
         <!-- User info & logout -->
         <el-dropdown @command="handleCommand" trigger="click" placement="top-start">
           <div class="bottom-item user-item" :class="{ 'icon-only': collapsed }">
@@ -156,6 +161,7 @@ import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@stores/modules/user'
 import { getUnreadCount } from '@/api/notification'
+import LangSwitcher from '@components/LangSwitcher.vue'
 import {
   Home, Wrench, FileText, BookOpen,
   Settings, ChevronDown, Users, Database,
@@ -384,6 +390,41 @@ const handleCommand = (command: string) => {
 .settings-item:hover .icon { color: #374151; }
 .settings-active { background: #f0f0f5 !important; color: #111827 !important; font-weight: 500; }
 .settings-active .icon { color: #374151 !important; }
+
+/* Language switcher in sidebar bottom */
+.bottom-lang {
+  display: flex;
+  justify-content: flex-start;
+  padding: 10px 10px;
+  margin-bottom: 3px;
+}
+
+.bottom-lang.icon-only {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.bottom-lang :deep(.el-radio-group) {
+  display: flex;
+}
+
+.bottom-lang :deep(.el-radio-button__inner) {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 0;
+  border-color: #e5e7eb;
+  background: #f9fafb;
+  color: #6b7280;
+  box-shadow: none;
+}
+
+.bottom-lang :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+  box-shadow: none;
+}
 
 /* Full-width dropdown trigger so collapsed items can center */
 .sidebar-bottom :deep(.el-dropdown) {
