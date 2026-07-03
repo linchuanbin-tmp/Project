@@ -623,7 +623,8 @@ defineExpose({ setScheduleData, checkConflict: triggerConflictCheck, conflictRes
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 0; /* Prevents flex/grid blowouts */
+  min-width: 0;
+  overflow: hidden;
 }
 .filter-label {
   font-size: 12px;
@@ -906,6 +907,8 @@ defineExpose({ setScheduleData, checkConflict: triggerConflictCheck, conflictRes
   display: block;
 }
 
+:deep(.custom-picker.el-date-editor),
+:deep(.custom-select),
 :deep(.custom-time-picker.el-date-editor) {
   width: 100% !important;
 }
