@@ -149,6 +149,7 @@ start_service() {
 start_service "gateway-service" "gateway-service" 8080
 start_service "user-service"   "user-service"   8081
 start_service "task-service"   "task-service"   8082
+start_service "tool-agent"     "tool-agent"     8083
 # code-agent 是独立 Spring Boot 项目，单独启动
 log_info "启动 code-agent (端口 8084)..."
 nohup ./mvnw -f code-agent/pom.xml spring-boot:run \
