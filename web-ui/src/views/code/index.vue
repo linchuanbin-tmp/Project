@@ -9,14 +9,13 @@
           Describe the data you need in natural language, review the generated query, and run it with human-in-the-loop security.
         </p>
       </div>
-      <div class="header-right">
+      <div class="header-right" style="display: flex; align-items: center;">
         <el-button 
-          :icon="RefreshCw" 
           @click="refreshMetadata" 
           :loading="metadataLoading" 
-          size="small" 
           class="btn-refresh"
         >
+          <RefreshCw :size="14" :class="{ 'spin': metadataLoading }" />
           Sync Schema
         </el-button>
       </div>
@@ -474,17 +473,32 @@ onMounted(() => {
 }
 
 .btn-refresh {
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  color: #374151;
-  font-weight: 500;
-  height: 32px;
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 9px !important;
+  color: #374151 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  height: 38px !important;
+  padding: 0 16px !important;
   transition: all 0.15s;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-refresh:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
+  background: #f9fafb !important;
+  border-color: #cbd5e1 !important;
+  color: #111827 !important;
+}
+
+.btn-refresh :deep(span) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
 }
 
 /* ── Layout Grid ── */

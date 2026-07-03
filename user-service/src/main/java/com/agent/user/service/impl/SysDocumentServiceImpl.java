@@ -14,11 +14,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class SysDocumentServiceImpl implements SysDocumentService {
+
+    @Autowired
+    private com.agent.user.service.UserService userService;
 
     @Autowired
     private SysDocumentMapper documentMapper;
@@ -41,10 +45,15 @@ public class SysDocumentServiceImpl implements SysDocumentService {
 
         Long deptId = user.getDeptId();
         Integer userClearance = user.getClearanceLevel() != null ? user.getClearanceLevel() : 1;
+        List<String> roles = userService.getRolesByUserId(userId);
+        boolean isAdmin = roles.contains("ROLE_ADMIN");
 
         // Fetch documents for the user's department or system documents
         LambdaQueryWrapper<SysDocument> query = new LambdaQueryWrapper<>();
-        if (deptId != null) {
+        if (isAdmin) {
+            // Super Admin can list all documents (both global and department documents)
+            // No restriction on the query wrapper
+        } else if (deptId != null) {
             query.eq(SysDocument::getDeptId, deptId).or().isNull(SysDocument::getDeptId);
         } else {
             query.isNull(SysDocument::getDeptId);
@@ -61,8 +70,9 @@ public class SysDocumentServiceImpl implements SysDocumentService {
             resp.setSecurityLevel(doc.getSecurityLevel());
             resp.setCreateTime(doc.getCreateTime());
 
-            // Check if user has sufficient clearance directly
-            boolean hasClearance = userClearance >= doc.getSecurityLevel();
+            // Check if user belongs to the department OR if it is a system/global document
+            boolean belongsToDept = doc.getDeptId() == null || (user.getDeptId() != null && user.getDeptId().equals(doc.getDeptId()));
+            boolean hasClearance = belongsToDept && (userClearance >= doc.getSecurityLevel());
             boolean isApproved = false;
 
             if (!hasClearance) {
@@ -101,5 +111,103 @@ public class SysDocumentServiceImpl implements SysDocumentService {
         }
 
         return list;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public void createDocument(SysDocument document, Long creatorId) {
+        User creator = userMapper.selectById(creatorId);
+        if (creator == null) {
+            throw new RuntimeException("Creator user not found");
+        }
+        
+        List<String> roles = userService.getRolesByUserId(creatorId);
+        boolean isAdmin = roles.contains("ROLE_ADMIN");
+        boolean isDeptAdmin = roles.contains("ROLE_DEPT_ADMIN");
+        
+        if (isAdmin) {
+            // Super Admin can set deptId to null (system doc) or custom deptId
+            // We do not overwrite it here, allowing them to create system docs or select a dept
+        } else if (isDeptAdmin) {
+            if (creator.getDeptId() == null) {
+                throw new RuntimeException("Department Administrator must belong to a department");
+            }
+            document.setDeptId(creator.getDeptId()); // Dept Admin can only create documents for their own department
+        } else {
+            throw new RuntimeException("Unauthorized operation");
+        }
+        
+        document.setCreateTime(LocalDateTime.now());
+        documentMapper.insert(document);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public void updateDocument(SysDocument document, Long updaterId) {
+        SysDocument existing = documentMapper.selectById(document.getId());
+        if (existing == null) {
+            throw new RuntimeException("Document not found");
+        }
+        
+        User updater = userMapper.selectById(updaterId);
+        if (updater == null) {
+            throw new RuntimeException("Updater user not found");
+        }
+        
+        List<String> roles = userService.getRolesByUserId(updaterId);
+        boolean isAdmin = roles.contains("ROLE_ADMIN");
+        boolean isDeptAdmin = roles.contains("ROLE_DEPT_ADMIN");
+        
+        if (isAdmin) {
+            // Super Admin can edit any document they can access
+            // Let them edit global docs and any dept docs if they want, but let's keep metadata flexible
+        } else if (isDeptAdmin) {
+            if (updater.getDeptId() == null || !updater.getDeptId().equals(existing.getDeptId())) {
+                throw new RuntimeException("Department Administrator can only modify their own department documents");
+            }
+            document.setDeptId(updater.getDeptId());
+        } else {
+            throw new RuntimeException("Unauthorized operation");
+        }
+        
+        existing.setTitle(document.getTitle());
+        existing.setContent(document.getContent());
+        existing.setSecurityLevel(document.getSecurityLevel());
+        existing.setDeptId(document.getDeptId());
+        
+        documentMapper.updateById(existing);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public void deleteDocument(Long id, Long deleterId) {
+        SysDocument existing = documentMapper.selectById(id);
+        if (existing == null) {
+            throw new RuntimeException("Document not found");
+        }
+        
+        User deleter = userMapper.selectById(deleterId);
+        if (deleter == null) {
+            throw new RuntimeException("Deleter user not found");
+        }
+        
+        List<String> roles = userService.getRolesByUserId(deleterId);
+        boolean isAdmin = roles.contains("ROLE_ADMIN");
+        boolean isDeptAdmin = roles.contains("ROLE_DEPT_ADMIN");
+        
+        if (isAdmin) {
+            // Super Admin can delete global documents
+            if (existing.getDeptId() != null) {
+                // If it belongs to a dept, let's make sure they can delete it only if they want
+            }
+        } else if (isDeptAdmin) {
+            if (deleter.getDeptId() == null || !deleter.getDeptId().equals(existing.getDeptId())) {
+                throw new RuntimeException("Department Administrator can only delete their own department documents");
+            }
+        } else {
+            throw new RuntimeException("Unauthorized operation");
+        }
+        
+        documentMapper.deleteById(id);
     }
 }

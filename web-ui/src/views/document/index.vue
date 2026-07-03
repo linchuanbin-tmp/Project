@@ -6,10 +6,21 @@
         <h1 class="page-title">Knowledge Assets Library</h1>
         <p class="page-sub">Browse system guides and department manuals under multi-dimensional access protection rules.</p>
       </div>
-      <el-button class="refresh-btn" @click="fetchDocuments" :loading="loading">
-        <RefreshCw :size="14" :class="{ 'spin': loading }" />
-        Refresh Library
-      </el-button>
+      <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
+        <el-button 
+          v-if="isAdminOrDeptAdmin" 
+          type="primary" 
+          class="create-btn" 
+          @click="openCreateDialog"
+        >
+          <Plus :size="14" />
+          Create Document
+        </el-button>
+        <el-button class="refresh-btn" @click="fetchDocuments" :loading="loading">
+          <RefreshCw :size="14" :class="{ 'spin': loading }" />
+          Refresh Library
+        </el-button>
+      </div>
     </div>
 
     <!-- Main Listing View Container -->
@@ -69,7 +80,17 @@
                 <div class="icon-box system">
                   <BookOpen :size="18" />
                 </div>
-                <span class="security-badge global">Global</span>
+                <div class="header-right-side" style="display: flex; align-items: center; gap: 8px;">
+                  <span class="security-badge global">Global</span>
+                  <div v-if="canManage(doc)" class="card-mgmt-actions">
+                    <el-button class="icon-action-btn edit" @click.stop="openEditDialog(doc)">
+                      <Edit :size="12" />
+                    </el-button>
+                    <el-button class="icon-action-btn delete" @click.stop="handleDeleteDoc(doc)">
+                      <Trash2 :size="12" />
+                    </el-button>
+                  </div>
+                </div>
               </div>
               <div class="card-body">
                 <h3 class="doc-title">{{ doc.title }}</h3>
@@ -114,9 +135,19 @@
                     <Lock v-if="!doc.accessible" :size="18" />
                     <FileText v-else :size="18" />
                   </div>
-                  <span class="security-badge" :class="'level-' + doc.securityLevel">
-                    Level-{{ doc.securityLevel }} ({{ getClearanceLabel(doc.securityLevel) }})
-                  </span>
+                  <div class="header-right-side" style="display: flex; align-items: center; gap: 8px;">
+                    <span class="security-badge" :class="'level-' + doc.securityLevel">
+                      Level-{{ doc.securityLevel }} ({{ getClearanceLabel(doc.securityLevel) }})
+                    </span>
+                    <div v-if="canManage(doc)" class="card-mgmt-actions">
+                      <el-button class="icon-action-btn edit" @click.stop="openEditDialog(doc)">
+                        <Edit :size="12" />
+                      </el-button>
+                      <el-button class="icon-action-btn delete" @click.stop="handleDeleteDoc(doc)">
+                        <Trash2 :size="12" />
+                      </el-button>
+                    </div>
+                  </div>
                 </div>
                 <div class="card-body">
                   <h3 class="doc-title">{{ doc.title }}</h3>
@@ -343,20 +374,101 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- Create/Edit Document Dialog -->
+    <el-dialog
+      v-model="manageDialogVisible"
+      :title="manageDialogTitle"
+      width="640px"
+      class="custom-dialog"
+      :close-on-click-modal="false"
+    >
+      <div class="dialog-body">
+        <el-form :model="manageForm" label-position="top">
+          <el-form-item label="Document Title" required>
+            <el-input 
+              v-model="manageForm.title" 
+              placeholder="Enter document title..." 
+              class="custom-input"
+            />
+          </el-form-item>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <el-form-item label="Security Clearance Level" required>
+              <el-select v-model="manageForm.securityLevel" style="width: 100%;">
+                <el-option label="Level-1 (Public)" :value="1" />
+                <el-option label="Level-2 (Internal)" :value="2" />
+                <el-option label="Level-3 (Confidential)" :value="3" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="Target Department">
+              <!-- For Super Admin, they can select a department or leave it null for Global -->
+              <el-select 
+                v-if="isAdmin" 
+                v-model="manageForm.deptId" 
+                placeholder="Global / System Manual" 
+                clearable 
+                style="width: 100%;"
+              >
+                <el-option 
+                  v-for="dept in departments" 
+                  :key="dept.id" 
+                  :label="dept.deptName" 
+                  :value="dept.id" 
+                />
+              </el-select>
+              <!-- For Department Admin, it is pre-filled and locked -->
+              <el-input 
+                v-else 
+                :value="userStore.userInfo?.deptName || 'Your Department'" 
+                disabled 
+                class="custom-input"
+              />
+            </el-form-item>
+          </div>
+
+          <el-form-item label="Document Content (Markdown)" required>
+            <el-input 
+              v-model="manageForm.content" 
+              type="textarea" 
+              :rows="12" 
+              placeholder="Enter document body using Markdown syntax..." 
+              class="custom-textarea markdown-editor"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="manageDialogVisible = false" class="dialog-btn-cancel">Cancel</el-button>
+          <el-button 
+            type="primary" 
+            @click="handleManageSubmit" 
+            :loading="manageSubmitLoading" 
+            class="dialog-btn-confirm"
+          >
+            Save Document
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '@stores/modules/user'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   FileText, Lock, Eye, 
   FolderOpen, RefreshCw, ShieldAlert, Briefcase, BookOpen,
-  Search, ChevronRight, ShieldCheck, Database, X, ChevronLeft, ChevronDown
+  Search, ChevronRight, ShieldCheck, Database, X, ChevronLeft, ChevronDown,
+  Plus, Edit, Trash2
 } from 'lucide-vue-next'
-import { getDeptDocuments, getDeptMembers } from '@/api/department'
-import { sendNotification } from '@/api/notification'
+import { getDeptDocuments, createDocument, updateDocument, deleteDocument, getDepartmentsList } from '@/api/department'
+import { sendNotification, getUsers } from '@/api/notification'
 import { marked } from 'marked'
 
 // Configure marked with a custom heading renderer to inject IDs for TOC anchoring
@@ -394,6 +506,45 @@ const readerVisible = ref(false)
 const dialogVisible = ref(false)
 const requestDoc = ref<any>(null)
 const requestReason = ref('')
+
+// In-place Management state
+const manageDialogVisible = ref(false)
+const manageSubmitLoading = ref(false)
+const departments = ref<any[]>([])
+
+const manageForm = ref({
+  id: undefined as number | undefined,
+  title: '',
+  content: '',
+  securityLevel: 1,
+  deptId: null as number | null
+})
+
+// Role check computed properties
+const isAdmin = computed(() => {
+  return userStore.userInfo?.roles?.includes('ROLE_ADMIN') || false
+})
+
+const isDeptAdmin = computed(() => {
+  return userStore.userInfo?.roles?.includes('ROLE_DEPT_ADMIN') || false
+})
+
+const isAdminOrDeptAdmin = computed(() => {
+  return isAdmin.value || isDeptAdmin.value
+})
+
+const manageDialogTitle = computed(() => {
+  return manageForm.value.id ? 'Edit Knowledge Document' : 'Create Knowledge Document'
+})
+
+// Document management authorization scoping check
+const canManage = (doc: any) => {
+  if (isAdmin.value) return true
+  if (isDeptAdmin.value) {
+    return doc.deptId !== null && doc.deptId === userStore.userInfo?.deptId
+  }
+  return false
+}
 
 // Compute filtered document lists based on search query
 const systemDocs = computed(() => {
@@ -489,8 +640,9 @@ const fetchDocuments = async () => {
 const fetchDeptMembers = async () => {
   if (!userStore.userInfo?.deptId) return
   try {
-    const res: any = await getDeptMembers()
-    deptMembers.value = res || []
+    const allUsers: any = await getUsers()
+    // Filter users belonging to the same department
+    deptMembers.value = (allUsers || []).filter((u: any) => u.deptId === userStore.userInfo?.deptId)
   } catch (error) {
     console.error('Failed to load department members:', error)
   }
@@ -557,9 +709,105 @@ const handleRequestSubmit = async () => {
   }
 }
 
+// Fetch departments for Super Admin target selection
+const fetchDepartments = async () => {
+  if (!isAdmin.value) return
+  try {
+    const res: any = await getDepartmentsList()
+    departments.value = res || []
+  } catch (error) {
+    console.error('Failed to load departments list:', error)
+  }
+}
+
+// Handlers for Document management dialog triggers
+const openCreateDialog = () => {
+  manageForm.value = {
+    id: undefined,
+    title: '',
+    content: '',
+    securityLevel: 1,
+    deptId: isDeptAdmin.value ? userStore.userInfo?.deptId : null
+  }
+  manageDialogVisible.value = true
+}
+
+const openEditDialog = (doc: any) => {
+  manageForm.value = {
+    id: doc.id,
+    title: doc.title,
+    content: doc.content || '',
+    securityLevel: doc.securityLevel || 1,
+    deptId: doc.deptId
+  }
+  manageDialogVisible.value = true
+}
+
+const handleManageSubmit = async () => {
+  if (!manageForm.value.title.trim()) {
+    ElMessage.warning('Title is required')
+    return
+  }
+  if (!manageForm.value.content.trim()) {
+    ElMessage.warning('Content is required')
+    return
+  }
+
+  manageSubmitLoading.value = true
+  try {
+    const payload = {
+      title: manageForm.value.title,
+      content: manageForm.value.content,
+      securityLevel: manageForm.value.securityLevel,
+      deptId: manageForm.value.deptId
+    }
+
+    if (manageForm.value.id) {
+      await updateDocument({
+        id: manageForm.value.id,
+        ...payload
+      })
+      ElMessage.success('Document updated successfully')
+    } else {
+      await createDocument(payload)
+      ElMessage.success('Document created successfully')
+    }
+    manageDialogVisible.value = false
+    fetchDocuments()
+  } catch (error: any) {
+    console.error('Failed to save document:', error)
+    ElMessage.error(error.message || 'Failed to save document')
+  } finally {
+    manageSubmitLoading.value = false
+  }
+}
+
+const handleDeleteDoc = (doc: any) => {
+  ElMessageBox.confirm(
+    `Are you sure you want to permanently delete "${doc.title}"? This action cannot be undone.`,
+    'Warning',
+    {
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel',
+      type: 'warning',
+      confirmButtonClass: 'el-button--danger'
+    }
+  ).then(async () => {
+    try {
+      await deleteDocument(doc.id)
+      ElMessage.success('Document deleted successfully')
+      fetchDocuments()
+    } catch (error: any) {
+      console.error('Failed to delete document:', error)
+      ElMessage.error(error.message || 'Failed to delete document')
+    }
+  }).catch(() => {})
+}
+
 onMounted(() => {
   fetchDocuments()
   fetchDeptMembers()
+  fetchDepartments()
 })
 </script>
 
@@ -596,6 +844,27 @@ onMounted(() => {
   margin: 0;
 }
 
+.create-btn {
+  background: #111827 !important;
+  border: 1px solid #111827 !important;
+  border-radius: 9px !important;
+  color: #fff !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  height: 38px !important;
+  padding: 0 16px !important;
+  transition: all 0.15s;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.create-btn:hover {
+  background: #1f2937 !important;
+  border-color: #1f2937 !important;
+  color: #fff !important;
+}
+
 .refresh-btn {
   background: #fff !important;
   border: 1px solid #e5e7eb !important;
@@ -606,12 +875,24 @@ onMounted(() => {
   height: 38px !important;
   padding: 0 16px !important;
   transition: all 0.15s;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
 }
 
 .refresh-btn:hover {
   background: #f9fafb !important;
   border-color: #cbd5e1 !important;
   color: #111827 !important;
+}
+
+.create-btn :deep(span),
+.refresh-btn :deep(span) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
 }
 
 .spin {
@@ -1437,5 +1718,56 @@ onMounted(() => {
 @keyframes slideDown {
   from { opacity: 0; max-height: 0; overflow: hidden; }
   to { opacity: 1; max-height: 200px; }
+}
+
+/* Card Management Actions Stylings */
+.card-mgmt-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-action-btn {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: auto !important;
+  border-radius: 6px !important;
+  color: #64748b !important;
+  transition: all 0.15s !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-action-btn:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.icon-action-btn.delete:hover {
+  background: #ffe4e6 !important;
+  color: #e11d48 !important;
+}
+
+.markdown-editor :deep(.el-textarea__inner) {
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.custom-input :deep(.el-input__wrapper) {
+  border-radius: 10px;
+  background: #f9fafb;
+  box-shadow: none !important;
+  border: 1px solid #e5e7eb;
+  padding: 6px 12px;
+}
+
+.custom-input :deep(.el-input__wrapper.is-focus) {
+  border-color: #111827;
+  background: #fff;
 }
 </style>

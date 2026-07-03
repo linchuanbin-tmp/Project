@@ -6,9 +6,9 @@
         <h1 class="page-title">Messages & Notifications</h1>
         <p class="page-sub">Handle system-wide notifications, approvals, bug trace audits, and user messages.</p>
       </div>
-      <div class="header-actions">
+      <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
         <el-button class="send-btn" @click="openSendDialog">
-          <Plus :size="16" />
+          <Plus :size="14" />
           Send Message
         </el-button>
         <el-button class="refresh-btn" @click="fetchData" :loading="loading">
@@ -65,8 +65,9 @@
         <!-- Middle Column: Message List -->
         <el-col :span="9" class="message-list-col">
           <div v-if="filteredMessages.length === 0" class="empty-list">
-            <Mail :size="32" class="empty-icon" />
-            <p>No messages found</p>
+            <Mail :size="48" class="empty-icon" />
+            <h3>No Messages Found</h3>
+            <p>There are no messages or notifications in this folder.</p>
           </div>
           <div v-else class="message-list">
             <div 
@@ -114,7 +115,7 @@
           <div v-if="!selectedMessage" class="empty-detail">
             <Inbox :size="48" class="empty-icon" />
             <h3>Select a Message</h3>
-            <p>Choose a notification or message from the list to view full details and execution traces.</p>
+            <p>Select a message to view its details.</p>
           </div>
           <div v-else class="message-detail">
             <!-- Detail Header -->
@@ -637,31 +638,58 @@ onMounted(() => {
 .header-actions {
   display: flex;
   gap: 12px;
+  align-items: center;
 }
 
 .send-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  background: #111827 !important;
+  border: 1px solid #111827 !important;
   border-radius: 9px !important;
-  font-weight: 500;
-  background-color: #111827 !important;
-  border: none !important;
-  color: #ffffff !important;
+  color: #fff !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
   height: 38px !important;
   padding: 0 16px !important;
   transition: all 0.15s;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
 }
 
 .send-btn:hover {
-  opacity: 0.88;
+  background: #1f2937 !important;
+  border-color: #1f2937 !important;
+  color: #fff !important;
 }
 
 .refresh-btn {
-  display: flex;
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 9px !important;
+  color: #374151 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  height: 38px !important;
+  padding: 0 16px !important;
+  transition: all 0.15s;
+  display: inline-flex !important;
   align-items: center;
+  justify-content: center;
+}
+
+.refresh-btn:hover {
+  background: #f9fafb !important;
+  border-color: #cbd5e1 !important;
+  color: #111827 !important;
+}
+
+.send-btn :deep(span),
+.refresh-btn :deep(span) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
-  border-radius: 8px;
+  height: 100%;
 }
 
 .spin {
@@ -755,13 +783,34 @@ onMounted(() => {
   overflow-y: auto;
 }
 
-.empty-list {
+.empty-list,
+.empty-detail {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
   color: #94a3b8;
+  padding: 32px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.empty-list h3,
+.empty-detail h3 {
+  color: #475569;
+  font-size: 16px;
+  margin: 16px 0 8px;
+  font-weight: 600;
+}
+
+.empty-list p,
+.empty-detail p {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.5;
+  max-width: 320px;
 }
 
 .empty-icon {
@@ -914,22 +963,7 @@ onMounted(() => {
   background: #ffffff;
 }
 
-.empty-detail {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #94a3b8;
-  padding: 40px;
-  text-align: center;
-}
 
-.empty-detail h3 {
-  color: #475569;
-  font-size: 18px;
-  margin: 16px 0 8px;
-}
 
 .message-detail {
   padding: 24px;

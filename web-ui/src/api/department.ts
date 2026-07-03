@@ -54,3 +54,17 @@ export const updateDepartment = (data: { id: number; deptName: string; descripti
 export const deleteDepartment = (id: number) => {
     return request.delete(`/admin/dept/${id}`)
 }
+
+// User Document Management
+export const createDocument = (data: { title: string; content: string; securityLevel: number; deptId: number | null }) => {
+    return request.post('/user/document/create', data)
+}
+
+export const updateDocument = (data: { id: number; title: string; content: string; securityLevel: number; deptId: number | null }) => {
+    return request.put('/user/document/update', data)
+}
+
+export const deleteDocument = (id: number) => {
+    return request.delete(`/user/document/delete/${id}`)
+}
+

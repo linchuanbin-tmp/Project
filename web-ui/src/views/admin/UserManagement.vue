@@ -12,9 +12,63 @@
       </el-button>
     </div>
 
+    <!-- Filters & Search Bar -->
+    <div class="filter-container">
+      <div class="filter-left">
+        <el-input
+          v-model="searchQuery"
+          placeholder="Search name or username..."
+          clearable
+          class="search-input"
+        >
+          <template #prefix>
+            <Search :size="14" class="search-icon" />
+          </template>
+        </el-input>
+      </div>
+      
+      <div class="filter-right">
+        <el-select
+          v-model="filterDept"
+          placeholder="All Departments"
+          clearable
+          class="filter-select"
+        >
+          <el-option
+            v-for="dept in departments"
+            :key="dept.id"
+            :label="dept.deptName"
+            :value="dept.id"
+          />
+        </el-select>
+
+        <el-select
+          v-model="filterClearance"
+          placeholder="All Clearance"
+          clearable
+          class="filter-select"
+        >
+          <el-option :value="1" label="Level-1 (Public)" />
+          <el-option :value="2" label="Level-2 (Internal)" />
+          <el-option :value="3" label="Level-3 (Confidential)" />
+        </el-select>
+
+        <el-select
+          v-model="filterRole"
+          placeholder="All Roles"
+          clearable
+          class="filter-select"
+        >
+          <el-option value="ROLE_ADMIN" label="System Admin" />
+          <el-option value="ROLE_DEPT_ADMIN" label="Department Admin" />
+          <el-option value="ROLE_USER" label="Standard User" />
+        </el-select>
+      </div>
+    </div>
+
     <!-- Main Table Card -->
     <div class="table-card">
-      <el-table :data="users" v-loading="loading" style="width: 100%" class="custom-table">
+      <el-table :data="filteredUsers" v-loading="loading" style="width: 100%" class="custom-table">
         <!-- Avatar & Username -->
         <el-table-column label="User" min-width="180">
           <template #default="{ row }">
@@ -162,11 +216,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '@stores/modules/user'
 import request from '@utils/request'
 import { ElMessage } from 'element-plus'
-import { RefreshCw } from 'lucide-vue-next'
+import { RefreshCw, Search } from 'lucide-vue-next'
 import { getDepartmentsList } from '@/api/department'
 
 const userStore = useUserStore()
@@ -184,6 +238,44 @@ const selectedDeptId = ref<number | null>(null)
 const selectedClearanceLevel = ref<number>(1)
 
 const departments = ref<any[]>([])
+
+// Filter State
+const searchQuery = ref('')
+const filterDept = ref<number | null>(null)
+const filterClearance = ref<number | null>(null)
+const filterRole = ref<string>('')
+
+// Computed Filtered Users
+const filteredUsers = computed(() => {
+  return users.value.filter(user => {
+    // 1. Search Query filter (matches realName or username case-insensitively)
+    if (searchQuery.value) {
+      const query = searchQuery.value.toLowerCase().trim()
+      const matchRealName = (user.realName || '').toLowerCase().includes(query)
+      const matchUsername = (user.username || '').toLowerCase().includes(query)
+      if (!matchRealName && !matchUsername) return false
+    }
+
+    // 2. Department filter
+    if (filterDept.value !== null && filterDept.value !== undefined && filterDept.value !== '') {
+      if (user.deptId !== filterDept.value) return false
+    }
+
+    // 3. Clearance Level filter
+    if (filterClearance.value !== null && filterClearance.value !== undefined && filterClearance.value !== '') {
+      const clearance = user.clearanceLevel || 1
+      if (clearance !== filterClearance.value) return false
+    }
+
+    // 4. Role filter
+    if (filterRole.value) {
+      const userRoles = user.roles || []
+      if (!userRoles.includes(filterRole.value)) return false
+    }
+
+    return true
+  })
+})
 
 // Actions & Methods
 const fetchUsers = async () => {
@@ -652,5 +744,60 @@ onMounted(() => {
 
 .dialog-btn-confirm:hover {
   opacity: 0.9;
+}
+
+.filter-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-left {
+  flex: 1;
+  min-width: 260px;
+  max-width: 400px;
+}
+
+.filter-right {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: none !important;
+  height: 38px;
+}
+
+.search-input :deep(.el-input__wrapper.is-focus) {
+  border-color: #111827;
+  background: #ffffff;
+}
+
+.search-icon {
+  color: #9ca3af;
+}
+
+.filter-select {
+  width: 180px;
+}
+
+.filter-select :deep(.el-input__wrapper) {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: none !important;
+  height: 38px;
+}
+
+.filter-select :deep(.el-input__wrapper.is-focus) {
+  border-color: #111827;
+  background: #ffffff;
 }
 </style>

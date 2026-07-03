@@ -6,9 +6,9 @@
         <h1 class="page-title">{{ isAdmin ? 'Department Management' : 'My Department' }}</h1>
         <p class="page-sub">Manage organization structure, department entities, and employee rosters.</p>
       </div>
-      <div class="header-actions" v-if="activeTab === 'roster' && selectedDeptId">
+      <div class="header-actions" v-if="activeTab === 'roster' && selectedDeptId" style="display: flex; gap: 10px; align-items: center;">
         <el-button class="add-members-btn" @click="openAddDialog">
-          <Plus :size="16" />
+          <Plus :size="14" />
           Add Employee
         </el-button>
         <el-button class="refresh-btn" @click="fetchMembers" :loading="loading">
@@ -16,9 +16,9 @@
           Refresh
         </el-button>
       </div>
-      <div class="header-actions" v-else-if="activeTab === 'directory' && isAdmin">
+      <div class="header-actions" v-else-if="activeTab === 'directory' && isAdmin" style="display: flex; gap: 10px; align-items: center;">
         <el-button class="add-members-btn" @click="openDeptDialog(null)">
-          <Plus :size="16" />
+          <Plus :size="14" />
           Create Department
         </el-button>
         <el-button class="refresh-btn" @click="fetchDepartments" :loading="deptListLoading">
@@ -547,25 +547,28 @@ onMounted(async () => {
 .header-actions {
   display: flex;
   gap: 12px;
+  align-items: center;
 }
 
 .add-members-btn {
   background-color: #111827 !important;
-  border: none !important;
+  border: 1px solid #111827 !important;
   border-radius: 9px !important;
   color: #ffffff !important;
   font-size: 13px !important;
   font-weight: 500 !important;
   height: 38px !important;
   padding: 0 16px !important;
-  display: flex;
+  display: inline-flex !important;
   align-items: center;
-  gap: 6px;
-  transition: opacity 0.15s;
+  justify-content: center;
+  transition: all 0.15s;
 }
 
 .add-members-btn:hover {
-  opacity: 0.88;
+  background-color: #1f2937 !important;
+  border-color: #1f2937 !important;
+  color: #ffffff !important;
 }
 
 .refresh-btn {
@@ -578,12 +581,24 @@ onMounted(async () => {
   height: 38px !important;
   padding: 0 16px !important;
   transition: all 0.15s;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
 }
 
 .refresh-btn:hover {
   background: #f9fafb !important;
   border-color: #cbd5e1 !important;
   color: #111827 !important;
+}
+
+.add-members-btn :deep(span),
+.refresh-btn :deep(span) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
 }
 
 .spin {
