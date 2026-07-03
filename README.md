@@ -36,57 +36,57 @@
 BankAgent/
 ├── 📁 gateway-service/              # 网关服务 (端口 8080)
 │   ├── src/main/java/com/agent/gateway/
-│   │   ├── config/SecurityConfig.java       # 跨域 + 安全放行
-│   │   └── GatewayServiceApplication.java   # 启动类 + IP 限流解析器
+│   │   ├── config/SecurityConfig.java       # 跨域 + 安全放行与统一路由鉴权
+│   │   └── GatewayServiceApplication.java   # 网关启动类
 │   ├── src/main/resources/
-│   │   └── application.yml                  # 路由配置（关键文件）
-│   └── pom.xml                              # Spring Cloud Gateway 3.1.9
+│   │   └── application.yml                  # 路由规则配置（核心转发逻辑）
+│   └── pom.xml                              # Spring Cloud Gateway 依赖
 │
-├── 📁 user-service/                 # 用户中心 (端口 8081)
+├── 📁 user-service/                 # 用户与部门中心 (端口 8081)
 │   ├── src/main/java/com/agent/user/
-│   │   ├── controller/              # LoginController
-│   │   ├── service/impl/            # UserServiceImpl (JWT + BCrypt)
-│   │   ├── mapper/                  # UserMapper (MyBatis-Plus)
-│   │   ├── entity/                  # User 实体类
-│   │   ├── dto/                     # LoginRequest/LoginResponse/Result
-│   │   └── utils/JwtUtil.java       # JWT 生成与校验
-│   └── pom.xml                      # Spring Boot 3.2.0 + MyBatis-Plus 3.5.5
+│   │   ├── controller/              # LoginController, DepartmentController, DocumentController, NotificationController
+│   │   ├── service/impl/            # UserServiceImpl, SysDepartmentServiceImpl, SysDocumentServiceImpl, SysNotificationServiceImpl
+│   │   ├── mapper/                  # MyBatis-Plus 数据层接口映射
+│   │   └── utils/JwtUtil.java       # JWT 工具类
+│   └── pom.xml
 │
-├── 📁 tool-agent/                   # 工具 Agent 核心 (端口 8083)
+├── 📁 task-service/                 # 任务执行中心 (端口 8082)
+│   ├── src/main/java/com/agent/task/
+│   │   ├── controller/TaskController.java   # 任务提交、协作审计接口
+│   │   └── service/impl/TaskServiceImpl.java # 协同任务状态机核心处理
+│   └── pom.xml
+│
+├── 📁 tool-agent/                   # 工具智能体核心 (端口 8083)
 │   ├── src/main/java/com/agent/tool/
-│   │   ├── controller/ToolController.java   # 会议室/日程/路线/AI 接口
-│   │   ├── service/                 # MeetingRoomService, ScheduleService
-│   │   ├── service/impl/              # 业务实现 (MySQL + Redis)
-│   │   ├── mapper/                  # MeetingRoomMapper, MeetingScheduleMapper
-│   │   ├── entity/                  # MeetingRoom, MeetingSchedule
-│   │   ├── dto/                     # 请求/响应 DTO
-│   │   ├── handler/                 # TaskProgressWebSocketHandler
-│   │   └── config/WebSocketConfig.java    # WebSocket 注册 (/tool/ws)
-│   ├── src/main/resources/
-│   │   └── application.yml            # MySQL + Redis 连接配置
-│   └── pom.xml                      # Spring Boot 3.2.0 + Redis + MyBatis-Plus
+│   │   ├── controller/ToolController.java   # 会议室、日程预定、路线规划及大模型调用接口
+│   │   └── config/WebSocketConfig.java      # 智能体交互 WebSocket 注册 (/tool/ws)
+│   └── pom.xml
 │
-├── 📁 task-service/                 # 任务中心 (端口 8082，预留)
-│   └── pom.xml                      # 仅创建，功能未开发
+├── 📁 code-agent/                   # 代码执行审计智能体 (端口 8084)
+│   ├── src/main/java/com/agent/code/        # Java 审计与熔断控制
+│   └── data/                                # Python 执行子容器 (MySQL 真实隔离沙箱环境)
 │
-├── 📁 web-ui/                       # Vue 3 前端
+├── 📁 web-ui/                       # Vue 3 前端工程 (端口 3000)
 │   ├── src/
-│   │   ├── views/tool/index.vue     # 工具 Agent 主页面（核心）
-│   │   ├── api/tool.ts              # 前端 API 封装
-│   │   ├── utils/websocket.ts       # WebSocket 客户端封装
-│   │   └── components/MapContainer.vue  # 高德地图组件
-│   ├── vite.config.js               # Vite 配置 + 代理规则
-│   └── package.json                 # Vue 3 + Element-Plus + Axios
+│   │   ├── views/
+│   │   │   ├── tool/index.vue       # 工具 Agent (会议/日程/路线)
+│   │   │   ├── code/index.vue       # SQL Agent (Text-to-SQL 与安全执行)
+│   │   │   ├── rag/index.vue        # RAG Agent (向量召回与文档隔离阅览)
+│   │   │   ├── document/index.vue   # 知识资产库 (文档就地增删改管理)
+│   │   │   ├── admin/MyDepartment.vue # 组织架构管理 (成员名册与多级部门管理)
+│   │   │   └── notification/index.vue # 消息中心 (系统通知、RAG 提权审批、SQL 执行拦截审核)
+│   │   ├── api/                     # 封装 Axios 请求 (department.ts, tool.ts, etc.)
+│   │   └── components/              # 通用组件
+│   └── vite.config.js               # Vite 代理与打包配置
 │
-├── 📁 Redis/                        # Redis 配置目录（可选）
-│   └── redis.conf                   # 如需要自定义配置可放这里
+├── 📁 docker/                       # Docker 数据库与 Nginx 启动初始化配置
+│   ├── init/                        # 数据库初始化 SQL 脚本
+│   └── nginx/                       # nginx.conf 反向代理配置
 │
-├── 📄 agent_platform_backup.sql     # ⭐ MySQL 数据库备份文件
-│                                    # 包含：sys_user, meeting_room, meeting_schedule
-│                                    # 测试数据：admin/123456, 3 个会议室
-│
-├── 📄 pom.xml                       # 父工程 Maven 配置（聚合所有模块）
-├── 📄 mvnw / mvnw.cmd               # Maven Wrapper（无需全局安装 Maven）
+├── 📄 docker-compose.yml            # 容器化部署基础配置
+├── 📄 docker-compose.prod.yml       # 生产环境容器化服务挂载重写
+├── 📄 deploy-prod.sh                # 生产环境一键构建部署脚本
+├── 📄 pom.xml                       # 父工程 Maven 配置 (聚合构建所有模块)
 └── 📄 README.md                     # 本文件
 ```
 
@@ -149,13 +149,23 @@ mysql -u root -p -e "USE agent_platform; SHOW TABLES;"
 
 | 表名 | 字段 | 说明                         |
 |------|------|----------------------------|
-| `sys_user` | id, username, password, real_name, role, status, create_time | 用户登录表，password 为 BCrypt 加密 |
+| `sys_user` | id, username, password, real_name, role, status, dept_id, clearance_level, create_time | 用户登录账户表，新增部门绑定 (dept_id) 与安全密级 (clearance_level: 1=公开, 2=内部, 3=机密) |
+| `sys_department` | id, dept_name, description, parent_id, status, create_time | 组织架构部门管理表 |
+| `sys_document` | id, title, content, dept_id, security_level, create_time | 知识资产库文档表，根据部门与密级实现多维度访问过滤控制 |
+| `sys_notification` | id, sender_id, receiver_id, title, content, notify_type, status, payload, opinion, create_time, update_time, deleted | 系统消息通知与审批事务表，支持 RAG 提权及 SQL 执行审核 |
 | `meeting_room` | id, room_name, floor, capacity, facilities, status | 会议室资源表，预设 3 条数据            |
 | `meeting_schedule` | id, room_id, booker, start_time, end_time, topic, status | 预定记录表，room_id=0 表示个人日程     |
 
-**默认测试数据**：
-- 用户：`admin` / `123456`（BCrypt 加密），角色 `admin`
-- 会议室：301会议室(10人)、302会议室(20人)、501大会议室(50人)
+**默认测试数据（默认密码均为 `123456`）**：
+- **超级管理员**：
+  - 账号：`admin` (全局管理员，密级：Confidential/Level-3)
+- **信贷部门 (Credit Department)**：
+  - 部门管理员：`credit_mgr` (密级：Internal/Level-2)
+  - 部门员工：`credit_staff` (密级：Public/Level-1)
+- **合规部门 (Compliance Department)**：
+  - 部门管理员：`compliance_mgr` (密级：Internal/Level-2)
+  - 部门员工：`compliance_staff` (密级：Public/Level-1)
+- **预置会议室**：301会议室(10人)、302会议室(20人)、501大会议室(50人)
 
 ---
 

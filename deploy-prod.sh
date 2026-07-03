@@ -29,16 +29,17 @@ echo "==> 3/5 清理 macOS 隐藏文件（防止 JAR 损坏，见 docs/deploymen
 find . -name '._*' -delete 2>/dev/null || true
 
 echo "==> 4/5 同步到服务器 ${SERVER}:${REMOTE_DIR}"
-rsync -avz -e "ssh -p ${SSH_PORT}" \
+sshpass -p '1045198003Meethere' rsync -avz -e "ssh -p ${SSH_PORT}" \
   --exclude="node_modules" \
   --exclude=".git" \
   --exclude="*.iml" \
   --exclude=".idea" \
+  --exclude=".env" \
   ./ \
   "${SERVER}:${REMOTE_DIR}/"
 
 echo "==> 5/5 服务器重启容器"
-ssh -p "${SSH_PORT}" "${SERVER}" "cd ${REMOTE_DIR} && \
+sshpass -p '1045198003Meethere' ssh -p "${SSH_PORT}" "${SERVER}" "cd ${REMOTE_DIR} && \
   find . -name '._*' -delete 2>/dev/null || true && \
   docker compose down && \
   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build"
