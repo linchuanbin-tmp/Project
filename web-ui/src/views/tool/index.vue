@@ -2,8 +2,8 @@
   <div class="tool-container">
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">Tool Call Agent</h1>
-        <p class="page-sub">Book meeting rooms, detect schedule conflicts, and plan routes using natural language.</p>
+        <h1 class="page-title">{{ $t('tool.pageTitle') }}</h1>
+        <p class="page-sub">{{ $t('tool.pageSub') }}</p>
       </div>
     </div>
 
@@ -13,12 +13,12 @@
         <el-tabs v-model="activeTab" type="border-card" class="tool-tabs">
           <!-- Meeting room booking -->
           <!-- Meeting room booking -->
-          <el-tab-pane label="Meeting rooms" name="meeting">
+          <el-tab-pane :label="$t('tool.tabs.meeting')" name="meeting">
             <MeetingAgent ref="meetingAgentRef" />
           </el-tab-pane>
 
           <!-- Schedule conflict detection -->
-          <el-tab-pane label="Schedule check" name="schedule">
+          <el-tab-pane :label="$t('tool.tabs.schedule')" name="schedule">
             <ScheduleAgent ref="scheduleAgentRef" />
           </el-tab-pane>
 
@@ -137,6 +137,7 @@
 
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { executeTool } from '@api/tool'
@@ -148,6 +149,7 @@ import ScheduleAgent from './components/ScheduleAgent.vue'
 import RouteAgent from './components/RouteAgent.vue'
 import AgentThinking from '@/components/AgentThinking.vue'
 
+const { t } = useI18n()
 const router = useRouter()
 const activeTab = ref('meeting')
 
@@ -251,7 +253,7 @@ const aiResponse = ref<any>(null)
 
 const taskProgress = ref(0)
 const taskStatus = ref('')
-const taskMessage = ref('Waiting for task to start...')
+const taskMessage = ref(t('tool.ai.waiting'))
 const isExecuting = ref(false)
 let hasFetchedResult = false
 
@@ -259,7 +261,7 @@ const generateTaskId = () => 'task_' + Date.now() + '_' + Math.random().toString
 
 const executeWithWebSocket = async () => {
   if (!naturalQuery.value.trim()) {
-    ElMessage.warning('Please enter search query')
+    ElMessage.warning(t('tool.ai.enterQuery'))
     return
   }
 
@@ -268,7 +270,7 @@ const executeWithWebSocket = async () => {
   hasFetchedResult = false
   taskProgress.value = 0
   taskStatus.value = 'connected'
-  taskMessage.value = 'Connecting to server...'
+  taskMessage.value = t('tool.ai.connecting')
   aiResponse.value = null
 
   wsClient.close?.()
@@ -287,29 +289,29 @@ const executeWithWebSocket = async () => {
 
     if (data.status === 'completed' && !hasFetchedResult) {
       hasFetchedResult = true
-      taskMessage.value = 'Fetching result...'
+      taskMessage.value = t('tool.ai.fetchingResult')
       fetchTaskResult().then(() => {
         taskProgress.value = 100
         isExecuting.value = false
-        ElMessage.success('Task execution completed!')
+        ElMessage.success(t('tool.ai.complete'))
       }).catch(() => {
         isExecuting.value = false
       })
     } else if (data.status === 'error') {
       isExecuting.value = false
-      taskMessage.value = data.message || 'Execution error'
-      ElMessage.error(data.message || 'Execution error')
+      taskMessage.value = data.message || t('tool.ai.error')
+      ElMessage.error(data.message || t('tool.ai.error'))
     }
   })
 
   wsClient.on('error', () => {
     taskStatus.value = 'error'
-    taskMessage.value = 'Connection error occurred'
+    taskMessage.value = t('tool.ai.connectionError')
     isExecuting.value = false
   })
 
   wsClient.on('open', () => {
-    taskMessage.value = 'Connected, sending task...'
+    taskMessage.value = t('tool.ai.connected')
     wsClient.send(JSON.stringify({
       taskType: 'AI',
       query: naturalQuery.value,
@@ -329,7 +331,7 @@ const fetchTaskResult = async () => {
     const payload = res?.data ?? res
     aiResponse.value = payload
     if (!payload) {
-      ElMessage.warning('AI returned empty result')
+      ElMessage.warning(t('tool.ai.aiEmpty'))
       return
     }
 
@@ -379,18 +381,18 @@ const fetchTaskResult = async () => {
       if (!aiResponse.value.aiParsed.parameters) aiResponse.value.aiParsed.parameters = {}
 
       // Prefer AI-extracted parameters
-      const parsedTimeRangeStr = aiParams.timeRange || extracted.timeRange || 'Not specified'
+      const parsedTimeRangeStr = aiParams.timeRange || extracted.timeRange || t('tool.ai.unspecified')
       const parsedAttendees = aiParams.attendees || []
-      
+
       aiResponse.value.aiParsed.parameters.timeRange = parsedTimeRangeStr
       aiResponse.value.aiParsed.parameters.attendees = parsedAttendees
-      aiResponse.value.aiParsed.parameters.date = aiParams.date || extracted.date || 'Today'
-      
+      aiResponse.value.aiParsed.parameters.date = aiParams.date || extracted.date || t('tool.ai.today')
+
       let timeRange: Date[] = []
       let attendees: string[] = parsedAttendees
 
       // Parse time range to dates
-      if (parsedTimeRangeStr && parsedTimeRangeStr !== 'Not specified') {
+      if (parsedTimeRangeStr && parsedTimeRangeStr !== t('tool.ai.unspecified')) {
         const parts = parsedTimeRangeStr.split(' to ')
         if (parts.length === 2) {
           timeRange = [new Date(parts[0] + 'T00:00:00'), new Date(parts[1] + 'T00:00:00')]
@@ -454,9 +456,9 @@ const fetchTaskResult = async () => {
         if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
         if (!aiResponse.value.aiParsed.parameters) aiResponse.value.aiParsed.parameters = {}
         
-        aiResponse.value.aiParsed.parameters.date = finalDateStr || 'Today'
-        aiResponse.value.aiParsed.parameters.capacity = finalCapacity ? String(finalCapacity) : 'Not specified'
-        aiResponse.value.aiParsed.parameters.timeRange = aiParams.timeRange || extracted.timeRange || 'Not specified'
+        aiResponse.value.aiParsed.parameters.date = finalDateStr || t('tool.ai.today')
+        aiResponse.value.aiParsed.parameters.capacity = finalCapacity ? String(finalCapacity) : t('tool.ai.unspecified')
+        aiResponse.value.aiParsed.parameters.timeRange = aiParams.timeRange || extracted.timeRange || t('tool.ai.unspecified')
         
         aiResponse.value.rooms = (meetingAgentRef.value?.meetingRooms || []).map((room: any) => ({
           id: room.id,
@@ -470,10 +472,10 @@ const fetchTaskResult = async () => {
         }))
       }
     }
-    ElMessage.success(`AI recognized as "${targetTab}" intent, result loaded`)
+    ElMessage.success(t('tool.ai.intentMatched', { intent: targetTab }))
   } catch (error) {
     console.error('fetchTaskResult error:', error)
-    ElMessage.error('Failed to get AI result')
+    ElMessage.error(t('tool.ai.aiResultFailed'))
   }
 }
 

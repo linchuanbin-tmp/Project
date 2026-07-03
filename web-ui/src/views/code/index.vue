@@ -4,10 +4,8 @@
     <!-- Page Header -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">SQL Agent</h1>
-        <p class="page-sub">
-          Describe the data you need in natural language, review the generated query, and run it with human-in-the-loop security.
-        </p>
+        <h1 class="page-title">{{ $t('code.pageTitle') }}</h1>
+        <p class="page-sub">{{ $t('code.pageSub') }}</p>
       </div>
       <div class="header-right" style="display: flex; align-items: center;">
         <el-button 
@@ -16,7 +14,7 @@
           class="btn-refresh"
         >
           <RefreshCw :size="14" :class="{ 'spin': metadataLoading }" />
-          Sync Schema
+          {{ $t('code.syncSchema') }}
         </el-button>
       </div>
     </div>
@@ -31,9 +29,9 @@
           <div class="card-header-simple">
             <span class="card-title-text">
               <Sparkles :size="16" class="icon-sparkles" />
-              Describe Your Query
+              {{ $t('code.describeQuery') }}
             </span>
-            <span class="step-badge">Step 1: Write Prompt</span>
+            <span class="step-badge">{{ $t('code.step1') }}</span>
           </div>
 
           <!-- Modern Chat-like Input Container -->
@@ -41,7 +39,7 @@
             <textarea
               v-model="question"
               rows="3"
-              placeholder="e.g. Calculate the average balance for each account type, show all high risk customers..."
+              :placeholder="$t('code.placeholder')"
               class="modern-textarea"
             ></textarea>
             
@@ -52,15 +50,15 @@
                 class="modern-btn-generate"
                 @click="handleGenerate"
               >
-                <span v-if="queryLoading">Generating...</span>
-                <span v-else>Generate SQL Query</span>
+                <span v-if="queryLoading">{{ $t('code.generating') }}</span>
+                <span v-else>{{ $t('code.generateBtn') }}</span>
               </button>
             </div>
           </div>
 
           <!-- Quick Templates (Outside the prompt container) -->
           <div class="templates-section-outside">
-            <span class="label-text">Try these prompts:</span>
+            <span class="label-text">{{ $t('code.tryPrompts') }}</span>
             <div class="template-tags">
               <span
                 v-for="tmpl in quickTemplates"
@@ -79,9 +77,9 @@
           <div class="card-header-simple">
             <span class="card-title-text">
               <Database :size="16" class="icon-database" />
-              SQL Query Review
+              {{ $t('code.queryReview') }}
             </span>
-            <span class="step-badge step-2">Step 2: Verify & Edit</span>
+            <span class="step-badge step-2">{{ $t('code.step2') }}</span>
           </div>
 
           <!-- Generation Error Alert -->
@@ -97,10 +95,10 @@
           <div v-else>
             <div class="editor-wrapper">
               <div class="editor-header">
-                <span class="editor-label">Generated MySQL SELECT statement (You can edit it below)</span>
+                <span class="editor-label">{{ $t('code.editableLabel') }}</span>
                 <button @click="copySQL" class="btn-copy">
                   <component :is="copied ? Check : Copy" :size="12" style="margin-right: 4px;" />
-                  {{ copied ? 'Copied' : 'Copy' }}
+                  {{ copied ? $t('code.copied') : $t('code.copy') }}
                 </button>
               </div>
 
@@ -112,19 +110,19 @@
                   class="code-textarea"
                   spellcheck="false"
                 ></textarea>
-                <div class="editor-status-tag">Editable Review Mode</div>
+                <div class="editor-status-tag">{{ $t('code.editableHint') }}</div>
               </div>
             </div>
 
             <!-- Stats Bar -->
             <div class="stats-bar-inner">
               <div class="stat-item">
-                <span class="stat-label">Model:</span>
+                <span class="stat-label">{{ $t('code.model') }}</span>
                 <el-tag size="small" class="tag-inference">{{ inferenceMethod || 'LLM' }}</el-tag>
               </div>
               <div class="stat-item">
-                <span class="stat-label">Restriction:</span>
-                <span class="stat-value danger-text">SELECT queries only</span>
+                <span class="stat-label">{{ $t('code.restriction') }}</span>
+                <span class="stat-value danger-text">{{ $t('code.selectOnly') }}</span>
               </div>
             </div>
 
@@ -134,8 +132,8 @@
                 class="modern-btn-execute"
                 @click="handleExecute"
               >
-                <span v-if="executionLoading">Running...</span>
-                <span v-else>Run Query</span>
+                <span v-if="executionLoading">{{ $t('code.running') }}</span>
+                <span v-else>{{ $t('code.runQuery') }}</span>
               </button>
             </div>
           </div>
@@ -146,7 +144,7 @@
           <div class="card-header-simple">
             <span class="card-title-text">
               <Database :size="16" class="icon-result" />
-              Query Results
+              {{ $t('code.queryResults') }}
             </span>
             <div v-if="executionResult && executionResult.success" class="result-actions">
               <el-button
@@ -156,7 +154,7 @@
                 class="btn-export"
               >
                 <FileSpreadsheet :size="14" style="margin-right: 4px;" />
-                Export CSV
+                {{ $t('code.exportCSV') }}
               </el-button>
             </div>
           </div>
@@ -171,9 +169,7 @@
             class="result-alert"
           >
             <template #default>
-              <p class="error-detail">
-                This query was blocked by the security whitelist filter (e.g. attempted write operation or disallowed keywords), or has MySQL syntax errors.
-              </p>
+              <p class="error-detail">{{ $t('code.blockError') }}</p>
             </template>
           </el-alert>
 
@@ -182,15 +178,15 @@
             <!-- Stats -->
             <div class="stats-bar-inner">
               <div class="stat-item">
-                <span class="stat-label">Status:</span>
-                <el-tag size="small" type="success" effect="dark" class="tag-success">Success</el-tag>
+                <span class="stat-label">{{ $t('code.status') }}</span>
+                <el-tag size="small" type="success" effect="dark" class="tag-success">{{ $t('code.success') }}</el-tag>
               </div>
               <div class="stat-item" v-if="executionResult.elapsedMs">
-                <span class="stat-label">Execution Time:</span>
+                <span class="stat-label">{{ $t('code.executionTime') }}</span>
                 <span class="stat-value font-semibold">{{ executionResult.elapsedMs }}ms</span>
               </div>
               <div class="stat-item" v-if="executionResult.rowCount !== undefined">
-                <span class="stat-label">Rows Returned:</span>
+                <span class="stat-label">{{ $t('code.rowsReturned') }}</span>
                 <span class="stat-value font-semibold">{{ executionResult.rowCount }}</span>
               </div>
             </div>
@@ -208,7 +204,7 @@
               </el-table>
             </div>
             <div v-else class="empty-rows-message">
-              Query executed successfully, but returned 0 rows.
+              {{ $t('code.noRows') }}
             </div>
           </div>
         </div>
@@ -220,7 +216,7 @@
           <div class="card-header-simple">
             <span class="card-title-text">
               <Database :size="16" class="icon-db-list" />
-              Available Schema
+              {{ $t('code.availableSchema') }}
             </span>
           </div>
 
@@ -228,7 +224,7 @@
             <el-skeleton :rows="6" animated />
           </div>
           <div v-else-if="!tables.length" class="empty-schema">
-            No tables cached. Click <a @click="refreshMetadata" class="refresh-link">Sync Schema</a> to load.
+            {{ $t('code.noTablesCached') }} <a @click="refreshMetadata" class="refresh-link">{{ $t('code.syncLink') }}</a> {{ $t('code.loadTables') }}
           </div>
           <div v-else class="tables-list">
             <div v-for="table in tables" :key="table" class="table-schema-item">
@@ -237,7 +233,7 @@
               </span>
             </div>
             <div class="schema-footer-note">
-              Only SELECT queries covering these whitelisted tables are permitted.
+              {{ $t('code.schemaFooter') }}
             </div>
           </div>
         </div>
@@ -248,33 +244,36 @@
   <!-- Reusable Agent Thinking Modal -->
   <AgentThinking
     :visible="queryLoading"
-    title="Agent is thinking"
-    footer="Please wait while LLM formulates the query..."
+    :title="$t('code.thinkingTitle')"
+    :footer="$t('code.thinkingFooter')"
     :steps="thoughtMessages"
   />
 </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Sparkles, Database, Play, RefreshCw, Copy, Check, FileSpreadsheet } from 'lucide-vue-next'
 import AgentThinking from '@components/AgentThinking.vue'
-import { 
-  generateSQLOnly, 
+import {
+  generateSQLOnly,
   executeSQLDirectly,
-  getCodeMetadata, 
-  refreshCodeMetadata 
+  getCodeMetadata,
+  refreshCodeMetadata
 } from '@api/code'
 
+const { t } = useI18n()
+
 // Quick prompt templates for Text-to-SQL (translated to English)
-const quickTemplates = [
-  { label: 'Show Customers', en: 'Show all customer records' },
-  { label: 'Avg Balances', en: 'Calculate average balance per account type' },
-  { label: 'Large Txns', en: 'Find transactions in 2026 with amount > 10,000' },
-  { label: 'High Risk Users', en: 'List all high-risk customers' },
-  { label: 'Employee Stats', en: 'Count employees by department' }
-]
+const quickTemplates = computed(() => [
+  { label: t('code.templateShowCustomers'), en: t('code.templateShowCustomers') },
+  { label: t('code.templateAvgBalances'), en: t('code.templateAvgBalances') },
+  { label: t('code.templateLargeTxns'), en: t('code.templateLargeTxns') },
+  { label: t('code.templateHighRisk'), en: t('code.templateHighRisk') },
+  { label: t('code.templateEmployeeStats'), en: t('code.templateEmployeeStats') }
+])
 
 const tables = ref<string[]>([])
 const metadataLoading = ref(false)
@@ -293,11 +292,11 @@ const copied = ref(false)
 
 // Thinking Modal Custom Thought Messages
 const thoughtMessages = [
-  'Analyzing database table schemas...',
-  'Matching prompt keywords with table white-list...',
-  'Connecting to DeepSeek LLM inference service...',
-  'Drafting MySQL SELECT statement query...',
-  'Applying safety checks on query complexity...'
+  t('code.thinking1'),
+  t('code.thinking2'),
+  t('code.thinking3'),
+  t('code.thinking4'),
+  t('code.thinking5')
 ]
 
 // Fetch table names in schema
@@ -321,9 +320,9 @@ const refreshMetadata = async () => {
     const res = await refreshCodeMetadata()
     const payload = res?.data ?? res
     tables.value = payload.tableNames || []
-    ElMessage.success('Schema metadata synchronized!')
+    ElMessage.success(t('code.refreshSuccess'))
   } catch (e: any) {
-    ElMessage.error('Failed to synchronize schema metadata')
+    ElMessage.error(t('code.refreshFailed'))
     console.error(e)
   } finally {
     metadataLoading.value = false
@@ -337,7 +336,7 @@ const useTemplate = (tmpl: string) => {
 // Step 1: Generate SQL from natural language prompt
 const handleGenerate = async () => {
   if (!question.value.trim()) {
-    ElMessage.warning('Please enter a query prompt')
+    ElMessage.warning(t('code.enterPrompt'))
     return
   }
   queryLoading.value = true
@@ -353,13 +352,13 @@ const handleGenerate = async () => {
     if (payload && payload.success) {
       generatedSql.value = payload.sql || ''
       inferenceMethod.value = payload.inferenceMethod || 'LLM'
-      ElMessage.success('SQL query generated successfully!')
+      ElMessage.success(t('code.generateSuccess'))
     } else {
-      generateError.value = payload?.errorMessage || 'Failed to generate SQL'
+      generateError.value = payload?.errorMessage || t('code.generateFailed')
     }
   } catch (e: any) {
-    generateError.value = e.message || 'Server error occurred during SQL generation'
-    ElMessage.error('Generation failed')
+    generateError.value = e.message || t('code.generateFailed')
+    ElMessage.error(t('code.generateFailed'))
   } finally {
     // Provide a small delay so the progress bar reaches 100% smoothly before overlay fades out
     setTimeout(() => {
@@ -371,7 +370,7 @@ const handleGenerate = async () => {
 // Step 2: Execute reviewed & possibly edited SQL query
 const handleExecute = async () => {
   if (!generatedSql.value.trim()) {
-    ElMessage.warning('SQL statement is empty')
+    ElMessage.warning(t('code.sqlEmpty'))
     return
   }
   executionLoading.value = true
@@ -383,13 +382,13 @@ const handleExecute = async () => {
     
     if (payload && payload.success) {
       executionResult.value = payload
-      ElMessage.success('Query executed successfully!')
+      ElMessage.success(t('code.executeSuccess'))
     } else {
-      executeError.value = payload?.errorMessage || 'Query execution failed'
+      executeError.value = payload?.errorMessage || t('code.executeFailed')
     }
   } catch (e: any) {
-    executeError.value = e.message || 'Server error occurred during SQL execution'
-    ElMessage.error('Execution failed')
+    executeError.value = e.message || t('code.executeFailed')
+    ElMessage.error(t('code.executeFailed'))
   } finally {
     executionLoading.value = false
   }
@@ -403,7 +402,7 @@ const copySQL = () => {
     setTimeout(() => {
       copied.value = false
     }, 2000)
-    ElMessage.success('SQL copied to clipboard!')
+    ElMessage.success(t('code.copied'))
   }
 }
 
@@ -435,7 +434,7 @@ const exportCSV = () => {
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
-  ElMessage.success('CSV exported successfully!')
+  ElMessage.success(t('code.csvSuccess'))
 }
 
 onMounted(() => {

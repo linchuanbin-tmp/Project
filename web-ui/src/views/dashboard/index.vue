@@ -3,8 +3,8 @@
 
     <!-- Page header -->
     <div class="page-header">
-      <h1 class="page-title">Dashboard</h1>
-      <p class="page-sub">Welcome back, {{ userStore.userInfo?.username || 'User' }}. Here's what's happening.</p>
+      <h1 class="page-title">{{ $t('dashboard.title') }}</h1>
+      <p class="page-sub">{{ $t('dashboard.welcome', { user: userStore.userInfo?.username || 'User' }) }}</p>
     </div>
 
     <!-- Admin Pending Approvals Alert -->
@@ -12,17 +12,17 @@
       <div class="banner-left">
         <AlertTriangle :size="20" class="alert-icon" />
         <div class="banner-text">
-          <p class="banner-title">Pending Approvals Action Required</p>
-          <p class="banner-desc">You have {{ pendingCount }} pending HITL requests (RAG permission or SQL execution audits) awaiting your review.</p>
+          <p class="banner-title">{{ $t('dashboard.pendingApprovals') }}</p>
+          <p class="banner-desc">{{ $t('dashboard.pendingDesc', { count: pendingCount }) }}</p>
         </div>
       </div>
       <button class="banner-btn" @click="router.push('/app/notification')">
-        Review Now
+        {{ $t('dashboard.reviewNow') }}
       </button>
     </div>
 
     <!-- Quick access: 3-column grid -->
-    <p class="section-label">Quick access</p>
+    <p class="section-label">{{ $t('dashboard.quickAccess') }}</p>
     <div class="action-grid">
       <router-link
           v-for="action in actions"
@@ -36,7 +36,7 @@
         <p class="action-name">{{ action.name }}</p>
         <p class="action-desc">{{ action.desc }}</p>
         <div class="action-footer">
-          <span class="action-link">Open <ArrowRight :size="12" :stroke-width="2" /></span>
+          <span class="action-link">{{ $t('dashboard.open') }} <ArrowRight :size="12" :stroke-width="2" /></span>
         </div>
       </router-link>
     </div>
@@ -45,16 +45,16 @@
     <div class="bottom-layout-grid">
       <!-- Coming Events -->
       <div class="bottom-grid-col">
-        <p class="section-label">Coming Events</p>
+        <p class="section-label">{{ $t('dashboard.comingEvents') }}</p>
         <div class="events-card">
           <div v-if="loadingSchedules" class="events-loading">
             <RefreshCw :size="16" class="spin" />
-            <span>Loading schedules...</span>
+            <span>{{ $t('dashboard.loadingSchedules') }}</span>
           </div>
           <div v-else-if="comingEvents.length === 0" class="events-empty">
             <Calendar :size="24" class="empty-icon" />
-            <p class="empty-title">No events scheduled today</p>
-            <button class="schedule-btn" @click="router.push('/app/tool')">Book a Room</button>
+            <p class="empty-title">{{ $t('dashboard.noEvents') }}</p>
+            <button class="schedule-btn" @click="router.push('/app/tool')">{{ $t('dashboard.bookRoom') }}</button>
           </div>
           <div v-else class="events-list">
             <div v-for="event in comingEvents" :key="event.id" class="event-item-premium">
@@ -91,7 +91,7 @@
 
       <!-- Service Status -->
       <div class="bottom-grid-col">
-        <p class="section-label">Service status</p>
+        <p class="section-label">{{ $t('dashboard.serviceStatus') }}</p>
         <div class="status-bar-card">
           <div class="status-item" v-for="svc in services" :key="svc.name">
             <span class="status-dot" :class="svc.status"></span>
@@ -108,6 +108,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import request from '@utils/request'
 import { 
@@ -117,6 +118,7 @@ import {
 
 const userStore = useUserStore()
 const router = useRouter()
+const { t } = useI18n()
 
 const pendingCount = ref(0)
 const loadingSchedules = ref(false)
@@ -201,24 +203,24 @@ const formatEventDate = (timeStr: string) => {
 const actions = [
   {
     path: '/app/tool',
-    name: 'Tool Agent',
-    desc: 'Meeting rooms, schedule conflicts, and route planning via natural language.',
+    name: t('dashboard.toolAgent'),
+    desc: t('dashboard.toolAgentDesc'),
     icon: Wrench,
     bg: '#f0f9ff',
     color: '#0ea5e9',
   },
   {
     path: '/app/code',
-    name: 'Code Agent',
-    desc: 'Describe what data you need and let the agent write the query for you.',
+    name: t('dashboard.codeAgent'),
+    desc: t('dashboard.codeAgentDesc'),
     icon: FileText,
     bg: '#f0fdf4',
     color: '#22c55e',
   },
   {
     path: '/app/rag',
-    name: 'RAG Agent',
-    desc: 'Upload documents and ask questions. Powered by RAG for grounded answers.',
+    name: t('dashboard.ragAgent'),
+    desc: t('dashboard.ragAgentDesc'),
     icon: BookOpen,
     bg: '#fdf4ff',
     color: '#a855f7',
@@ -226,11 +228,11 @@ const actions = [
 ]
 
 const services = [
-  { name: 'Gateway',    status: 'online',  label: 'Online' },
-  { name: 'User',       status: 'online',  label: 'Online' },
-  { name: 'Tool Agent', status: 'online',  label: 'Online' },
-  { name: 'SQL Agent',  status: 'online',  label: 'Online' },
-  { name: 'RAG Agent',  status: 'offline', label: 'Coming Soon' },
+  { name: t('dashboard.gateway'),    status: 'online',  label: t('dashboard.online') },
+  { name: t('dashboard.user'),       status: 'online',  label: t('dashboard.online') },
+  { name: t('dashboard.toolAgentService'), status: 'online',  label: t('dashboard.online') },
+  { name: t('dashboard.sqlAgentService'),  status: 'online',  label: t('dashboard.online') },
+  { name: t('dashboard.ragAgentService'),  status: 'offline', label: t('dashboard.comingSoon') },
 ]
 
 onMounted(() => {

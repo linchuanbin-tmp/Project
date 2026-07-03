@@ -4,6 +4,9 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   path: number[][]
@@ -42,7 +45,7 @@ const loadAMap = (): Promise<any> => {
     script.async = true
 
     script.onerror = () => {
-      reject(new Error('AMap load failed, please verify the Key and network connection.'))
+      reject(new Error(t('map.loadFailed')))
     }
 
     script.onload = () => {
@@ -55,7 +58,7 @@ const loadAMap = (): Promise<any> => {
           resolve(window.AMap)
         } else if (attempts >= 50) {
           clearInterval(check)
-          reject(new Error('AMap load timeout.'))
+          reject(new Error(t('map.loadTimeout')))
         }
       }, 100)
     }
@@ -87,12 +90,12 @@ const initMap = async () => {
       updateRoute()
     })
   } catch (err: any) {
-    console.error('Map initialization failed:', err)
+    console.error(t('map.initFailed'), err)
     // Show error toast on map container if load fails
     if (mapContainer.value) {
       mapContainer.value.innerHTML = `
         <div style="display:flex;justify-content:center;align-items:center;height:100%;color:#F56C6C;font-size:14px;">
-          Map load failed: ${err.message}
+          ${t('map.initFailed')}: ${err.message}
         </div>`
     }
   }
@@ -133,7 +136,7 @@ const updateRoute = () => {
         <div style="position: relative; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); pointer-events: none;">
           <div style="background: #10b981; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,0.2); white-space: nowrap; display: flex; align-items: center; border: 1.5px solid #fff;">
             <span style="width: 5px; height: 5px; background: #fff; border-radius: 50%; margin-right: 5px;"></span>
-            Start
+            ${t('map.startPoint')}
           </div>
           <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #10b981; margin-top: -1px;"></div>
         </div>
@@ -150,7 +153,7 @@ const updateRoute = () => {
         <div style="position: relative; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); pointer-events: none;">
           <div style="background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,0.2); white-space: nowrap; display: flex; align-items: center; border: 1.5px solid #fff;">
             <span style="width: 5px; height: 5px; background: #fff; border-radius: 50%; margin-right: 5px;"></span>
-            Destination
+            ${t('map.endPoint')}
           </div>
           <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #ef4444; margin-top: -1px;"></div>
         </div>

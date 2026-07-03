@@ -3,25 +3,25 @@
     <!-- Page header -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">My Schedules & Bookings</h1>
-        <p class="page-sub">View and manage your active meeting room reservations and personal schedules.</p>
+        <h1 class="page-title">{{ $t('mySchedules.title') }}</h1>
+        <p class="page-sub">{{ $t('mySchedules.subtitle') }}</p>
       </div>
       <div class="header-actions">
         <el-button class="refresh-btn" :loading="loading" @click="fetchMySchedules">
-          <RefreshCw :size="14" style="margin-right: 6px;" /> Refresh
+          <RefreshCw :size="14" style="margin-right: 6px;" /> {{ $t('common.refresh') }}
         </el-button>
       </div>
     </div>
 
     <!-- Main content tabs -->
     <el-tabs v-model="activeTab" class="schedules-tabs" type="border-card">
-      
+
       <!-- Tab 1: Meeting Room Bookings -->
       <el-tab-pane name="bookings">
         <template #label>
           <div class="tab-label">
             <Building :size="15" />
-            <span>Meeting Room Bookings</span>
+            <span>{{ $t('mySchedules.meetingRoomBookings') }}</span>
           </div>
         </template>
 
@@ -32,26 +32,26 @@
               style="width: 100%"
               class="custom-table"
           >
-            <el-table-column label="Room" min-width="160">
+            <el-table-column :label="$t('mySchedules.room')" min-width="160">
               <template #default="{ row }">
                 <div class="room-cell">
-                  <span class="room-name">{{ row.roomName || 'Meeting Room' }}</span>
+                  <span class="room-name">{{ row.roomName || $t('mySchedules.room') }}</span>
                 </div>
               </template>
             </el-table-column>
 
-            <el-table-column label="Location" min-width="150">
+            <el-table-column :label="$t('mySchedules.location')" min-width="150">
               <template #default="{ row }">
                 <div class="location-cell">
                   <MapPin :size="13" class="cell-icon" />
-                  <span>{{ row.location || 'N/A' }}</span>
+                  <span>{{ row.location || $t('mySchedules.na') }}</span>
                 </div>
               </template>
             </el-table-column>
 
-            <el-table-column prop="topic" label="Meeting Topic" min-width="160" />
+            <el-table-column prop="topic" :label="$t('mySchedules.topic')" min-width="160" />
 
-            <el-table-column label="Time Period" min-width="260">
+            <el-table-column :label="$t('mySchedules.timePeriod')" min-width="260">
               <template #default="{ row }">
                 <div class="time-cell">
                   <Clock :size="13" class="cell-icon" />
@@ -60,13 +60,13 @@
               </template>
             </el-table-column>
 
-            <el-table-column label="Duration" width="100">
+            <el-table-column :label="$t('mySchedules.duration')" width="100">
               <template #default="{ row }">
                 <span class="duration-badge">{{ calculateDuration(row.startTime, row.endTime) }}</span>
               </template>
             </el-table-column>
 
-            <el-table-column label="Actions" width="120" fixed="right" align="center">
+            <el-table-column :label="$t('mySchedules.actions')" width="120" fixed="right" align="center">
               <template #default="{ row }">
                 <el-button
                     type="danger"
@@ -74,7 +74,7 @@
                     class="cancel-btn"
                     @click="handleCancel(row)"
                 >
-                  <Trash2 :size="13" style="margin-right: 4px;" /> Cancel
+                  <Trash2 :size="13" style="margin-right: 4px;" /> {{ $t('common.cancel') }}
                 </el-button>
               </template>
             </el-table-column>
@@ -85,10 +85,10 @@
             <div class="empty-icon-wrap">
               <Building :size="24" />
             </div>
-            <h5 class="empty-title">No Active Bookings</h5>
-            <p class="empty-desc">You have no active meeting room bookings. Go to Tool Agent to book a room.</p>
+            <h5 class="empty-title">{{ $t('mySchedules.noBookings') }}</h5>
+            <p class="empty-desc">{{ $t('mySchedules.noBookingsDesc') }}</p>
             <el-button type="primary" class="go-to-btn" @click="router.push('/app/tool')">
-              Book a Room
+              {{ $t('mySchedules.bookRoom') }}
             </el-button>
           </div>
         </div>
@@ -99,7 +99,7 @@
         <template #label>
           <div class="tab-label">
             <CalendarDays :size="15" />
-            <span>Personal Schedules</span>
+            <span>{{ $t('mySchedules.personalSchedules') }}</span>
           </div>
         </template>
 
@@ -110,9 +110,9 @@
               style="width: 100%"
               class="custom-table"
           >
-            <el-table-column prop="topic" label="Schedule Topic" min-width="200" />
+            <el-table-column prop="topic" :label="$t('mySchedules.topic')" min-width="200" />
 
-            <el-table-column label="Time Period" min-width="280">
+            <el-table-column :label="$t('mySchedules.timePeriod')" min-width="280">
               <template #default="{ row }">
                 <div class="time-cell">
                   <Clock :size="13" class="cell-icon" />
@@ -121,13 +121,13 @@
               </template>
             </el-table-column>
 
-            <el-table-column label="Duration" width="110">
+            <el-table-column :label="$t('mySchedules.duration')" width="110">
               <template #default="{ row }">
                 <span class="duration-badge">{{ calculateDuration(row.startTime, row.endTime) }}</span>
               </template>
             </el-table-column>
 
-            <el-table-column label="Actions" width="120" fixed="right" align="center">
+            <el-table-column :label="$t('mySchedules.actions')" width="120" fixed="right" align="center">
               <template #default="{ row }">
                 <el-button
                     type="danger"
@@ -135,7 +135,7 @@
                     class="cancel-btn"
                     @click="handleCancel(row)"
                 >
-                  <Trash2 :size="13" style="margin-right: 4px;" /> Delete
+                  <Trash2 :size="13" style="margin-right: 4px;" /> {{ $t('common.delete') }}
                 </el-button>
               </template>
             </el-table-column>
@@ -146,10 +146,10 @@
             <div class="empty-icon-wrap">
               <CalendarDays :size="24" />
             </div>
-            <h5 class="empty-title">No Personal Schedules</h5>
-            <p class="empty-desc">You have no personal schedules listed. Create ones on the Schedule Check tab.</p>
+            <h5 class="empty-title">{{ $t('mySchedules.noSchedules') }}</h5>
+            <p class="empty-desc">{{ $t('mySchedules.noSchedulesDesc') }}</p>
             <el-button type="primary" class="go-to-btn" @click="router.push('/app/tool')">
-              Add Schedule
+              {{ $t('mySchedules.addSchedule') }}
             </el-button>
           </div>
         </div>
@@ -160,6 +160,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@utils/request'
@@ -172,6 +173,7 @@ import {
   RefreshCw
 } from 'lucide-vue-next'
 
+const { t } = useI18n()
 const router = useRouter()
 const loading = ref(false)
 const activeTab = ref('bookings')
@@ -195,7 +197,7 @@ const fetchMySchedules = async () => {
     allSchedules.value = payload || []
   } catch (error: any) {
     console.error('Failed to fetch schedules:', error)
-    ElMessage.error('Failed to load schedules')
+    ElMessage.error(t('mySchedules.loadError'))
   } finally {
     loading.value = false
   }
@@ -245,15 +247,15 @@ const calculateDuration = (startStr: string, endStr: string): string => {
 // Cancel Booking / Delete Personal Schedule
 const handleCancel = (row: any) => {
   const isBooking = row.roomId !== null && row.roomId > 0
-  const actionText = isBooking ? 'cancel this meeting room reservation' : 'delete this personal schedule'
-  const confirmTitle = isBooking ? 'Cancel Booking' : 'Delete Schedule'
+  const actionText = isBooking ? t('mySchedules.cancelBookingDesc') : t('mySchedules.deleteScheduleDesc')
+  const confirmTitle = isBooking ? t('mySchedules.cancelBooking') : t('mySchedules.deleteSchedule')
 
   ElMessageBox.confirm(
-      `Are you sure you want to ${actionText}? This action cannot be undone.`,
+      t('mySchedules.confirmDeleteText', { action: actionText }),
       confirmTitle,
       {
-        confirmButtonText: 'Confirm',
-        cancelButtonText: 'Cancel',
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
         customClass: 'custom-message-box'
       }
@@ -261,11 +263,11 @@ const handleCancel = (row: any) => {
     loading.value = true
     try {
       await request.delete(`/tool/my-schedule/${row.id}`)
-      ElMessage.success(isBooking ? 'Reservation cancelled successfully' : 'Schedule deleted successfully')
+      ElMessage.success(isBooking ? t('mySchedules.cancelSuccess') : t('mySchedules.deleteSuccess'))
       fetchMySchedules()
     } catch (error: any) {
       console.error(error)
-      ElMessage.error(error.message || 'Operation failed')
+      ElMessage.error(error.message || t('mySchedules.operationFailed'))
     } finally {
       loading.value = false
     }

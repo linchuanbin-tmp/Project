@@ -4,17 +4,14 @@
       <div class="icon-wrap">
         <BookOpen :size="28" :stroke-width="1.4" color="#6b7280" />
       </div>
-      <h2 class="placeholder-title">Knowledge Q&A</h2>
-      <p class="placeholder-desc">
-        Upload documents and ask questions in plain language.
-        Powered by RAG — retrieval-augmented generation for accurate, grounded answers.
-      </p>
-      <div class="coming-badge">Coming soon</div>
+      <h2 class="placeholder-title">{{ $t('rag.title') }}</h2>
+      <p class="placeholder-desc">{{ $t('rag.desc') }}</p>
+      <div class="coming-badge">{{ $t('rag.comingSoon') }}</div>
       <ul class="feature-list">
-        <li><CheckCircle :size="14" :stroke-width="1.8" /> PDF, Word & Markdown support</li>
-        <li><CheckCircle :size="14" :stroke-width="1.8" /> Semantic search across documents</li>
-        <li><CheckCircle :size="14" :stroke-width="1.8" /> Source citation in answers</li>
-        <li><CheckCircle :size="14" :stroke-width="1.8" /> Multi-document knowledge base</li>
+        <li><CheckCircle :size="14" :stroke-width="1.8" /> {{ $t('rag.feature1') }}</li>
+        <li><CheckCircle :size="14" :stroke-width="1.8" /> {{ $t('rag.feature2') }}</li>
+        <li><CheckCircle :size="14" :stroke-width="1.8" /> {{ $t('rag.feature3') }}</li>
+        <li><CheckCircle :size="14" :stroke-width="1.8" /> {{ $t('rag.feature4') }}</li>
       </ul>
     </div>
   </div>

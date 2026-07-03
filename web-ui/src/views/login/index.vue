@@ -3,30 +3,30 @@
     <div class="card-body">
 
       <!-- Brand label -->
-      <p class="app-label">BankAgent</p>
+      <p class="app-label">{{ $t('login.appLabel') }}</p>
 
       <!-- Page heading -->
       <div class="heading-block">
-        <h1 class="page-heading">Sign in</h1>
-        <p class="page-sub">Access your account to continue</p>
+        <h1 class="page-heading">{{ $t('login.heading') }}</h1>
+        <p class="page-sub">{{ $t('login.subheading') }}</p>
       </div>
 
       <el-form :model="form" :rules="rules" ref="formRef">
         <el-form-item prop="username">
-          <label class="field-label">Email</label>
+          <label class="field-label">{{ $t('login.email') }}</label>
           <el-input
               v-model="form.username"
-              placeholder="you@example.com"
+              :placeholder="$t('login.emailPlaceholder')"
               :prefix-icon="() => h(Mail, { size: 15, strokeWidth: 1.6 })"
               class="soft-input"
           />
         </el-form-item>
         <el-form-item prop="password">
-          <label class="field-label">Password</label>
+          <label class="field-label">{{ $t('login.password') }}</label>
           <el-input
               v-model="form.password"
               type="password"
-              placeholder="Enter your password"
+              :placeholder="$t('login.passwordPlaceholder')"
               :prefix-icon="() => h(Lock, { size: 15, strokeWidth: 1.6 })"
               @keyup.enter="handleLogin"
               class="soft-input"
@@ -34,14 +34,14 @@
         </el-form-item>
         <el-form-item>
           <el-button :loading="loading" class="submit-btn" @click="handleLogin">
-            Continue
+            {{ $t('login.loginBtn') }}
           </el-button>
         </el-form-item>
       </el-form>
 
       <p class="switch-link">
-        Don't have an account?
-        <router-link to="/register" class="link">Create one</router-link>
+        {{ $t('login.noAccount') }}
+        <router-link to="/register" class="link">{{ $t('login.createOne') }}</router-link>
       </p>
 
     </div>
@@ -51,11 +51,13 @@
 <script setup lang="ts">
 import { reactive, ref, h } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { Mail, Lock } from 'lucide-vue-next'
 
 const router = useRouter()
 const userStore = useUserStore()
+const { t } = useI18n()
 const loading = ref(false)
 const formRef = ref()
 
@@ -63,9 +65,9 @@ const form = reactive({ username: '', password: '' })
 
 const rules = {
   username: [
-    { required: true, message: 'Please enter your email', trigger: 'blur' }
+    { required: true, message: t('login.emailRequired'), trigger: 'blur' }
   ],
-  password: [{ required: true, message: 'Please enter your password', trigger: 'blur' }]
+  password: [{ required: true, message: t('login.passwordRequired'), trigger: 'blur' }]
 }
 
 const handleLogin = async () => {

@@ -3,8 +3,8 @@
     <!-- Header — 与其他页面保持一致 -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">Settings</h1>
-        <p class="page-sub">Manage your account profile and security preferences.</p>
+        <h1 class="page-title">{{ $t('settings.title') }}</h1>
+        <p class="page-sub">{{ $t('settings.subtitle') }}</p>
       </div>
     </div>
 
@@ -18,11 +18,11 @@
             <User :size="17" :stroke-width="1.7" />
           </div>
           <div class="item-text">
-            <span class="item-title">Profile</span>
-            <span class="item-desc">Update your display name and view account details</span>
+            <span class="item-title">{{ $t('settings.profile') }}</span>
+            <span class="item-desc">{{ $t('settings.profileDesc') }}</span>
           </div>
         </div>
-        <button class="edit-btn" @click="openProfileDialog">Edit</button>
+        <button class="edit-btn" @click="openProfileDialog">{{ $t('common.edit') }}</button>
       </div>
 
       <!-- Security item -->
@@ -32,11 +32,11 @@
             <Lock :size="17" :stroke-width="1.7" />
           </div>
           <div class="item-text">
-            <span class="item-title">Security</span>
-            <span class="item-desc">Change your login password</span>
+            <span class="item-title">{{ $t('settings.security') }}</span>
+            <span class="item-desc">{{ $t('settings.securityDesc') }}</span>
           </div>
         </div>
-        <button class="edit-btn" @click="openPasswordDialog">Edit</button>
+        <button class="edit-btn" @click="openPasswordDialog">{{ $t('common.edit') }}</button>
       </div>
 
     </div>
@@ -44,7 +44,7 @@
     <!-- ── Profile Dialog ──────────────────────────── -->
     <el-dialog
       v-model="profileDialogVisible"
-      title="Profile"
+      :title="$t('settings.profile')"
       width="440px"
       :close-on-click-modal="false"
       class="settings-dialog"
@@ -54,7 +54,7 @@
         <div class="dialog-avatar">{{ avatarLetter }}</div>
         <div class="dialog-user-info">
           <p class="dialog-user-name">{{ normalizeRealName(userStore.userInfo?.realName) || userStore.userInfo?.username }}</p>
-          <p class="dialog-user-role">{{ isAdmin ? 'Administrator' : 'Employee' }}</p>
+          <p class="dialog-user-role">{{ isAdmin ? $t('settings.administrator') : $t('settings.employee') }}</p>
         </div>
       </div>
 
@@ -67,23 +67,23 @@
         label-position="top"
         class="dialog-form"
       >
-        <el-form-item label="Username (Email)">
+        <el-form-item :label="$t('settings.usernameEmail')">
           <el-input :value="userStore.userInfo?.username" disabled class="dialog-input">
             <template #prefix><Lock :size="13" :stroke-width="1.7" class="input-icon" /></template>
           </el-input>
-          <p class="field-hint">Username cannot be changed</p>
+          <p class="field-hint">{{ $t('settings.usernameHint') }}</p>
         </el-form-item>
 
-        <el-form-item label="Role">
-          <el-input :value="isAdmin ? 'Administrator' : 'Employee'" disabled class="dialog-input">
+        <el-form-item :label="$t('settings.role')">
+          <el-input :value="isAdmin ? $t('settings.administrator') : $t('settings.employee')" disabled class="dialog-input">
             <template #prefix><Shield :size="13" :stroke-width="1.7" class="input-icon" /></template>
           </el-input>
         </el-form-item>
 
-        <el-form-item label="Display Name" prop="realName">
+        <el-form-item :label="$t('settings.displayName')" prop="realName">
           <el-input
             v-model="profileForm.realName"
-            placeholder="Enter your display name"
+            :placeholder="$t('settings.displayNamePlaceholder')"
             class="dialog-input"
             maxlength="50"
             show-word-limit
@@ -95,9 +95,9 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button class="cancel-btn" @click="profileDialogVisible = false">Cancel</el-button>
+          <el-button class="cancel-btn" @click="profileDialogVisible = false">{{ $t('common.cancel') }}</el-button>
           <el-button type="primary" :loading="profileLoading" class="confirm-btn" @click="handleSaveProfile">
-            Save Changes
+            {{ $t('common.save') }}
           </el-button>
         </div>
       </template>
@@ -106,7 +106,7 @@
     <!-- ── Password Dialog ────────────────────────── -->
     <el-dialog
       v-model="passwordDialogVisible"
-      title="Change Password"
+      :title="$t('settings.changePassword')"
       width="440px"
       :close-on-click-modal="false"
       class="settings-dialog"
@@ -115,7 +115,7 @@
       <!-- Security banner -->
       <div class="security-banner">
         <ShieldCheck :size="16" :stroke-width="1.7" class="banner-icon" />
-        <p class="banner-text">At least 6 characters. Use a mix of letters, numbers, and symbols.</p>
+        <p class="banner-text">{{ $t('settings.passwordHint') }}</p>
       </div>
 
       <el-form
@@ -125,16 +125,16 @@
         label-position="top"
         class="dialog-form"
       >
-        <el-form-item label="Current Password" prop="currentPassword">
+        <el-form-item :label="$t('settings.oldPassword')" prop="currentPassword">
           <el-input v-model="passwordForm.currentPassword" type="password" show-password
-            placeholder="Enter your current password" class="dialog-input">
+            :placeholder="$t('settings.oldPasswordPlaceholder')" class="dialog-input">
             <template #prefix><Lock :size="13" :stroke-width="1.7" class="input-icon" /></template>
           </el-input>
         </el-form-item>
 
-        <el-form-item label="New Password" prop="newPassword">
+        <el-form-item :label="$t('settings.newPassword')" prop="newPassword">
           <el-input v-model="passwordForm.newPassword" type="password" show-password
-            placeholder="Enter your new password" class="dialog-input">
+            :placeholder="$t('settings.newPasswordPlaceholder')" class="dialog-input">
             <template #prefix><Key :size="13" :stroke-width="1.7" class="input-icon" /></template>
           </el-input>
           <!-- Strength meter -->
@@ -144,24 +144,24 @@
           </div>
         </el-form-item>
 
-        <el-form-item label="Confirm New Password" prop="confirmPassword">
+        <el-form-item :label="$t('settings.confirmPassword')" prop="confirmPassword">
           <el-input v-model="passwordForm.confirmPassword" type="password" show-password
-            placeholder="Confirm your new password" class="dialog-input">
+            :placeholder="$t('settings.confirmPasswordPlaceholder')" class="dialog-input">
             <template #prefix><Key :size="13" :stroke-width="1.7" class="input-icon" /></template>
           </el-input>
           <p v-if="passwordForm.confirmPassword" class="match-hint"
             :class="passwordsMatch ? 'match-ok' : 'match-err'">
             <component :is="passwordsMatch ? Check : X" :size="12" />
-            {{ passwordsMatch ? 'Passwords match' : 'Passwords do not match' }}
+            {{ passwordsMatch ? $t('settings.passwordsMatch') : $t('settings.passwordsMismatch') }}
           </p>
         </el-form-item>
       </el-form>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button class="cancel-btn" @click="passwordDialogVisible = false">Cancel</el-button>
+          <el-button class="cancel-btn" @click="passwordDialogVisible = false">{{ $t('common.cancel') }}</el-button>
           <el-button type="primary" :loading="passwordLoading" class="confirm-btn" @click="handleChangePassword">
-            Update Password
+            {{ $t('settings.updatePassword') }}
           </el-button>
         </div>
       </template>
@@ -172,12 +172,14 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { User, Lock, Shield, Key, ShieldCheck, Check, X } from 'lucide-vue-next'
 import request from '@utils/request'
 
+const { t } = useI18n()
 const userStore = useUserStore()
 
 // Normalize legacy Chinese realName values stored in old databases
@@ -203,8 +205,8 @@ const profileLoading = ref(false)
 const profileForm = reactive({ realName: '' })
 const profileRules: FormRules = {
   realName: [
-    { required: true, message: 'Display name is required', trigger: 'blur' },
-    { min: 1, max: 50, message: 'Must be 1–50 characters', trigger: 'blur' }
+    { required: true, message: t('settings.displayNameRequired'), trigger: 'blur' },
+    { min: 1, max: 50, message: t('settings.displayNameLength'), trigger: 'blur' }
   ]
 }
 
@@ -221,7 +223,7 @@ const handleSaveProfile = async () => {
     try {
       await request.put('/user/profile', { realName: profileForm.realName })
       if (userStore.userInfo) userStore.userInfo.realName = profileForm.realName
-      ElMessage.success('Profile updated successfully')
+      ElMessage.success(t('settings.updateSuccess'))
       profileDialogVisible.value = false
     } finally {
       profileLoading.value = false
@@ -252,7 +254,7 @@ const passwordStrength = computed(() => {
   if (/[^a-zA-Z0-9]/.test(p)) score++
   return score
 })
-const strengthLabel = computed(() => ['', 'Weak', 'Fair', 'Good', 'Strong'][passwordStrength.value] || '')
+const strengthLabel = computed(() => ['', t('settings.passwordWeak'), t('settings.passwordFair'), t('settings.passwordGood'), t('settings.passwordStrong')][passwordStrength.value] || '')
 const getStrengthClass = (n: number) => {
   const s = passwordStrength.value
   if (n > s) return ''
@@ -263,17 +265,17 @@ const getStrengthClass = (n: number) => {
 }
 
 const passwordRules: FormRules = {
-  currentPassword: [{ required: true, message: 'Current password is required', trigger: 'blur' }],
+  currentPassword: [{ required: true, message: t('settings.oldPasswordRequired'), trigger: 'blur' }],
   newPassword: [
-    { required: true, message: 'New password is required', trigger: 'blur' },
-    { min: 6, message: 'Minimum 6 characters', trigger: 'blur' }
+    { required: true, message: t('settings.newPasswordRequired'), trigger: 'blur' },
+    { min: 6, message: t('settings.passwordMinLength'), trigger: 'blur' }
   ],
-  confirmPassword: [{ required: true, message: 'Please confirm your new password', trigger: 'blur' }]
+  confirmPassword: [{ required: true, message: t('settings.confirmPasswordRequired'), trigger: 'blur' }]
 }
 
 const handleChangePassword = async () => {
   if (!passwordFormRef.value) return
-  if (!passwordsMatch.value) { ElMessage.error('New passwords do not match'); return }
+  if (!passwordsMatch.value) { ElMessage.error(t('settings.passwordsMismatch')); return }
   await passwordFormRef.value.validate(async (valid) => {
     if (!valid) return
     passwordLoading.value = true
@@ -283,7 +285,7 @@ const handleChangePassword = async () => {
         newPassword: passwordForm.newPassword,
         confirmPassword: passwordForm.confirmPassword
       })
-      ElMessage.success('Password changed successfully. Please log in again.')
+      ElMessage.success(t('settings.passwordUpdateSuccess'))
       passwordDialogVisible.value = false
       setTimeout(() => userStore.logout(), 1500)
     } finally {

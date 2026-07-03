@@ -3,22 +3,22 @@
     <!-- Page Header -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">Knowledge Assets Library</h1>
-        <p class="page-sub">Browse system guides and department manuals under multi-dimensional access protection rules.</p>
+        <h1 class="page-title">{{ $t('document.title') }}</h1>
+        <p class="page-sub">{{ $t('document.subtitle') }}</p>
       </div>
       <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
-        <el-button 
-          v-if="isAdminOrDeptAdmin" 
-          type="primary" 
-          class="create-btn" 
+        <el-button
+          v-if="isAdminOrDeptAdmin"
+          type="primary"
+          class="create-btn"
           @click="openCreateDialog"
         >
           <Plus :size="14" />
-          Create Document
+          {{ $t('document.createDoc') }}
         </el-button>
         <el-button class="refresh-btn" @click="fetchDocuments" :loading="loading">
           <RefreshCw :size="14" :class="{ 'spin': loading }" />
-          Refresh Library
+          {{ $t('document.refreshLib') }}
         </el-button>
       </div>
     </div>
@@ -30,7 +30,7 @@
         <div class="search-wrap">
           <el-input
             v-model="searchQuery"
-            placeholder="Search documents by title..."
+            :placeholder="$t('document.searchPlaceholder')"
             class="search-input"
             clearable
           >
@@ -41,21 +41,21 @@
         </div>
 
         <div class="filter-tabs">
-          <button 
-            class="filter-tab-btn" 
-            :class="{ 'active': activeTab === 'system' }" 
+          <button
+            class="filter-tab-btn"
+            :class="{ 'active': activeTab === 'system' }"
             @click="activeTab = 'system'"
           >
             <BookOpen :size="15" />
-            System manuals
+            {{ $t('document.systemManuals') }}
           </button>
-          <button 
-            class="filter-tab-btn" 
-            :class="{ 'active': activeTab === 'department' }" 
+          <button
+            class="filter-tab-btn"
+            :class="{ 'active': activeTab === 'department' }"
             @click="activeTab = 'department'"
           >
             <Briefcase :size="15" />
-            Department assets
+            {{ $t('document.deptAssets') }}
           </button>
         </div>
       </div>
@@ -66,14 +66,14 @@
         <template v-if="activeTab === 'system'">
           <div v-if="filteredSystemDocs.length === 0 && !loading" class="empty-state-box">
             <FolderOpen :size="48" class="empty-icon" />
-            <h3>No system documentation found</h3>
-            <p>We couldn't find any global system guides matching your search criteria.</p>
+            <h3>{{ $t('document.noSystemDocs') }}</h3>
+            <p>{{ $t('document.noSystemDocsDesc') }}</p>
           </div>
 
           <div v-else class="cards-grid">
-            <div 
-              v-for="doc in filteredSystemDocs" 
-              :key="doc.id" 
+            <div
+              v-for="doc in filteredSystemDocs"
+              :key="doc.id"
               class="document-card system-doc"
             >
               <div class="card-header">
@@ -81,7 +81,7 @@
                   <BookOpen :size="18" />
                 </div>
                 <div class="header-right-side" style="display: flex; align-items: center; gap: 8px;">
-                  <span class="security-badge global">Global</span>
+                  <span class="security-badge global">{{ $t('document.global') }}</span>
                   <div v-if="canManage(doc)" class="card-mgmt-actions">
                     <el-button class="icon-action-btn edit" @click.stop="openEditDialog(doc)">
                       <Edit :size="12" />
@@ -94,12 +94,12 @@
               </div>
               <div class="card-body">
                 <h3 class="doc-title">{{ doc.title }}</h3>
-                <p class="doc-excerpt">Open access system handbook. Click read to view design specifications.</p>
+                <p class="doc-excerpt">{{ $t('document.openAccessDesc') }}</p>
               </div>
               <div class="card-footer">
-                <span class="doc-date">Created: {{ formatDate(doc.createTime) }}</span>
+                <span class="doc-date">{{ $t('document.created') }}: {{ formatDate(doc.createTime) }}</span>
                 <el-button class="read-action-btn" @click="enterReadingMode(doc)">
-                  Read Document
+                  {{ $t('document.readDoc') }}
                   <ChevronRight :size="14" />
                 </el-button>
               </div>
@@ -112,21 +112,21 @@
           <!-- Case: No department assigned -->
           <div v-if="!userStore.userInfo?.deptId" class="empty-state-box">
             <Briefcase :size="48" class="empty-icon text-rose" />
-            <h3>No Department Assigned</h3>
-            <p>Your user profile must be allocated to a department before you can access confidential department libraries.</p>
+            <h3>{{ $t('document.noDeptAssigned') }}</h3>
+            <p>{{ $t('document.noDeptAssignedDesc') }}</p>
           </div>
 
           <template v-else>
             <div v-if="filteredDeptDocs.length === 0 && !loading" class="empty-state-box">
               <FolderOpen :size="48" class="empty-icon" />
-              <h3>Empty Department Library</h3>
-              <p>No internal documents are allocated to the <strong>{{ userStore.userInfo?.deptName }}</strong> yet.</p>
+              <h3>{{ $t('document.emptyDeptLib') }}</h3>
+              <p>{{ $t('document.emptyDeptLibDesc', { dept: userStore.userInfo?.deptName }) }}</p>
             </div>
 
             <div v-else class="cards-grid">
-              <div 
-                v-for="doc in filteredDeptDocs" 
-                :key="doc.id" 
+              <div
+                v-for="doc in filteredDeptDocs"
+                :key="doc.id"
                 class="document-card"
                 :class="{ 'restricted-card': !doc.accessible }"
               >
@@ -151,29 +151,29 @@
                 </div>
                 <div class="card-body">
                   <h3 class="doc-title">{{ doc.title }}</h3>
-                  <p class="doc-excerpt" v-if="doc.accessible">Internal department knowledge asset. Fully authorized for retrieval.</p>
+                  <p class="doc-excerpt" v-if="doc.accessible">{{ $t('document.internalAccessDesc') }}</p>
                   <p class="doc-excerpt restricted-text" v-else>
-                    Access Restricted. Requires Clearance level {{ doc.securityLevel }} or manager bypass token.
+                    {{ $t('document.restrictedAccessDesc', { level: doc.securityLevel }) }}
                   </p>
                 </div>
                 <div class="card-footer">
-                  <span class="doc-date">Created: {{ formatDate(doc.createTime) }}</span>
-                  
-                  <el-button 
+                  <span class="doc-date">{{ $t('document.created') }}: {{ formatDate(doc.createTime) }}</span>
+
+                  <el-button
                     v-if="doc.accessible"
-                    class="read-action-btn" 
+                    class="read-action-btn"
                     @click="enterReadingMode(doc)"
                   >
-                    Read Document
+                    {{ $t('document.readDoc') }}
                     <ChevronRight :size="14" />
                   </el-button>
-                  <el-button 
+                  <el-button
                     v-else
                     type="warning"
-                    class="request-action-btn" 
+                    class="request-action-btn"
                     @click="enterReadingMode(doc)"
                   >
-                    Request Access
+                    {{ $t('document.requestAccess') }}
                     <ShieldAlert :size="14" />
                   </el-button>
                 </div>
@@ -184,7 +184,7 @@
       </div>
     </div>
 
-    <!-- ── IMMERSIVE FULL-SCREEN ZEN READER MODE OVERLAY ── -->
+    <!-- IMMERSIVE FULL-SCREEN ZEN READER MODE OVERLAY -->
     <div v-if="readerVisible && selectedDoc" class="zen-reader-overlay animate-slide-up">
       <!-- Fixed Reader Header / Navigation -->
       <div class="zen-nav-bar">
@@ -197,101 +197,101 @@
             popper-class="meta-popover"
           >
             <template #reference>
-              <div class="nav-title-trigger" title="Click to view document metadata">
+              <div class="nav-title-trigger" :title="$t('document.clickViewMeta')">
                 <span class="nav-center-title">{{ selectedDoc.title }}</span>
                 <ChevronDown :size="16" class="arrow-icon" />
               </div>
             </template>
-            
+
             <!-- Metadata Popover Content -->
             <div class="meta-popover-content">
-              <h4 class="popover-title">Document Clearance Status</h4>
+              <h4 class="popover-title">{{ $t('document.clearanceStatus') }}</h4>
               <div class="popover-section">
                 <div class="popover-row">
-                  <span class="lbl">Access Level:</span>
+                  <span class="lbl">{{ $t('document.accessLevel') }}:</span>
                   <span class="val security-badge" :class="selectedDoc.deptId ? 'level-' + selectedDoc.securityLevel : 'global'">
-                    {{ selectedDoc.deptId ? 'Level-' + selectedDoc.securityLevel : 'Global Policy' }}
+                    {{ selectedDoc.deptId ? 'Level-' + selectedDoc.securityLevel : $t('document.globalPolicy') }}
                   </span>
                 </div>
                 <div class="popover-row">
-                  <span class="lbl">Clearance Tag:</span>
-                  <span class="val">{{ selectedDoc.deptId ? getClearanceLabel(selectedDoc.securityLevel) : 'Public System' }}</span>
+                  <span class="lbl">{{ $t('document.clearanceTag') }}:</span>
+                  <span class="val">{{ selectedDoc.deptId ? getClearanceLabel(selectedDoc.securityLevel) : $t('document.publicSystem') }}</span>
                 </div>
                 <div class="popover-row">
-                  <span class="lbl">Department:</span>
-                  <span class="val">{{ selectedDoc.deptId ? userStore.userInfo?.deptName : 'All Departments' }}</span>
+                  <span class="lbl">{{ $t('document.department') }}:</span>
+                  <span class="val">{{ selectedDoc.deptId ? userStore.userInfo?.deptName : $t('document.allDepartments') }}</span>
                 </div>
                 <div class="popover-row">
-                  <span class="lbl">Created On:</span>
+                  <span class="lbl">{{ $t('document.createdOn') }}:</span>
                   <span class="val">{{ formatDate(selectedDoc.createTime) }}</span>
                 </div>
               </div>
-              
+
               <div class="popover-divider"></div>
-              
-              <h4 class="popover-title">RAG Vector Grounding Info</h4>
+
+              <h4 class="popover-title">{{ $t('document.ragVectorInfo') }}</h4>
               <div class="popover-section">
                 <div class="popover-row">
-                  <span class="lbl">Vector Index:</span>
+                  <span class="lbl">{{ $t('document.vectorIndex') }}:</span>
                   <span class="val">Milvus (IVF_FLAT)</span>
                 </div>
                 <div class="popover-row">
-                  <span class="lbl">Distance Metric:</span>
+                  <span class="lbl">{{ $t('document.distanceMetric') }}:</span>
                   <span class="val">Cosine Similarity</span>
                 </div>
                 <div class="popover-row">
-                  <span class="lbl">Grounding Status:</span>
-                  <span class="val text-success">Strict Access Authorized</span>
+                  <span class="lbl">{{ $t('document.groundingStatus') }}:</span>
+                  <span class="val text-success">{{ $t('document.strictAccess') }}</span>
                 </div>
               </div>
             </div>
           </el-popover>
         </div>
-        
+
         <div class="nav-right">
           <button class="nav-close-btn" @click="exitReadingMode">
             <X :size="16" />
-            Close Reader
+            {{ $t('document.closeReader') }}
           </button>
         </div>
       </div>
 
       <!-- Immersive Reader Body -->
       <div class="zen-workspace">
-        
+
         <!-- Case A: Restricted Document (Lock Screen inside reader) -->
         <div v-if="!selectedDoc.accessible" class="immersive-lock-view">
           <div class="lock-panel animate-fade-in">
             <div class="lock-icon-circle">
               <Lock :size="40" />
             </div>
-            <h2>Confidential Document</h2>
+            <h2>{{ $t('document.confidentialDoc') }}</h2>
             <p class="lock-msg">
-              Your security clearance level is insufficient to view this document. You must request temporary escalation from your department manager.
+              {{ $t('document.confidentialDesc') }}
             </p>
 
             <div class="lock-meta-table">
               <div class="meta-row">
-                <span class="lbl">Asset Title:</span>
+                <span class="lbl">{{ $t('document.assetTitle') }}:</span>
                 <span class="val">{{ selectedDoc.title }}</span>
               </div>
               <div class="meta-row">
-                <span class="lbl">Required Clearance:</span>
+                <span class="lbl">{{ $t('document.requiredClearance') }}:</span>
                 <span class="val text-red">Level-{{ selectedDoc.securityLevel }} ({{ getClearanceLabel(selectedDoc.securityLevel) }})</span>
               </div>
               <div class="meta-row">
-                <span class="lbl">Your Clearance:</span>
+                <span class="lbl">{{ $t('document.yourClearance') }}:</span>
                 <span class="val text-blue">Level-{{ userStore.userInfo?.clearanceLevel || 1 }}</span>
               </div>
             </div>
 
-            <el-button 
-              type="warning" 
+            <el-button
+              type="warning"
               class="dialog-btn-confirm scale-btn"
               @click="openRequestDialog(selectedDoc)"
             >
               <ShieldAlert :size="14" />
-              Request Temporary Access
+              {{ $t('document.requestTempAccess') }}
             </el-button>
           </div>
         </div>
@@ -302,8 +302,8 @@
           <div class="zen-paper-scroll" id="zen-paper-scroll">
             <div class="zen-paper-sheet">
               <!-- Rendered Markdown Body -->
-              <div 
-                class="markdown-body" 
+              <div
+                class="markdown-body"
                 v-html="parsedMarkdown"
               ></div>
             </div>
@@ -311,10 +311,10 @@
 
           <!-- Right: Document Navigation Outline / TOC -->
           <div class="zen-outline-sidebar" v-if="docToc.length > 0">
-            <div class="outline-title">Outline Navigation</div>
+            <div class="outline-title">{{ $t('document.outlineNav') }}</div>
             <ul class="outline-list">
-              <li 
-                v-for="item in docToc" 
+              <li
+                v-for="item in docToc"
                 :key="item.id"
                 :class="'outline-l' + item.level"
                 @click="scrollToHeading(item.id)"
@@ -324,36 +324,36 @@
             </ul>
           </div>
         </template>
-        
+
       </div>
     </div>
 
     <!-- Request Access Dialog -->
     <el-dialog
       v-model="dialogVisible"
-      title="Request Document Access"
+      :title="$t('document.requestDocAccess')"
       width="460px"
       class="custom-dialog"
     >
       <div class="dialog-body" v-if="requestDoc">
         <p class="dialog-desc">
-          You are requesting temporary access to the following confidential document:
+          {{ $t('document.requestAccessDesc') }}
         </p>
         <div class="request-doc-preview">
           <p class="req-title"><strong>{{ requestDoc.title }}</strong></p>
-          <p class="req-meta">Requires Clearance: Level-{{ requestDoc.securityLevel }} (Your Clearance: Level-{{ userStore.userInfo?.clearanceLevel || 1 }})</p>
+          <p class="req-meta">{{ $t('document.requestClearance', { req: requestDoc.securityLevel, user: userStore.userInfo?.clearanceLevel || 1 }) }}</p>
         </div>
         <p class="dialog-desc" style="margin-top: 16px;">
-          This request will be routed directly to your Department Administrator (<strong>@{{ deptManager?.username || 'Department Manager' }}</strong>) for review and approval.
+          {{ $t('document.requestRouteTo', { manager: deptManager?.username || 'Department Manager' }) }}
         </p>
 
         <el-form label-position="top" style="margin-top: 16px;">
-          <el-form-item label="Reason for Request">
-            <el-input 
-              v-model="requestReason" 
-              type="textarea" 
-              :rows="3" 
-              placeholder="E.g. Required to verify risk indicators for corporate client auditing."
+          <el-form-item :label="$t('document.requestReason')">
+            <el-input
+              v-model="requestReason"
+              type="textarea"
+              :rows="3"
+              :placeholder="$t('document.requestReasonPlaceholder')"
               class="custom-textarea"
             />
           </el-form-item>
@@ -362,14 +362,14 @@
 
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="dialogVisible = false" class="dialog-btn-cancel">Cancel</el-button>
-          <el-button 
-            type="primary" 
-            @click="handleRequestSubmit" 
-            :loading="submitLoading" 
+          <el-button @click="dialogVisible = false" class="dialog-btn-cancel">{{ $t('common.cancel') }}</el-button>
+          <el-button
+            type="primary"
+            @click="handleRequestSubmit"
+            :loading="submitLoading"
             class="dialog-btn-confirm"
           >
-            Submit Request
+            {{ $t('document.submitRequest') }}
           </el-button>
         </span>
       </template>
@@ -385,55 +385,55 @@
     >
       <div class="dialog-body">
         <el-form :model="manageForm" label-position="top">
-          <el-form-item label="Document Title" required>
-            <el-input 
-              v-model="manageForm.title" 
-              placeholder="Enter document title..." 
+          <el-form-item :label="$t('document.docTitle')" required>
+            <el-input
+              v-model="manageForm.title"
+              :placeholder="$t('document.docTitlePlaceholder')"
               class="custom-input"
             />
           </el-form-item>
-          
+
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-            <el-form-item label="Security Clearance Level" required>
+            <el-form-item :label="$t('document.securityLevel')" required>
               <el-select v-model="manageForm.securityLevel" style="width: 100%;">
-                <el-option label="Level-1 (Public)" :value="1" />
-                <el-option label="Level-2 (Internal)" :value="2" />
-                <el-option label="Level-3 (Confidential)" :value="3" />
+                <el-option :label="$t('document.levelPublic')" :value="1" />
+                <el-option :label="$t('document.levelInternal')" :value="2" />
+                <el-option :label="$t('document.levelConfidential')" :value="3" />
               </el-select>
             </el-form-item>
 
-            <el-form-item label="Target Department">
+            <el-form-item :label="$t('document.targetDept')">
               <!-- For Super Admin, they can select a department or leave it null for Global -->
-              <el-select 
-                v-if="isAdmin" 
-                v-model="manageForm.deptId" 
-                placeholder="Global / System Manual" 
-                clearable 
+              <el-select
+                v-if="isAdmin"
+                v-model="manageForm.deptId"
+                :placeholder="$t('document.globalSystem')"
+                clearable
                 style="width: 100%;"
               >
-                <el-option 
-                  v-for="dept in departments" 
-                  :key="dept.id" 
-                  :label="dept.deptName" 
-                  :value="dept.id" 
+                <el-option
+                  v-for="dept in departments"
+                  :key="dept.id"
+                  :label="dept.deptName"
+                  :value="dept.id"
                 />
               </el-select>
               <!-- For Department Admin, it is pre-filled and locked -->
-              <el-input 
-                v-else 
-                :value="userStore.userInfo?.deptName || 'Your Department'" 
-                disabled 
+              <el-input
+                v-else
+                :value="userStore.userInfo?.deptName || $t('document.yourDept')"
+                disabled
                 class="custom-input"
               />
             </el-form-item>
           </div>
 
-          <el-form-item label="Document Content (Markdown)" required>
-            <el-input 
-              v-model="manageForm.content" 
-              type="textarea" 
-              :rows="12" 
-              placeholder="Enter document body using Markdown syntax..." 
+          <el-form-item :label="$t('document.docContent')" required>
+            <el-input
+              v-model="manageForm.content"
+              type="textarea"
+              :rows="12"
+              :placeholder="$t('document.docContentPlaceholder')"
               class="custom-textarea markdown-editor"
             />
           </el-form-item>
@@ -442,14 +442,14 @@
 
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="manageDialogVisible = false" class="dialog-btn-cancel">Cancel</el-button>
-          <el-button 
-            type="primary" 
-            @click="handleManageSubmit" 
-            :loading="manageSubmitLoading" 
+          <el-button @click="manageDialogVisible = false" class="dialog-btn-cancel">{{ $t('common.cancel') }}</el-button>
+          <el-button
+            type="primary"
+            @click="handleManageSubmit"
+            :loading="manageSubmitLoading"
             class="dialog-btn-confirm"
           >
-            Save Document
+            {{ $t('common.save') }}
           </el-button>
         </span>
       </template>
@@ -459,10 +459,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  FileText, Lock, Eye, 
+import {
+  FileText, Lock, Eye,
   FolderOpen, RefreshCw, ShieldAlert, Briefcase, BookOpen,
   Search, ChevronRight, ShieldCheck, Database, X, ChevronLeft, ChevronDown,
   Plus, Edit, Trash2
@@ -483,15 +484,16 @@ customRenderer.heading = function (arg1: any, arg2?: any) {
     text = arg1 || ''
     depth = arg2 || 1
   }
-  
+
   const id = text.toLowerCase()
-    .replace(/[^\u4e00-\u9fa5\w\s-]/g, '') // Support Chinese/alphanumeric/spaces
+    .replace(/[^一-龥\w\s-]/g, '') // Support Chinese/alphanumeric/spaces
     .trim()
     .replace(/\s+/g, '-')
   return `<h${depth} id="${id}">${text}</h${depth}>`
 }
 marked.use({ renderer: customRenderer })
 
+const { t } = useI18n()
 const userStore = useUserStore()
 
 const documents = ref<any[]>([])
@@ -534,7 +536,7 @@ const isAdminOrDeptAdmin = computed(() => {
 })
 
 const manageDialogTitle = computed(() => {
-  return manageForm.value.id ? 'Edit Knowledge Document' : 'Create Knowledge Document'
+  return manageForm.value.id ? t('document.editDoc') : t('document.createDoc')
 })
 
 // Document management authorization scoping check
@@ -597,7 +599,7 @@ const docToc = computed(() => {
       const level = match[1].length
       const text = match[2].trim()
       const id = text.toLowerCase()
-        .replace(/[^\u4e00-\u9fa5\w\s-]/g, '')
+        .replace(/[^一-龥\w\s-]/g, '')
         .trim()
         .replace(/\s+/g, '-')
       headings.push({ level, text, id })
@@ -621,7 +623,7 @@ const fetchDocuments = async () => {
   try {
     const res: any = await getDeptDocuments()
     documents.value = res || []
-    
+
     // Maintain selection if already in reader mode
     if (selectedDoc.value) {
       const updatedDoc = documents.value.find(d => d.id === selectedDoc.value.id)
@@ -631,7 +633,7 @@ const fetchDocuments = async () => {
     }
   } catch (error: any) {
     console.error('Failed to load documents:', error)
-    ElMessage.error('Failed to fetch documents list')
+    ElMessage.error(t('document.loadError'))
   } finally {
     loading.value = false
   }
@@ -649,9 +651,9 @@ const fetchDeptMembers = async () => {
 }
 
 const getClearanceLabel = (level: number) => {
-  if (level === 3) return 'Confidential'
-  if (level === 2) return 'Internal'
-  return 'Public'
+  if (level === 3) return t('document.confidential')
+  if (level === 2) return t('document.internal')
+  return t('document.public')
 }
 
 const formatDate = (dateStr: string) => {
@@ -679,9 +681,9 @@ const openRequestDialog = (doc: any) => {
 
 const handleRequestSubmit = async () => {
   if (!requestDoc.value) return
-  
+
   const managerId = deptManager.value ? deptManager.value.id : 2
-  
+
   submitLoading.value = true
   try {
     const payload = JSON.stringify({
@@ -699,11 +701,11 @@ const handleRequestSubmit = async () => {
       payload: payload
     })
 
-    ElMessage.success('Escalation request submitted to your Department Administrator.')
+    ElMessage.success(t('document.requestSubmitSuccess'))
     dialogVisible.value = false
   } catch (error: any) {
     console.error('Failed to submit request:', error)
-    ElMessage.error(error.message || 'Failed to submit escalation request')
+    ElMessage.error(error.message || t('document.requestSubmitError'))
   } finally {
     submitLoading.value = false
   }
@@ -745,11 +747,11 @@ const openEditDialog = (doc: any) => {
 
 const handleManageSubmit = async () => {
   if (!manageForm.value.title.trim()) {
-    ElMessage.warning('Title is required')
+    ElMessage.warning(t('document.titleRequired'))
     return
   }
   if (!manageForm.value.content.trim()) {
-    ElMessage.warning('Content is required')
+    ElMessage.warning(t('document.contentRequired'))
     return
   }
 
@@ -767,16 +769,16 @@ const handleManageSubmit = async () => {
         id: manageForm.value.id,
         ...payload
       })
-      ElMessage.success('Document updated successfully')
+      ElMessage.success(t('document.updateSuccess'))
     } else {
       await createDocument(payload)
-      ElMessage.success('Document created successfully')
+      ElMessage.success(t('document.createSuccess'))
     }
     manageDialogVisible.value = false
     fetchDocuments()
   } catch (error: any) {
     console.error('Failed to save document:', error)
-    ElMessage.error(error.message || 'Failed to save document')
+    ElMessage.error(error.message || t('document.saveError'))
   } finally {
     manageSubmitLoading.value = false
   }
@@ -784,22 +786,22 @@ const handleManageSubmit = async () => {
 
 const handleDeleteDoc = (doc: any) => {
   ElMessageBox.confirm(
-    `Are you sure you want to permanently delete "${doc.title}"? This action cannot be undone.`,
-    'Warning',
+    t('document.deleteConfirm', { title: doc.title }),
+    t('document.warning'),
     {
-      confirmButtonText: 'Delete',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: t('common.delete'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning',
       confirmButtonClass: 'el-button--danger'
     }
   ).then(async () => {
     try {
       await deleteDocument(doc.id)
-      ElMessage.success('Document deleted successfully')
+      ElMessage.success(t('document.deleteSuccess'))
       fetchDocuments()
     } catch (error: any) {
       console.error('Failed to delete document:', error)
-      ElMessage.error(error.message || 'Failed to delete document')
+      ElMessage.error(error.message || t('document.deleteError'))
     }
   }).catch(() => {})
 }
@@ -1538,7 +1540,7 @@ onMounted(() => {
   margin: 24px 0;
 }
 
-.markdown-body :deep(ul), 
+.markdown-body :deep(ul),
 .markdown-body :deep(ol) {
   padding-left: 20px;
   margin-bottom: 16px;
@@ -1586,7 +1588,7 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.markdown-body :deep(th), 
+.markdown-body :deep(th),
 .markdown-body :deep(td) {
   border: 1px solid #e2e8f0;
   padding: 10px 12px;

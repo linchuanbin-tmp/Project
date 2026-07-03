@@ -2,6 +2,7 @@ import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@stores/modules/user'
 import router from '@router/index'
+import i18n from '@/i18n'
 
 const request = axios.create({
     baseURL: '/api',  // proxied via Vite config
@@ -32,24 +33,28 @@ request.interceptors.response.use(
 
         // Check if response is wrapped in a standard Result class
         if (res.code !== undefined && res.code !== 200) {
-            ElMessage.error(res.message || 'Request failed')
+            ElMessage.error(res.message || i18n.global.t('request.failed'))
 
             // 401: Token expired — only show dialog when inside the app, not on auth pages
             if (res.code === 401) {
                 const publicPaths = ['/login', '/register']
                 const isPublic = publicPaths.some(p => router.currentRoute.value.path.startsWith(p))
                 if (!isPublic) {
-                    ElMessageBox.confirm('Session expired. Please log in again.', 'Notice', {
-                        confirmButtonText: 'Log in',
-                        cancelButtonText: 'Cancel',
-                        type: 'warning'
-                    }).then(() => {
+                    ElMessageBox.confirm(
+                        i18n.global.t('request.sessionExpired'),
+                        i18n.global.t('request.tip'),
+                        {
+                            confirmButtonText: i18n.global.t('request.relogin'),
+                            cancelButtonText: i18n.global.t('request.cancel'),
+                            type: 'warning'
+                        }
+                    ).then(() => {
                         const userStore = useUserStore()
                         userStore.logout()
                     }).catch(() => {})
                 }
             }
-            return Promise.reject(new Error(res.message || 'Error'))
+            return Promise.reject(new Error(res.message || i18n.global.t('request.failed')))
         }
 
         // Return unwrapped data if wrapped, otherwise return raw payload
@@ -63,10 +68,10 @@ request.interceptors.response.use(
             if (!isPublic) {
                 const userStore = useUserStore()
                 userStore.logout()
-                ElMessage.error('Session expired. Please log in again.')
+                ElMessage.error(i18n.global.t('request.sessionExpired'))
             }
         } else {
-            ElMessage.error(error.message || 'Network error')
+            ElMessage.error(error.message || i18n.global.t('request.networkError'))
         }
         return Promise.reject(error)
     }

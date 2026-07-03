@@ -13,18 +13,18 @@
     <div class="floating-map-panel">
       <div class="panel-form-section">
         <el-form :model="routeForm" label-position="left" label-width="45px" size="small">
-          <el-form-item label="From" class="compact-form-item">
-            <el-input v-model="routeForm.from" placeholder="Origin" clearable />
+          <el-form-item :label="$t('route.from')" class="compact-form-item">
+            <el-input v-model="routeForm.from" :placeholder="$t('route.fromPlaceholder')" clearable />
           </el-form-item>
-          <el-form-item label="To" class="compact-form-item">
-            <el-input v-model="routeForm.to" placeholder="Destination" clearable />
+          <el-form-item :label="$t('route.to')" class="compact-form-item">
+            <el-input v-model="routeForm.to" :placeholder="$t('route.toPlaceholder')" clearable />
           </el-form-item>
 
           <div class="mode-select-row">
-            <el-select v-model="routeForm.mode" class="mode-select" placeholder="Select mode">
-              <el-option label="Drive" value="driving" />
-              <el-option label="Transit" value="transit" />
-              <el-option label="Walk" value="walking" />
+            <el-select v-model="routeForm.mode" class="mode-select" :placeholder="$t('route.mode')">
+              <el-option :label="$t('route.driving')" value="driving" />
+              <el-option :label="$t('route.transit')" value="transit" />
+              <el-option :label="$t('route.walking')" value="walking" />
             </el-select>
             
             <el-button 
@@ -34,7 +34,7 @@
                 @click="planRoute" 
                 :disabled="loading"
             >
-              Route
+              {{ $t('route.planBtn') }}
             </el-button>
           </div>
         </el-form>
@@ -90,7 +90,7 @@
     <!-- Premium Agent Thinking Modal for Route Planning -->
     <AgentThinking
       :visible="loading"
-      title="Route Agent is planning"
+      :title="$t('route.planning')"
       footer="Please wait while Route Agent queries routing engine..."
       :steps="routeThoughtSteps"
     />
@@ -100,9 +100,12 @@
 <script setup lang="ts">
 import { ref, reactive, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import MapContainer from '@components/MapContainer.vue'
 import AgentThinking from '@components/AgentThinking.vue'
 import { planRoute as planRouteApi } from '@api/tool'
+
+const { t } = useI18n()
 
 const loading = ref(false)
 const routePath = ref<number[][]>([])
@@ -170,7 +173,7 @@ const getTrafficClass = (status: string) => {
 
 const planRoute = async () => {
   if (!routeForm.to) {
-    ElMessage.warning('Please enter destination')
+    ElMessage.warning(t('route.enterDestination'))
     return
   }
   loading.value = true
@@ -194,11 +197,11 @@ const planRoute = async () => {
         [114.137, 22.283], [114.115, 22.315], [114.075, 22.335],
         [114.020, 22.345], [113.965, 22.298], [113.915, 22.309]
       ]
-      ElMessage.info('Showing demo route')
+      ElMessage.info(t('route.demoRoute'))
     }
   } catch (error) {
     console.error(error)
-    ElMessage.error('Route planning failed')
+    ElMessage.error(t('route.planFailed'))
     routeResult.value = null
   } finally {
     loading.value = false

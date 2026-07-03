@@ -4,7 +4,7 @@
     <div class="scheduler-dashboard-header">
       <div class="header-title-section">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="panel-icon"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
-        <span class="header-title">Schedule Availability Board</span>
+        <span class="header-title">{{ $t('schedule.title') }}</span>
       </div>
       <el-button type="primary" class="add-event-btn" @click="openAddDialog">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
@@ -28,10 +28,10 @@
         />
       </div>
       <div class="filter-item attendees-col">
-        <span class="filter-label">Attendees</span>
+        <span class="filter-label">{{ $t('schedule.attendees') }}</span>
         <el-select
             v-model="scheduleForm.attendees"
-            placeholder="Select attendees to view"
+            :placeholder="$t('schedule.selectAttendees')"
             multiple
             filterable
             clearable
@@ -49,13 +49,13 @@
         </el-select>
       </div>
       <div class="filter-item time-range-item">
-        <span class="filter-label">Meeting Period</span>
+        <span class="filter-label">{{ $t('schedule.meetingTime') }}</span>
         <el-time-picker
             v-model="scheduleForm.timeRange"
             is-range
             range-separator="to"
-            start-placeholder="Start Time"
-            end-placeholder="End Time"
+            :start-placeholder="$t('schedule.startTime')"
+            :end-placeholder="$t('schedule.endTime')"
             format="HH:mm"
             value-format="HH:mm"
             :teleported="false"
@@ -82,7 +82,7 @@
     <!-- Timeline Grid Container (Only visible when attendees are selected) -->
     <div v-else class="scheduler-grid-card">
       <div class="scheduler-header">
-        <div class="attendee-column-header">Attendees</div>
+        <div class="attendee-column-header">{{ $t('schedule.attendees') }}</div>
         <div class="timeline-ruler-header">
           <!-- Declutter ruler: Show only even hours, keeping full grid lines -->
           <div v-for="hour in hoursScale" :key="hour" class="ruler-hour-label">
@@ -136,7 +136,7 @@
         <div class="scheduler-row proposed-row" v-if="proposedBlock">
           <div class="attendee-profile-cell proposed-cell-header">
             <div class="proposed-badge-label" :class="conflictResult?.hasConflict ? 'badge-conflict' : 'badge-available'">
-              {{ conflictResult?.hasConflict ? 'Conflict' : 'Available' }}
+              {{ conflictResult?.hasConflict ? $t('schedule.hasConflict') : $t('schedule.noConflict') }}
             </div>
           </div>
           <div class="timeline-track-cell proposed-track">
@@ -206,13 +206,13 @@
         <el-form-item label="Event Name">
           <el-input v-model="addScheduleForm.eventName" placeholder="e.g. Project Review" />
         </el-form-item>
-        <el-form-item label="Time Range">
+        <el-form-item :label="$t('schedule.meetingTime')">
           <el-date-picker
               v-model="addScheduleForm.timeRange"
               type="datetimerange"
               range-separator="to"
-              start-placeholder="Start Time"
-              end-placeholder="End Time"
+              :start-placeholder="$t('schedule.startTime')"
+              :end-placeholder="$t('schedule.endTime')"
               :teleported="false"
               style="width: 100%;"
           />
@@ -220,7 +220,7 @@
       </el-form>
       <template #footer>
         <div class="dialog-footer-buttons">
-          <el-button @click="addDialogVisible = false">Cancel</el-button>
+          <el-button @click="addDialogVisible = false">{{ $t('common.cancel') }}</el-button>
           <el-button type="primary" @click="createSchedule" :loading="submitLoading">Add Event</el-button>
         </div>
       </template>
@@ -264,8 +264,11 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { checkScheduleConflict } from '@api/tool'
 import request from '@utils/request'
+
+const { t } = useI18n()
 
 // Hour scale from 08:00 to 22:00
 const hoursScale = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
@@ -503,11 +506,11 @@ const getToken = () => {
 
 const createSchedule = async () => {
   if (addScheduleForm.timeRange.length !== 2) {
-    ElMessage.warning('Please select a complete time range')
+    ElMessage.warning(t('schedule.selectFullTimeRange'))
     return
   }
   if (!addScheduleForm.eventId || !addScheduleForm.eventName) {
-    ElMessage.warning('Please fill in both event ID and event name')
+    ElMessage.warning(t('schedule.fillEventInfo'))
     return
   }
 
@@ -537,11 +540,11 @@ const createSchedule = async () => {
         triggerConflictCheck()
       }
     } else {
-      ElMessage.error(data.message || 'Failed to add schedule')
+      ElMessage.error(data.message || t('request.failed'))
     }
   } catch (error) {
     console.error(error)
-    ElMessage.error('Add schedule request failed')
+    ElMessage.error(t('request.failed'))
   } finally {
     submitLoading.value = false
   }

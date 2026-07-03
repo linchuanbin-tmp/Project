@@ -3,17 +3,17 @@
     <!-- Header -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">Messages & Notifications</h1>
-        <p class="page-sub">Handle system-wide notifications, approvals, bug trace audits, and user messages.</p>
+        <h1 class="page-title">{{ $t('notification.title') }}</h1>
+        <p class="page-sub">{{ $t('notification.subtitle') }}</p>
       </div>
       <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
         <el-button class="send-btn" @click="openSendDialog">
           <Plus :size="14" />
-          Send Message
+          {{ $t('notification.sendMessage') }}
         </el-button>
         <el-button class="refresh-btn" @click="fetchData" :loading="loading">
           <RefreshCw :size="14" :class="{ 'spin': loading }" />
-          Refresh
+          {{ $t('common.refresh') }}
         </el-button>
       </div>
     </div>
@@ -24,40 +24,40 @@
         <!-- Left Sidebar: Filters -->
         <el-col :span="5" class="filter-sidebar">
           <div class="filter-group">
-            <div 
-              class="filter-item" 
+            <div
+              class="filter-item"
               :class="{ 'active': activeFilter === 'all' }"
               @click="changeFilter('all')"
             >
               <Inbox :size="16" />
-              <span>All Messages</span>
+              <span>{{ $t('notification.allMessages') }}</span>
               <span v-if="unreadCounts.all > 0" class="count-badge">{{ unreadCounts.all }}</span>
             </div>
-            <div 
-              class="filter-item" 
+            <div
+              class="filter-item"
               :class="{ 'active': activeFilter === 'unread' }"
               @click="changeFilter('unread')"
             >
               <Mail :size="16" />
-              <span>Unread</span>
+              <span>{{ $t('notification.unread') }}</span>
               <span v-if="unreadCounts.unread > 0" class="count-badge danger">{{ unreadCounts.unread }}</span>
             </div>
-            <div 
-              class="filter-item" 
+            <div
+              class="filter-item"
               :class="{ 'active': activeFilter === 'pending' }"
               @click="changeFilter('pending')"
             >
               <Clock :size="16" />
-              <span>Pending Approvals</span>
+              <span>{{ $t('notification.pendingApprovals') }}</span>
               <span v-if="unreadCounts.pending > 0" class="count-badge warning">{{ unreadCounts.pending }}</span>
             </div>
-            <div 
-              class="filter-item" 
+            <div
+              class="filter-item"
               :class="{ 'active': activeFilter === 'sent' }"
               @click="changeFilter('sent')"
             >
               <Send :size="16" />
-              <span>Sent Messages</span>
+              <span>{{ $t('notification.sentMessages') }}</span>
             </div>
           </div>
         </el-col>
@@ -66,15 +66,15 @@
         <el-col :span="9" class="message-list-col">
           <div v-if="filteredMessages.length === 0" class="empty-list">
             <Mail :size="48" class="empty-icon" />
-            <h3>No Messages Found</h3>
-            <p>There are no messages or notifications in this folder.</p>
+            <h3>{{ $t('notification.noMessages') }}</h3>
+            <p>{{ $t('notification.noMessagesDesc') }}</p>
           </div>
           <div v-else class="message-list">
-            <div 
-              v-for="msg in filteredMessages" 
-              :key="msg.id" 
+            <div
+              v-for="msg in filteredMessages"
+              :key="msg.id"
               class="message-item"
-              :class="{ 
+              :class="{
                 'active': selectedMessage?.id === msg.id,
                 'unread': msg.status === 0 && activeFilter !== 'sent'
               }"
@@ -114,8 +114,8 @@
         <el-col :span="10" class="message-detail-col">
           <div v-if="!selectedMessage" class="empty-detail">
             <Inbox :size="48" class="empty-icon" />
-            <h3>Select a Message</h3>
-            <p>Select a message to view its details.</p>
+            <h3>{{ $t('notification.selectMessage') }}</h3>
+            <p>{{ $t('notification.selectMessageDesc') }}</p>
           </div>
           <div v-else class="message-detail">
             <!-- Detail Header -->
@@ -128,21 +128,21 @@
               </div>
               <div class="detail-meta-grid">
                 <div class="meta-item">
-                  <span class="meta-label">From:</span>
+                  <span class="meta-label">{{ $t('notification.from') }}:</span>
                   <span class="meta-value highlight">{{ selectedMessage.senderRealName || selectedMessage.senderName }}</span>
                   <span class="meta-sub" v-if="selectedMessage.senderId > 0">@{{ selectedMessage.senderName }}</span>
                 </div>
                 <div class="meta-item">
-                  <span class="meta-label">To:</span>
+                  <span class="meta-label">{{ $t('notification.to') }}:</span>
                   <span class="meta-value">{{ selectedMessage.receiverRealName || selectedMessage.receiverName }}</span>
                   <span class="meta-sub">@{{ selectedMessage.receiverName }}</span>
                 </div>
                 <div class="meta-item">
-                  <span class="meta-label">Date:</span>
+                  <span class="meta-label">{{ $t('notification.date') }}:</span>
                   <span class="meta-value">{{ formatFullDate(selectedMessage.createTime) }}</span>
                 </div>
                 <div class="meta-item" v-if="selectedMessage.status >= 2">
-                  <span class="meta-label">Status:</span>
+                  <span class="meta-label">{{ $t('notification.status') }}:</span>
                   <span class="status-badge" :class="getStatusClass(selectedMessage.status)">
                     {{ getStatusText(selectedMessage.status) }}
                   </span>
@@ -239,32 +239,32 @@
 
               <!-- HITL Actions (Only if status is Pending Approval (2)) -->
               <div v-if="selectedMessage.status === 2 && activeFilter !== 'sent'" class="approval-actions-box">
-                <h4>Human-in-the-Loop Audit Decision</h4>
+                <h4>{{ $t('notification.hitlTitle') }}</h4>
                 <el-input
                   v-model="opinion"
-                  placeholder="Enter approval opinion or remarks (optional)..."
+                  :placeholder="$t('notification.opinionPlaceholder')"
                   type="textarea"
                   :rows="2"
                   class="opinion-input"
                 />
                 <div class="action-btn-row">
-                  <el-button 
-                    type="success" 
-                    @click="submitApproval('APPROVE')" 
+                  <el-button
+                    type="success"
+                    @click="submitApproval('APPROVE')"
                     :loading="submittingAction"
                     class="btn-approve"
                   >
                     <Check :size="14" />
-                    Approve / Release
+                    {{ $t('notification.approve') }}
                   </el-button>
-                  <el-button 
-                    type="danger" 
-                    @click="submitApproval('DENY')" 
+                  <el-button
+                    type="danger"
+                    @click="submitApproval('DENY')"
                     :loading="submittingAction"
                     class="btn-deny"
                   >
                     <X :size="14" />
-                    Deny / Block
+                    {{ $t('notification.reject') }}
                   </el-button>
                 </div>
               </div>
@@ -277,14 +277,14 @@
     <!-- Send Message Dialog -->
     <el-dialog
       v-model="sendDialogVisible"
-      title="Compose Message"
+      :title="$t('notification.composeMessage')"
       width="520px"
       class="custom-dialog"
       :before-close="closeSendDialog"
     >
       <el-form :model="sendForm" :rules="sendRules" ref="sendFormRef" label-position="top">
-        <el-form-item label="Recipient" prop="receiverId">
-          <el-select v-model="sendForm.receiverId" placeholder="Select recipient..." style="width: 100%">
+        <el-form-item :label="$t('notification.recipient')" prop="receiverId">
+          <el-select v-model="sendForm.receiverId" :placeholder="$t('notification.selectRecipient')" style="width: 100%">
             <el-option
               v-for="user in userList"
               :key="user.id"
@@ -293,30 +293,30 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="Message Type" prop="notifyType">
-          <el-select v-model="sendForm.notifyType" placeholder="Select type..." style="width: 100%" @change="onNotifyTypeChange">
+        <el-form-item :label="$t('notification.messageType')" prop="notifyType">
+          <el-select v-model="sendForm.notifyType" :placeholder="$t('notification.selectType')" style="width: 100%" @change="onNotifyTypeChange">
             <el-option label="Chat Message" value="CHAT" />
             <el-option label="RAG Permission Escalation (Mock Request)" value="RAG_APPLY" />
             <el-option label="SQL Security Intercept (Mock Intercept)" value="SQL_AUDIT" />
             <el-option label="Bug / Hallucination Trace Report (Mock Bug)" value="BUG_REPORT" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Title" prop="title">
-          <el-input v-model="sendForm.title" placeholder="Enter message title..." />
+        <el-form-item :label="$t('notification.titleField')" prop="title">
+          <el-input v-model="sendForm.title" :placeholder="$t('notification.titlePlaceholder')" />
         </el-form-item>
-        <el-form-item label="Content" prop="content">
-          <el-input 
-            v-model="sendForm.content" 
-            type="textarea" 
-            :rows="4" 
-            placeholder="Type your message content here..." 
+        <el-form-item :label="$t('notification.content')" prop="content">
+          <el-input
+            v-model="sendForm.content"
+            type="textarea"
+            :rows="4"
+            :placeholder="$t('notification.contentPlaceholder')"
           />
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="closeSendDialog">Cancel</el-button>
-          <el-button type="primary" @click="submitSendMessage" :loading="sendingMessage">Send</el-button>
+          <el-button @click="closeSendDialog">{{ $t('common.cancel') }}</el-button>
+          <el-button type="primary" @click="submitSendMessage" :loading="sendingMessage">{{ $t('common.send') }}</el-button>
         </div>
       </template>
     </el-dialog>
@@ -325,20 +325,22 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@stores/modules/user'
-import { 
-  getNotifications, 
-  markAsRead, 
-  handleAction, 
-  sendNotification, 
-  getUsers 
+import {
+  getNotifications,
+  markAsRead,
+  handleAction,
+  sendNotification,
+  getUsers
 } from '@/api/notification'
-import { 
-  Plus, RefreshCw, Inbox, Mail, Send, 
+import {
+  Plus, RefreshCw, Inbox, Mail, Send,
   Clock, Check, X, BookOpen, Database, Bug
 } from 'lucide-vue-next'
 
+const { t } = useI18n()
 const userStore = useUserStore()
 const loading = ref(false)
 const submittingAction = ref(false)
@@ -369,10 +371,10 @@ const sendForm = ref({
 })
 
 const sendRules = {
-  receiverId: [{ required: true, message: 'Please select a recipient', trigger: 'change' }],
-  notifyType: [{ required: true, message: 'Please select a type', trigger: 'change' }],
-  title: [{ required: true, message: 'Please enter a title', trigger: 'blur' }],
-  content: [{ required: true, message: 'Please enter content', trigger: 'blur' }]
+  receiverId: [{ required: true, message: t('notification.selectRecipient'), trigger: 'change' }],
+  notifyType: [{ required: true, message: t('notification.selectType'), trigger: 'change' }],
+  title: [{ required: true, message: t('notification.titleRequired'), trigger: 'blur' }],
+  content: [{ required: true, message: t('notification.contentRequired'), trigger: 'blur' }]
 }
 
 // Computeds
@@ -412,7 +414,7 @@ const fetchData = async () => {
     // 1. Fetch main notifications list
     const notifyTypeQuery = activeFilter.value === 'sent' ? 'SENT' : ''
     const statusQuery = activeFilter.value === 'unread' ? 0 : (activeFilter.value === 'pending' ? 2 : undefined)
-    
+
     const data: any = await getNotifications({ status: statusQuery, notifyType: notifyTypeQuery })
     messages.value = data || []
 
@@ -425,7 +427,7 @@ const fetchData = async () => {
       unreadCounts.value.pending = allList.filter((m: any) => m.status === 2).length
     }
   } catch (e: any) {
-    ElMessage.error('Failed to load messages: ' + e.message)
+    ElMessage.error(t('notification.loadError') + e.message)
   } finally {
     loading.value = false
   }
@@ -434,7 +436,7 @@ const fetchData = async () => {
 const selectMessage = async (msg: any) => {
   selectedMessage.value = msg
   opinion.value = ''
-  
+
   // Mark as read immediately if it's currently unread and we are in inbox
   if (msg.status === 0 && activeFilter.value !== 'sent') {
     try {
@@ -457,18 +459,18 @@ const submitApproval = async (action: 'APPROVE' | 'DENY') => {
       action,
       opinion: opinion.value
     })
-    ElMessage.success(`Decision submitted: ${action === 'APPROVE' ? 'Approved' : 'Denied'}`)
-    
+    ElMessage.success(t('notification.decisionSubmitted', { action: action === 'APPROVE' ? t('notification.approved') : t('notification.rejected') }))
+
     // update status locally
     selectedMessage.value.status = action === 'APPROVE' ? 3 : 4
     if (opinion.value) {
       selectedMessage.value.content += ` (Approval Opinion: ${opinion.value})`
     }
-    
+
     // refresh unread count / pending badges
     fetchData()
   } catch (e: any) {
-    ElMessage.error('Failed to submit decision: ' + e.message)
+    ElMessage.error(t('notification.submitError') + e.message)
   } finally {
     submittingAction.value = false
   }
@@ -484,13 +486,13 @@ const openSendDialog = async () => {
     content: '',
     payload: ''
   }
-  
+
   try {
     const users: any = await getUsers()
     // Exclude current user from recipient selection
     userList.value = (users || []).filter((u: any) => u.username !== userStore.userInfo?.username)
   } catch (e: any) {
-    ElMessage.error('Failed to load user list: ' + e.message)
+    ElMessage.error(t('notification.loadUserError') + e.message)
   }
 }
 
@@ -551,11 +553,11 @@ const submitSendMessage = () => {
           notifyType: sendForm.value.notifyType,
           payload: sendForm.value.payload || undefined
         })
-        ElMessage.success('Message sent successfully!')
+        ElMessage.success(t('notification.sendSuccess'))
         closeSendDialog()
         fetchData()
       } catch (e: any) {
-        ElMessage.error('Failed to send message: ' + e.message)
+        ElMessage.error(t('notification.sendError') + e.message)
       } finally {
         sendingMessage.value = false
       }
@@ -565,8 +567,8 @@ const submitSendMessage = () => {
 
 // View Utilities
 const getSenderInitial = (msg: any) => {
-  const name = activeFilter.value === 'sent' 
-    ? (msg.receiverRealName || msg.receiverName) 
+  const name = activeFilter.value === 'sent'
+    ? (msg.receiverRealName || msg.receiverName)
     : (msg.senderRealName || msg.senderName)
   return (name || 'U').charAt(0).toUpperCase()
 }
@@ -583,7 +585,8 @@ const getStatusClass = (status: number) => {
 }
 
 const getStatusText = (status: number) => {
-  return ['Unread', 'Read', 'Pending Approval', 'Approved', 'Denied'][status] || 'Unknown'
+  const statusKeys = ['notification.unread', 'notification.read', 'notification.pendingApproval', 'notification.approved', 'notification.denied']
+  return t(statusKeys[status]) || t('notification.unknown')
 }
 
 const formatTime = (timeStr: string) => {

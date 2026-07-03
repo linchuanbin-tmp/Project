@@ -2,30 +2,30 @@
   <div class="login-card">
     <div class="card-body">
 
-      <p class="app-label">BankAgent</p>
+      <p class="app-label">{{ $t('register.appLabel') }}</p>
 
       <div class="heading-block">
-        <h1 class="page-heading">Create account</h1>
-        <p class="page-sub">Fill in the details below to get started</p>
+        <h1 class="page-heading">{{ $t('register.heading') }}</h1>
+        <p class="page-sub">{{ $t('register.subheading') }}</p>
       </div>
 
       <el-form :model="form" :rules="rules" ref="formRef">
         <el-form-item prop="email">
-          <label class="field-label">Email address</label>
+          <label class="field-label">{{ $t('register.email') }}</label>
           <el-input
               v-model="form.email"
-              placeholder="you@example.com"
+              :placeholder="$t('register.emailPlaceholder')"
               :prefix-icon="() => h(Mail, { size: 15, strokeWidth: 1.6 })"
               class="soft-input"
           />
         </el-form-item>
 
         <el-form-item prop="password">
-          <label class="field-label">Password</label>
+          <label class="field-label">{{ $t('register.password') }}</label>
           <el-input
               v-model="form.password"
               type="password"
-              placeholder="At least 8 characters"
+              :placeholder="$t('register.passwordPlaceholder')"
               :prefix-icon="() => h(Lock, { size: 15, strokeWidth: 1.6 })"
               show-password
               class="soft-input"
@@ -33,11 +33,11 @@
         </el-form-item>
 
         <el-form-item prop="confirmPassword">
-          <label class="field-label">Confirm password</label>
+          <label class="field-label">{{ $t('register.confirmPassword') }}</label>
           <el-input
               v-model="form.confirmPassword"
               type="password"
-              placeholder="Repeat your password"
+              :placeholder="$t('register.confirmPasswordPlaceholder')"
               :prefix-icon="() => h(Lock, { size: 15, strokeWidth: 1.6 })"
               show-password
               @keyup.enter="submit"
@@ -47,14 +47,14 @@
 
         <el-form-item>
           <el-button :loading="loading" class="submit-btn" @click="submit">
-            Create account
+            {{ $t('register.registerBtn') }}
           </el-button>
         </el-form-item>
       </el-form>
 
       <p class="switch-link">
-        Already have an account?
-        <router-link to="/login" class="link">Sign in</router-link>
+        {{ $t('register.haveAccount') }}
+        <router-link to="/login" class="link">{{ $t('register.signIn') }}</router-link>
       </p>
 
     </div>
@@ -64,11 +64,13 @@
 <script setup lang="ts">
 import { reactive, ref, h } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Lock, Mail } from 'lucide-vue-next'
 import request from '@utils/request'
 
 const router = useRouter()
+const { t } = useI18n()
 const formRef = ref()
 const loading = ref(false)
 
@@ -80,18 +82,18 @@ const form = reactive({
 
 const rules = {
   email: [
-    { required: true, message: 'Please enter your email', trigger: 'blur' },
-    { type: 'email', message: 'Please enter a valid email', trigger: 'blur' }
+    { required: true, message: t('register.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('register.emailInvalid'), trigger: 'blur' }
   ],
   password: [
-    { required: true, message: 'Please set a password', trigger: 'blur' },
-    { min: 8, message: 'At least 8 characters', trigger: 'blur' }
+    { required: true, message: t('register.passwordRequired'), trigger: 'blur' },
+    { min: 8, message: t('register.passwordMinLength'), trigger: 'blur' }
   ],
   confirmPassword: [
-    { required: true, message: 'Please confirm your password', trigger: 'blur' },
+    { required: true, message: t('register.confirmPasswordRequired'), trigger: 'blur' },
     {
       validator: (_: any, value: string, callback: Function) => {
-        if (value !== form.password) callback(new Error('Passwords do not match'))
+        if (value !== form.password) callback(new Error(t('register.passwordMismatch')))
         else callback()
       },
       trigger: 'blur'
@@ -110,7 +112,7 @@ const submit = () => {
         password: form.password,
         realName: form.email
       })
-      ElMessage.success('Account created! Please sign in.')
+      ElMessage.success(t('register.registerSuccess'))
       router.push('/login')
     } catch {
       // errors shown by Axios interceptor

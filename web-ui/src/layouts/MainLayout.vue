@@ -5,7 +5,7 @@
       <button class="hamburger-btn" @click="mobileOpen = !mobileOpen">
         <Menu :size="20" :stroke-width="1.8" />
       </button>
-      <span class="mobile-logo-text" @click="router.push('/app/dashboard')">BankAgent</span>
+      <span class="mobile-logo-text" @click="router.push('/app/dashboard')">{{ $t('menu.logo') }}</span>
       <div class="mobile-spacer"></div>
     </div>
 
@@ -19,7 +19,7 @@
 
       <!-- Logo & collapse toggle -->
       <div class="sidebar-logo">
-        <span v-if="!collapsed" class="logo-text" @click="router.push('/app/dashboard')">BankAgent</span>
+        <span v-if="!collapsed" class="logo-text" @click="router.push('/app/dashboard')">{{ $t('menu.logo') }}</span>
         <button class="collapse-btn" @click="collapsed = !collapsed">
           <PanelLeftClose v-if="!collapsed" :size="16" :stroke-width="1.6" />
           <PanelLeftOpen v-else :size="16" :stroke-width="1.6" />
@@ -35,62 +35,62 @@
           :collapse-transition="false"
       >
         <el-menu-item index="/app/dashboard">
-          <template #title>Dashboard</template>
+          <template #title>{{ $t('menu.dashboard') }}</template>
           <Home :size="16" :stroke-width="1.6" />
         </el-menu-item>
         <el-menu-item index="/app/my-schedules">
-          <template #title>My Schedules</template>
+          <template #title>{{ $t('menu.mySchedules') }}</template>
           <CalendarDays :size="16" :stroke-width="1.6" />
         </el-menu-item>
         <el-menu-item index="/app/notification">
           <template #title>
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-              <span>Messages</span>
+              <span>{{ $t('menu.messages') }}</span>
               <span v-if="unreadCount > 0" class="badge-dot">{{ unreadCount }}</span>
             </div>
           </template>
           <Bell :size="16" :stroke-width="1.6" />
         </el-menu-item>
 
-        <div v-if="!collapsed" class="menu-section-title">Agent services</div>
+        <div v-if="!collapsed" class="menu-section-title">{{ $t('menu.agentServices') }}</div>
 
         <el-menu-item index="/app/tool">
-          <template #title>Tool Agent</template>
+          <template #title>{{ $t('menu.toolAgent') }}</template>
           <Wrench :size="16" :stroke-width="1.6" />
         </el-menu-item>
         <el-menu-item index="/app/code">
-          <template #title>Code Agent</template>
+          <template #title>{{ $t('menu.codeAgent') }}</template>
           <FileText :size="16" :stroke-width="1.6" />
         </el-menu-item>
         <el-menu-item index="/app/rag">
-          <template #title>RAG Agent</template>
+          <template #title>{{ $t('menu.ragAgent') }}</template>
           <BookOpen :size="16" :stroke-width="1.6" />
         </el-menu-item>
 
-        <div v-if="!collapsed" class="menu-section-title">Knowledge base</div>
+        <div v-if="!collapsed" class="menu-section-title">{{ $t('menu.knowledgeBase') }}</div>
         <el-menu-item index="/app/dept-docs">
-          <template #title>Documents</template>
+          <template #title>{{ $t('menu.documents') }}</template>
           <FolderOpen :size="16" :stroke-width="1.6" />
         </el-menu-item>
 
         <!-- Department section -->
         <template v-if="userStore.userInfo?.roles?.includes('ROLE_DEPT_ADMIN') || userStore.userInfo?.roles?.includes('ROLE_ADMIN')">
-          <div v-if="!collapsed" class="menu-section-title">Department</div>
+          <div v-if="!collapsed" class="menu-section-title">{{ $t('menu.department') }}</div>
           <el-menu-item index="/app/admin/my-dept">
-            <template #title>{{ userStore.userInfo?.roles?.includes('ROLE_ADMIN') ? 'Dept Management' : 'My Department' }}</template>
+            <template #title>{{ userStore.userInfo?.roles?.includes('ROLE_ADMIN') ? $t('menu.deptManagement') : $t('menu.myDept') }}</template>
             <Briefcase :size="16" :stroke-width="1.6" />
           </el-menu-item>
         </template>
 
         <!-- Admin section -->
         <template v-if="userStore.userInfo?.roles?.includes('ROLE_ADMIN')">
-          <div v-if="!collapsed" class="menu-section-title">Administration</div>
+          <div v-if="!collapsed" class="menu-section-title">{{ $t('menu.administration') }}</div>
           <el-menu-item index="/app/admin/users">
-            <template #title>User Management</template>
+            <template #title>{{ $t('menu.userManagement') }}</template>
             <Users :size="16" :stroke-width="1.6" />
           </el-menu-item>
           <el-menu-item index="/app/admin/resources">
-            <template #title>Resource Management</template>
+            <template #title>{{ $t('menu.resourceManagement') }}</template>
             <Database :size="16" :stroke-width="1.6" />
           </el-menu-item>
         </template>
@@ -107,7 +107,7 @@
           @click="router.push('/app/settings')"
         >
           <Settings :size="16" :stroke-width="1.6" class="icon" />
-          <span v-if="!collapsed">Settings</span>
+          <span v-if="!collapsed">{{ $t('menu.settings') }}</span>
         </div>
 
         <!-- Language switcher -->
@@ -119,15 +119,15 @@
         <el-dropdown @command="handleCommand" trigger="click" placement="top-start">
           <div class="bottom-item user-item" :class="{ 'icon-only': collapsed }">
             <div class="user-avatar">
-              {{ (userStore.userInfo?.realName === '管理员' ? 'Administrator' : (userStore.userInfo?.realName || userStore.userInfo?.username || 'U')).charAt(0).toUpperCase() }}
+              {{ (userStore.userInfo?.realName === '管理员' ? $t('menu.administrator') : (userStore.userInfo?.realName || userStore.userInfo?.username || 'U')).charAt(0).toUpperCase() }}
             </div>
             <template v-if="!collapsed">
               <div class="user-meta">
                 <span class="user-name">
-                  {{ userStore.userInfo?.realName === '管理员' ? 'Administrator' : (userStore.userInfo?.realName || userStore.userInfo?.username || 'User') }}
+                  {{ userStore.userInfo?.realName === '管理员' ? $t('menu.administrator') : (userStore.userInfo?.realName || userStore.userInfo?.username || 'User') }}
                 </span>
                 <span class="user-role">
-                  {{ userStore.userInfo?.roles?.includes('ROLE_ADMIN') ? 'Administrator' : (userStore.userInfo?.roles?.includes('ROLE_DEPT_ADMIN') ? 'Dept Admin' : 'Employee') }}
+                  {{ userStore.userInfo?.roles?.includes('ROLE_ADMIN') ? $t('menu.administrator') : (userStore.userInfo?.roles?.includes('ROLE_DEPT_ADMIN') ? $t('menu.deptAdmin') : $t('menu.employee')) }}
                 </span>
               </div>
               <ChevronDown :size="12" :stroke-width="1.8" class="user-chevron" />
@@ -135,7 +135,7 @@
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="logout">Sign out</el-dropdown-item>
+              <el-dropdown-item command="logout">{{ $t('menu.logout') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>

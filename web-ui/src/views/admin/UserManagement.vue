@@ -3,12 +3,12 @@
     <!-- Header -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">User Management</h1>
-        <p class="page-sub">Configure staff access levels, assign roles, and enable or disable employee accounts.</p>
+        <h1 class="page-title">{{ $t('adminUsers.title') }}</h1>
+        <p class="page-sub">{{ $t('adminUsers.subtitle') }}</p>
       </div>
       <el-button class="refresh-btn" @click="fetchUsers" :loading="loading">
         <RefreshCw :size="14" :class="{ 'spin': loading }" />
-        Refresh
+        {{ $t('common.refresh') }}
       </el-button>
     </div>
 
@@ -17,7 +17,7 @@
       <div class="filter-left">
         <el-input
           v-model="searchQuery"
-          placeholder="Search name or username..."
+          :placeholder="$t('adminUsers.searchPlaceholder')"
           clearable
           class="search-input"
         >
@@ -26,11 +26,11 @@
           </template>
         </el-input>
       </div>
-      
+
       <div class="filter-right">
         <el-select
           v-model="filterDept"
-          placeholder="All Departments"
+          :placeholder="$t('adminUsers.allDepartments')"
           clearable
           class="filter-select"
         >
@@ -44,24 +44,24 @@
 
         <el-select
           v-model="filterClearance"
-          placeholder="All Clearance"
+          :placeholder="$t('adminUsers.allClearance')"
           clearable
           class="filter-select"
         >
-          <el-option :value="1" label="Level-1 (Public)" />
-          <el-option :value="2" label="Level-2 (Internal)" />
-          <el-option :value="3" label="Level-3 (Confidential)" />
+          <el-option :value="1" :label="`Level-1 (${$t('adminUsers.clearance.public')})`" />
+          <el-option :value="2" :label="`Level-2 (${$t('adminUsers.clearance.internal')})`" />
+          <el-option :value="3" :label="`Level-3 (${$t('adminUsers.clearance.confidential')})`" />
         </el-select>
 
         <el-select
           v-model="filterRole"
-          placeholder="All Roles"
+          :placeholder="$t('adminUsers.allRoles')"
           clearable
           class="filter-select"
         >
-          <el-option value="ROLE_ADMIN" label="System Admin" />
-          <el-option value="ROLE_DEPT_ADMIN" label="Department Admin" />
-          <el-option value="ROLE_USER" label="Standard User" />
+          <el-option value="ROLE_ADMIN" :label="$t('menu.administrator')" />
+          <el-option value="ROLE_DEPT_ADMIN" :label="$t('menu.deptAdmin')" />
+          <el-option value="ROLE_USER" :label="$t('menu.employee')" />
         </el-select>
       </div>
     </div>
@@ -70,14 +70,14 @@
     <div class="table-card">
       <el-table :data="filteredUsers" v-loading="loading" style="width: 100%" class="custom-table">
         <!-- Avatar & Username -->
-        <el-table-column label="User" min-width="180">
+        <el-table-column :label="$t('adminUsers.user')" min-width="180">
           <template #default="{ row }">
             <div class="user-info-cell">
               <div class="avatar-circle">
-                {{ (row.realName === '管理员' ? 'Administrator' : (row.realName || row.username)).charAt(0).toUpperCase() }}
+                {{ (row.realName === '管理员' ? $t('menu.administrator') : (row.realName || row.username)).charAt(0).toUpperCase() }}
               </div>
               <div class="name-details">
-                <span class="real-name">{{ row.realName === '管理员' ? 'Administrator' : (row.realName || '-') }}</span>
+                <span class="real-name">{{ row.realName === '管理员' ? $t('menu.administrator') : (row.realName || '-') }}</span>
                 <span class="username">@{{ row.username }}</span>
               </div>
             </div>
@@ -85,14 +85,14 @@
         </el-table-column>
 
         <!-- Department -->
-        <el-table-column label="Department" min-width="150">
+        <el-table-column :label="$t('adminUsers.department')" min-width="150">
           <template #default="{ row }">
-            <span class="dept-text">{{ row.deptName || 'No Department' }}</span>
+            <span class="dept-text">{{ row.deptName || $t('adminUsers.noDepartment') }}</span>
           </template>
         </el-table-column>
 
         <!-- Clearance Level -->
-        <el-table-column label="Clearance" min-width="130">
+        <el-table-column :label="$t('adminUsers.clearance')" min-width="130">
           <template #default="{ row }">
             <span class="clearance-badge" :class="'level-' + (row.clearanceLevel || 1)">
               Level-{{ row.clearanceLevel || 1 }} ({{ getClearanceLabel(row.clearanceLevel || 1) }})
@@ -101,24 +101,24 @@
         </el-table-column>
 
         <!-- Roles -->
-        <el-table-column label="Role" min-width="140">
+        <el-table-column :label="$t('adminUsers.roles')" min-width="140">
           <template #default="{ row }">
-            <span 
-              v-for="role in row.roles" 
-              :key="role" 
+            <span
+              v-for="role in row.roles"
+              :key="role"
               class="role-badge"
               :class="getRoleClass(role)"
             >
               {{ translateRole(role) }}
             </span>
             <span v-if="!row.roles || row.roles.length === 0" class="role-badge default">
-              No Role
+              {{ $t('adminUsers.noRole') }}
             </span>
           </template>
         </el-table-column>
 
         <!-- Status -->
-        <el-table-column label="Status" min-width="110">
+        <el-table-column :label="$t('adminUsers.status')" min-width="110">
           <template #default="{ row }">
             <div class="status-cell">
               <el-switch
@@ -130,22 +130,22 @@
                 class="custom-switch"
               />
               <span class="status-text-label" :class="{ 'is-active': row.status === 1 }">
-                {{ row.status === 1 ? 'Active' : 'Disabled' }}
+                {{ row.status === 1 ? $t('adminUsers.enabled') : $t('adminUsers.disabled') }}
               </span>
             </div>
           </template>
         </el-table-column>
 
         <!-- Actions -->
-        <el-table-column label="Actions" min-width="110" align="right">
+        <el-table-column :label="$t('adminUsers.actions')" min-width="110" align="right">
           <template #default="{ row }">
-            <el-button 
+            <el-button
               size="small"
               class="action-btn"
               :disabled="row.username === userStore.userInfo?.username"
               @click="openEditDialog(row)"
             >
-              Edit User
+              {{ $t('adminUsers.edit') }}
             </el-button>
           </template>
         </el-table-column>
@@ -155,18 +155,18 @@
     <!-- Edit User Dialog -->
     <el-dialog
       v-model="dialogVisible"
-      title="Edit User Access & Department"
+      :title="$t('adminUsers.editUserTitle')"
       width="460px"
       class="custom-dialog"
       :before-close="closeDialog"
     >
       <div class="dialog-body">
-        <p class="dialog-desc">Configure security configurations for <strong>{{ targetUser?.realName || targetUser?.username }}</strong>:</p>
-        
+        <p class="dialog-desc">{{ $t('adminUsers.editUserDesc', { name: targetUser?.realName || targetUser?.username }) }}</p>
+
         <el-form label-position="top">
           <!-- Role select -->
-          <el-form-item label="System Role">
-            <el-select v-model="selectedRoleId" placeholder="Select a role" class="custom-select">
+          <el-form-item :label="$t('adminUsers.systemRole')">
+            <el-select v-model="selectedRoleId" :placeholder="$t('adminUsers.selectRole')" class="custom-select">
               <el-option
                 v-for="item in availableRoles"
                 :key="item.id"
@@ -182,8 +182,8 @@
           </el-form-item>
 
           <!-- Department select -->
-          <el-form-item label="Department">
-            <el-select v-model="selectedDeptId" placeholder="Select a department" class="custom-select" clearable>
+          <el-form-item :label="$t('adminUsers.department')">
+            <el-select v-model="selectedDeptId" :placeholder="$t('adminUsers.selectDepartment')" class="custom-select" clearable>
               <el-option
                 v-for="item in departments"
                 :key="item.id"
@@ -194,20 +194,20 @@
           </el-form-item>
 
           <!-- Clearance level select -->
-          <el-form-item label="Clearance Level">
-            <el-select v-model="selectedClearanceLevel" placeholder="Select clearance" class="custom-select">
-              <el-option :value="1" label="Level-1 (Public)" />
-              <el-option :value="2" label="Level-2 (Internal)" />
-              <el-option :value="3" label="Level-3 (Confidential)" />
+          <el-form-item :label="$t('adminUsers.clearanceLevel')">
+            <el-select v-model="selectedClearanceLevel" :placeholder="$t('adminUsers.selectClearance')" class="custom-select">
+              <el-option :value="1" :label="`Level-1 (${$t('adminUsers.clearance.public')})`" />
+              <el-option :value="2" :label="`Level-2 (${$t('adminUsers.clearance.internal')})`" />
+              <el-option :value="3" :label="`Level-3 (${$t('adminUsers.clearance.confidential')})`" />
             </el-select>
           </el-form-item>
         </el-form>
       </div>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="closeDialog" class="dialog-btn-cancel">Cancel</el-button>
+          <el-button @click="closeDialog" class="dialog-btn-cancel">{{ $t('common.cancel') }}</el-button>
           <el-button type="primary" @click="handleUserUpdate" :loading="submitLoading" class="dialog-btn-confirm">
-            Save Changes
+            {{ $t('common.save') }}
           </el-button>
         </span>
       </template>
@@ -218,12 +218,14 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '@stores/modules/user'
+import { useI18n } from 'vue-i18n'
 import request from '@utils/request'
 import { ElMessage } from 'element-plus'
 import { RefreshCw, Search } from 'lucide-vue-next'
 import { getDepartmentsList } from '@/api/department'
 
 const userStore = useUserStore()
+const { t } = useI18n()
 
 // State
 const users = ref<any[]>([])
@@ -305,21 +307,21 @@ const fetchRoles = async () => {
 }
 
 const translateRole = (role: string) => {
-  if (role === '系统管理员' || role === 'ROLE_ADMIN') return 'System Administrator'
-  if (role === '部门管理员' || role === 'ROLE_DEPT_ADMIN') return 'Department Administrator'
-  if (role === '普通员工' || role === 'ROLE_USER') return 'Employee'
+  if (role === '系统管理员' || role === 'ROLE_ADMIN') return t('menu.administrator')
+  if (role === '部门管理员' || role === 'ROLE_DEPT_ADMIN') return t('menu.deptAdmin')
+  if (role === '普通员工' || role === 'ROLE_USER') return t('menu.employee')
   return role
 }
 
 const translateDesc = (desc: string) => {
   if (!desc) return ''
   if (desc === '拥有系统所有管理权限' || desc.includes('管理') || desc.includes('ADMIN')) {
-    return 'Has all system privileges'
+    return t('adminUsers.roleDesc.admin')
   }
   if (desc.includes('Department') || desc.includes('DEPT')) {
-    return 'Manages department members and reviews RAG document access audits'
+    return t('adminUsers.roleDesc.deptAdmin')
   }
-  return 'Access to knowledge base, code generation, and tools'
+  return t('adminUsers.roleDesc.user')
 }
 
 const getRoleClass = (role: string) => {
@@ -329,9 +331,9 @@ const getRoleClass = (role: string) => {
 }
 
 const getClearanceLabel = (level: number) => {
-  if (level === 3) return 'Confidential'
-  if (level === 2) return 'Internal'
-  return 'Public'
+  if (level === 3) return t('adminUsers.clearance.confidential')
+  if (level === 2) return t('adminUsers.clearance.internal')
+  return t('adminUsers.clearance.public')
 }
 
 const formatDate = (dateStr: string) => {
@@ -347,7 +349,7 @@ const formatDate = (dateStr: string) => {
 // Self-Protection check on status change
 const beforeStatusChange = (row: any): boolean => {
   if (row.username === userStore.userInfo?.username) {
-    ElMessage.warning('For safety reasons, you cannot disable your own administrator account.')
+    ElMessage.warning(t('adminUsers.cannotDisableSelf'))
     return false
   }
   return true
@@ -359,7 +361,7 @@ const handleStatusChange = async (row: any, val: any) => {
       userId: row.id,
       status: val
     })
-    ElMessage.success(`Status updated successfully for @${row.username}.`)
+    ElMessage.success(t('adminUsers.statusUpdated', { username: row.username }))
   } catch (error) {
     row.status = val === 1 ? 0 : 1
     console.error('Failed to update status:', error)
@@ -368,7 +370,7 @@ const handleStatusChange = async (row: any, val: any) => {
 
 const openEditDialog = (row: any) => {
   if (row.username === userStore.userInfo?.username) {
-    ElMessage.warning('For safety reasons, you cannot modify your own details.')
+    ElMessage.warning(t('adminUsers.cannotModifySelf'))
     return
   }
   targetUser.value = row
@@ -420,12 +422,12 @@ const handleUserUpdate = async () => {
       clearanceLevel: selectedClearanceLevel.value
     })
 
-    ElMessage.success(`User settings updated successfully for @${targetUser.value.username}.`)
+    ElMessage.success(t('adminUsers.editSuccess', { username: targetUser.value.username }))
     closeDialog()
     await fetchUsers()
   } catch (error: any) {
     console.error('Failed to update user settings:', error)
-    ElMessage.error(error.message || 'Failed to save changes')
+    ElMessage.error(error.message || t('request.failed'))
   } finally {
     submitLoading.value = false
   }

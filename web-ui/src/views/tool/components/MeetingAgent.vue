@@ -3,11 +3,11 @@
     <div class="search-bar-wrap">
       <el-form :model="meetingForm" label-position="top" class="search-inline-form">
         <div class="form-field date-field">
-          <el-form-item label="Date">
+          <el-form-item :label="$t('meeting.date')">
             <el-date-picker
                 v-model="meetingForm.date"
                 type="date"
-                placeholder="Select date"
+                :placeholder="$t('meeting.datePlaceholder')"
                 :disabled-date="disabledDate"
                 style="width: 100%;"
             />
@@ -15,21 +15,21 @@
         </div>
         
         <div class="form-field capacity-field">
-          <el-form-item label="Capacity">
+          <el-form-item :label="$t('meeting.capacity')">
             <el-input-number v-model="meetingForm.capacity" :min="1" :max="100" style="width: 100%;" />
           </el-form-item>
         </div>
 
         <div class="form-field button-field">
           <el-button type="primary" class="query-btn" @click="queryMeetingRooms" :loading="loading">
-            Search Rooms
+            {{ $t('meeting.searchBtn') }}
           </el-button>
         </div>
       </el-form>
     </div>
 
     <div v-if="meetingRooms.length > 0" class="room-results-section">
-      <h4 class="results-heading">Available Rooms</h4>
+      <h4 class="results-heading">{{ $t('meeting.available') }}</h4>
       <el-row :gutter="16">
         <el-col :xs="24" :sm="12" v-for="room in meetingRooms" :key="room.id">
           <div class="room-card-new" :class="{ 'is-available': room.available, 'is-occupied': !room.available }">
@@ -42,7 +42,7 @@
               <div class="room-meta">
                 <div class="meta-item">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="meta-icon"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                  <span>Capacity: <strong>{{ room.capacity }}</strong> people</span>
+                  <span>{{ $t('meeting.capacity') }}: <strong>{{ room.capacity }}</strong> {{ $t('meeting.capacityUnit') }}</span>
                 </div>
                 <div class="meta-item">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="meta-icon"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -57,7 +57,7 @@
             
             <div class="room-card-footer">
               <el-tag :type="room.available ? 'success' : 'danger'" effect="light" class="status-tag">
-                {{ room.available ? 'Available' : 'Occupied' }}
+                {{ room.available ? $t('meeting.available') : $t('meeting.occupied') }}
               </el-tag>
               
               <el-button
@@ -68,7 +68,7 @@
                   @click="bookRoom(room)"
                   :loading="bookingRoomId === room.id"
               >
-                Book Now
+                {{ $t('meeting.bookBtn') }}
               </el-button>
               <el-button
                   v-else
@@ -77,7 +77,7 @@
                   disabled
                   class="book-btn occupied"
               >
-                Booked
+                {{ $t('meeting.occupied') }}
               </el-button>
             </div>
           </div>
@@ -97,8 +97,11 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { getMeetingRooms } from '@api/tool'
 import { Calendar } from 'lucide-vue-next'
+
+const { t } = useI18n()
 
 const loading = ref(false)
 const bookingRoomId = ref<string | null>(null)
@@ -134,7 +137,7 @@ const formatDateTime = (date: Date): string => {
 
 const queryMeetingRooms = async () => {
   if (!meetingForm.date) {
-    ElMessage.warning('Please select a date first')
+    ElMessage.warning(t('meeting.selectDate'))
     return
   }
   loading.value = true
@@ -152,7 +155,7 @@ const queryMeetingRooms = async () => {
     ElMessage.success(`Found ${meetingRooms.value.length} meeting rooms`)
   } catch (error) {
     console.error(error)
-    ElMessage.error('Query failed')
+    ElMessage.error(t('request.failed'))
   } finally {
     loading.value = false
   }
@@ -160,7 +163,7 @@ const queryMeetingRooms = async () => {
 
 const bookRoom = async (room: any) => {
   if (!meetingForm.date) {
-    ElMessage.warning('Please select a date before booking')
+    ElMessage.warning(t('meeting.selectDate'))
     return
   }
 
@@ -187,7 +190,7 @@ const bookRoom = async (room: any) => {
     })
     const data = await res.json()
     if (data.code === 200) {
-      ElMessage.success('Booking successful')
+      ElMessage.success(t('meeting.bookSuccess'))
       // Optimistic UI update
       const idx = meetingRooms.value.findIndex((r: any) => r.id === room.id)
       if (idx !== -1) {
@@ -196,11 +199,11 @@ const bookRoom = async (room: any) => {
       }
       await queryMeetingRooms()
     } else {
-      ElMessage.error(data.message || 'Booking failed')
+      ElMessage.error(data.message || t('meeting.bookFailed'))
     }
   } catch (error) {
     console.error(error)
-    ElMessage.error('Booking request failed')
+    ElMessage.error(t('request.failed'))
   } finally {
     bookingRoomId.value = null
   }
