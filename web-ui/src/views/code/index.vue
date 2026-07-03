@@ -291,13 +291,13 @@ const executeError = ref('')
 const copied = ref(false)
 
 // Thinking Modal Custom Thought Messages
-const thoughtMessages = [
+const thoughtMessages = computed(() => [
   t('code.thinking1'),
   t('code.thinking2'),
   t('code.thinking3'),
   t('code.thinking4'),
   t('code.thinking5')
-]
+])
 
 // Fetch table names in schema
 const fetchMetadata = async () => {

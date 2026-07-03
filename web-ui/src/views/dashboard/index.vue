@@ -200,7 +200,7 @@ const formatEventDate = (timeStr: string) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-const actions = [
+const actions = computed(() => [
   {
     path: '/app/tool',
     name: t('dashboard.toolAgent'),
@@ -225,15 +225,15 @@ const actions = [
     bg: '#fdf4ff',
     color: '#a855f7',
   },
-]
+])
 
-const services = [
+const services = computed(() => [
   { name: t('dashboard.gateway'),    status: 'online',  label: t('dashboard.online') },
   { name: t('dashboard.user'),       status: 'online',  label: t('dashboard.online') },
   { name: t('dashboard.toolAgentService'), status: 'online',  label: t('dashboard.online') },
   { name: t('dashboard.sqlAgentService'),  status: 'online',  label: t('dashboard.online') },
   { name: t('dashboard.ragAgentService'),  status: 'offline', label: t('dashboard.comingSoon') },
-]
+])
 
 onMounted(() => {
   fetchPendingCount()
