@@ -48,9 +48,9 @@
           clearable
           class="filter-select"
         >
-          <el-option :value="1" :label="`Level-1 (${$t('adminUsers.clearance.public')})`" />
-          <el-option :value="2" :label="`Level-2 (${$t('adminUsers.clearance.internal')})`" />
-          <el-option :value="3" :label="`Level-3 (${$t('adminUsers.clearance.confidential')})`" />
+          <el-option :value="1" :label="`Level-1 (${$t('adminUsers.clearancePublic')})`" />
+          <el-option :value="2" :label="`Level-2 (${$t('adminUsers.clearanceInternal')})`" />
+          <el-option :value="3" :label="`Level-3 (${$t('adminUsers.clearanceConfidential')})`" />
         </el-select>
 
         <el-select
@@ -196,9 +196,9 @@
           <!-- Clearance level select -->
           <el-form-item :label="$t('adminUsers.clearanceLevel')">
             <el-select v-model="selectedClearanceLevel" :placeholder="$t('adminUsers.selectClearance')" class="custom-select">
-              <el-option :value="1" :label="`Level-1 (${$t('adminUsers.clearance.public')})`" />
-              <el-option :value="2" :label="`Level-2 (${$t('adminUsers.clearance.internal')})`" />
-              <el-option :value="3" :label="`Level-3 (${$t('adminUsers.clearance.confidential')})`" />
+              <el-option :value="1" :label="`Level-1 (${$t('adminUsers.clearancePublic')})`" />
+              <el-option :value="2" :label="`Level-2 (${$t('adminUsers.clearanceInternal')})`" />
+              <el-option :value="3" :label="`Level-3 (${$t('adminUsers.clearanceConfidential')})`" />
             </el-select>
           </el-form-item>
         </el-form>
@@ -331,9 +331,9 @@ const getRoleClass = (role: string) => {
 }
 
 const getClearanceLabel = (level: number) => {
-  if (level === 3) return t('adminUsers.clearance.confidential')
-  if (level === 2) return t('adminUsers.clearance.internal')
-  return t('adminUsers.clearance.public')
+  if (level === 3) return t('adminUsers.clearanceConfidential')
+  if (level === 2) return t('adminUsers.clearanceInternal')
+  return t('adminUsers.clearancePublic')
 }
 
 const formatDate = (dateStr: string) => {
