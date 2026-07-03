@@ -42,6 +42,15 @@
           <template #title>My Schedules</template>
           <CalendarDays :size="16" :stroke-width="1.6" />
         </el-menu-item>
+        <el-menu-item index="/app/notification">
+          <template #title>
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+              <span>Messages</span>
+              <span v-if="unreadCount > 0" class="badge-dot">{{ unreadCount }}</span>
+            </div>
+          </template>
+          <Bell :size="16" :stroke-width="1.6" />
+        </el-menu-item>
 
         <div v-if="!collapsed" class="menu-section-title">Agent services</div>
 
@@ -57,6 +66,21 @@
           <template #title>RAG Agent</template>
           <BookOpen :size="16" :stroke-width="1.6" />
         </el-menu-item>
+
+        <div v-if="!collapsed" class="menu-section-title">Knowledge base</div>
+        <el-menu-item index="/app/dept-docs">
+          <template #title>Documents</template>
+          <FolderOpen :size="16" :stroke-width="1.6" />
+        </el-menu-item>
+
+        <!-- Department section -->
+        <template v-if="userStore.userInfo?.roles?.includes('ROLE_DEPT_ADMIN') || userStore.userInfo?.roles?.includes('ROLE_ADMIN')">
+          <div v-if="!collapsed" class="menu-section-title">Department</div>
+          <el-menu-item index="/app/admin/my-dept">
+            <template #title>{{ userStore.userInfo?.roles?.includes('ROLE_ADMIN') ? 'Dept Management' : 'My Department' }}</template>
+            <Briefcase :size="16" :stroke-width="1.6" />
+          </el-menu-item>
+        </template>
 
         <!-- Admin section -->
         <template v-if="userStore.userInfo?.roles?.includes('ROLE_ADMIN')">
@@ -98,7 +122,7 @@
                   {{ userStore.userInfo?.realName === '管理员' ? 'Administrator' : (userStore.userInfo?.realName || userStore.userInfo?.username || 'User') }}
                 </span>
                 <span class="user-role">
-                  {{ userStore.userInfo?.roles?.includes('ROLE_ADMIN') ? 'Administrator' : 'Employee' }}
+                  {{ userStore.userInfo?.roles?.includes('ROLE_ADMIN') ? 'Administrator' : (userStore.userInfo?.roles?.includes('ROLE_DEPT_ADMIN') ? 'Dept Admin' : 'Employee') }}
                 </span>
               </div>
               <ChevronDown :size="12" :stroke-width="1.8" class="user-chevron" />
@@ -128,13 +152,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@stores/modules/user'
+import { getUnreadCount } from '@/api/notification'
 import {
   Home, Wrench, FileText, BookOpen,
   Settings, ChevronDown, Users, Database,
-  PanelLeftClose, PanelLeftOpen, Menu, CalendarDays
+  PanelLeftClose, PanelLeftOpen, Menu, CalendarDays, Bell, Briefcase, FolderOpen
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -145,9 +170,33 @@ const collapsed = ref(false)
 const mobileOpen = ref(false)
 const activeMenu = computed(() => route.path)
 
+const unreadCount = ref(0)
+let timer: any = null
+
+const fetchUnreadCount = async () => {
+  if (userStore.isLoggedIn) {
+    try {
+      const count = await getUnreadCount()
+      unreadCount.value = typeof count === 'number' ? count : (count as any) || 0
+    } catch (e) {
+      console.error('Failed to fetch unread notification count', e)
+    }
+  }
+}
+
 // Auto-close mobile sidebar drawer upon navigation
 watch(() => route.path, () => {
   mobileOpen.value = false
+  fetchUnreadCount()
+})
+
+onMounted(() => {
+  fetchUnreadCount()
+  timer = setInterval(fetchUnreadCount, 10000)
+})
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
 })
 
 const handleCommand = (command: string) => {
@@ -479,6 +528,20 @@ const handleCommand = (command: string) => {
   .collapse-btn {
     display: none !important;
   }
+}
+
+.badge-dot {
+  background-color: #ef4444;
+  color: #ffffff;
+  border-radius: 9999px;
+  font-size: 11px;
+  height: 18px;
+  min-width: 18px;
+  line-height: 18px;
+  text-align: center;
+  padding: 0 5px;
+  font-weight: 600;
+  display: inline-block;
 }
 
 /* ── 路由动画 ─────────────────────────────────── */

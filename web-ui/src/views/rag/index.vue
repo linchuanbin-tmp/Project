@@ -97,6 +97,4 @@ import { BookOpen, CheckCircle } from 'lucide-vue-next'
   font-size: 13.5px;
   color: #374151;
 }
-
-.feature-list li svg { color: #22c55e; flex-shrink: 0; }
 </style>

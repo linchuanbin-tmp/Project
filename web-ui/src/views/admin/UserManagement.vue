@@ -30,6 +30,22 @@
           </template>
         </el-table-column>
 
+        <!-- Department -->
+        <el-table-column label="Department" min-width="150">
+          <template #default="{ row }">
+            <span class="dept-text">{{ row.deptName || 'No Department' }}</span>
+          </template>
+        </el-table-column>
+
+        <!-- Clearance Level -->
+        <el-table-column label="Clearance" min-width="130">
+          <template #default="{ row }">
+            <span class="clearance-badge" :class="'level-' + (row.clearanceLevel || 1)">
+              Level-{{ row.clearanceLevel || 1 }} ({{ getClearanceLabel(row.clearanceLevel || 1) }})
+            </span>
+          </template>
+        </el-table-column>
+
         <!-- Roles -->
         <el-table-column label="Role" min-width="140">
           <template #default="{ row }">
@@ -48,7 +64,7 @@
         </el-table-column>
 
         <!-- Status -->
-        <el-table-column label="Status" min-width="120">
+        <el-table-column label="Status" min-width="110">
           <template #default="{ row }">
             <div class="status-cell">
               <el-switch
@@ -66,41 +82,35 @@
           </template>
         </el-table-column>
 
-        <!-- Created Time -->
-        <el-table-column label="Created Date" min-width="160">
-          <template #default="{ row }">
-            <span class="date-text">{{ formatDate(row.createTime) }}</span>
-          </template>
-        </el-table-column>
-
         <!-- Actions -->
-        <el-table-column label="Actions" min-width="130" align="right">
+        <el-table-column label="Actions" min-width="110" align="right">
           <template #default="{ row }">
             <el-button 
               size="small"
               class="action-btn"
               :disabled="row.username === userStore.userInfo?.username"
-              @click="openRoleDialog(row)"
+              @click="openEditDialog(row)"
             >
-              Change Role
+              Edit User
             </el-button>
           </template>
         </el-table-column>
       </el-table>
     </div>
 
-    <!-- Role Assignment Dialog -->
+    <!-- Edit User Dialog -->
     <el-dialog
       v-model="dialogVisible"
-      title="Assign Role"
-      width="420px"
+      title="Edit User Access & Department"
+      width="460px"
       class="custom-dialog"
       :before-close="closeDialog"
     >
       <div class="dialog-body">
-        <p class="dialog-desc">Select the authorization role to assign to <strong>{{ targetUser?.realName === '管理员' ? 'Administrator' : (targetUser?.realName || targetUser?.username) }}</strong>:</p>
+        <p class="dialog-desc">Configure security configurations for <strong>{{ targetUser?.realName || targetUser?.username }}</strong>:</p>
         
         <el-form label-position="top">
+          <!-- Role select -->
           <el-form-item label="System Role">
             <el-select v-model="selectedRoleId" placeholder="Select a role" class="custom-select">
               <el-option
@@ -116,12 +126,33 @@
               </el-option>
             </el-select>
           </el-form-item>
+
+          <!-- Department select -->
+          <el-form-item label="Department">
+            <el-select v-model="selectedDeptId" placeholder="Select a department" class="custom-select" clearable>
+              <el-option
+                v-for="item in departments"
+                :key="item.id"
+                :label="item.deptName"
+                :value="item.id"
+              />
+            </el-select>
+          </el-form-item>
+
+          <!-- Clearance level select -->
+          <el-form-item label="Clearance Level">
+            <el-select v-model="selectedClearanceLevel" placeholder="Select clearance" class="custom-select">
+              <el-option :value="1" label="Level-1 (Public)" />
+              <el-option :value="2" label="Level-2 (Internal)" />
+              <el-option :value="3" label="Level-3 (Confidential)" />
+            </el-select>
+          </el-form-item>
         </el-form>
       </div>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="closeDialog" class="dialog-btn-cancel">Cancel</el-button>
-          <el-button type="primary" @click="handleRoleSubmit" :loading="submitLoading" class="dialog-btn-confirm">
+          <el-button type="primary" @click="handleUserUpdate" :loading="submitLoading" class="dialog-btn-confirm">
             Save Changes
           </el-button>
         </span>
@@ -136,6 +167,7 @@ import { useUserStore } from '@stores/modules/user'
 import request from '@utils/request'
 import { ElMessage } from 'element-plus'
 import { RefreshCw } from 'lucide-vue-next'
+import { getDepartmentsList } from '@/api/department'
 
 const userStore = useUserStore()
 
@@ -148,6 +180,10 @@ const dialogVisible = ref(false)
 
 const targetUser = ref<any>(null)
 const selectedRoleId = ref<number | null>(null)
+const selectedDeptId = ref<number | null>(null)
+const selectedClearanceLevel = ref<number>(1)
+
+const departments = ref<any[]>([])
 
 // Actions & Methods
 const fetchUsers = async () => {
@@ -168,16 +204,17 @@ const fetchRoles = async () => {
     availableRoles.value = res || []
   } catch (error) {
     console.error('Failed to load roles:', error)
-    // Fallback to static definitions if API is unavailable
     availableRoles.value = [
       { id: 1, roleCode: 'ROLE_ADMIN', roleName: 'System Administrator', description: 'Has all system management privileges' },
-      { id: 2, roleCode: 'ROLE_USER', roleName: 'Employee', description: 'Has standard service calling privileges' }
+      { id: 2, roleCode: 'ROLE_USER', roleName: 'Employee', description: 'Has standard service calling privileges' },
+      { id: 3, roleCode: 'ROLE_DEPT_ADMIN', roleName: 'Department Administrator', description: 'Manages department members and reviews RAG audits' }
     ]
   }
 }
 
 const translateRole = (role: string) => {
   if (role === '系统管理员' || role === 'ROLE_ADMIN') return 'System Administrator'
+  if (role === '部门管理员' || role === 'ROLE_DEPT_ADMIN') return 'Department Administrator'
   if (role === '普通员工' || role === 'ROLE_USER') return 'Employee'
   return role
 }
@@ -185,18 +222,34 @@ const translateRole = (role: string) => {
 const translateDesc = (desc: string) => {
   if (!desc) return ''
   if (desc === '拥有系统所有管理权限' || desc.includes('管理') || desc.includes('ADMIN')) {
-    return 'Has all system management privileges'
+    return 'Has all system privileges'
   }
-  if (
-    desc === '拥有微服务基础调用权限' || 
-    desc.includes('微服务') || 
-    desc.includes('USER') ||
-    desc.includes('知识库') ||
-    desc.includes('使用Agent')
-  ) {
-    return 'Access to knowledge base retrieval, code generation, and tool call agents'
+  if (desc.includes('Department') || desc.includes('DEPT')) {
+    return 'Manages department members and reviews RAG document access audits'
   }
-  return desc
+  return 'Access to knowledge base, code generation, and tools'
+}
+
+const getRoleClass = (role: string) => {
+  if (role === 'ROLE_ADMIN') return 'admin'
+  if (role === 'ROLE_DEPT_ADMIN') return 'dept-admin'
+  return 'user'
+}
+
+const getClearanceLabel = (level: number) => {
+  if (level === 3) return 'Confidential'
+  if (level === 2) return 'Internal'
+  return 'Public'
+}
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
 }
 
 // Self-Protection check on status change
@@ -216,26 +269,29 @@ const handleStatusChange = async (row: any, val: any) => {
     })
     ElMessage.success(`Status updated successfully for @${row.username}.`)
   } catch (error) {
-    // Revert state on failure
     row.status = val === 1 ? 0 : 1
     console.error('Failed to update status:', error)
   }
 }
 
-const openRoleDialog = (row: any) => {
+const openEditDialog = (row: any) => {
   if (row.username === userStore.userInfo?.username) {
-    ElMessage.warning('For safety reasons, you cannot modify your own administrator role.')
+    ElMessage.warning('For safety reasons, you cannot modify your own details.')
     return
   }
   targetUser.value = row
-  // Pre-select the user's role if possible
+
+  // Find matching role ID
   const userRoleName = row.roles?.[0]
   if (userRoleName) {
-    const matched = availableRoles.value.find(r => r.roleName === userRoleName)
+    const matched = availableRoles.value.find(r => r.roleName === userRoleName || r.roleCode === userRoleName)
     selectedRoleId.value = matched ? matched.id : null
   } else {
     selectedRoleId.value = null
   }
+
+  selectedDeptId.value = row.deptId || null
+  selectedClearanceLevel.value = row.clearanceLevel || 1
   dialogVisible.value = true
 }
 
@@ -243,50 +299,59 @@ const closeDialog = () => {
   dialogVisible.value = false
   targetUser.value = null
   selectedRoleId.value = null
+  selectedDeptId.value = null
+  selectedClearanceLevel.value = 1
 }
 
-const handleRoleSubmit = async () => {
-  if (!targetUser.value || !selectedRoleId.value) return
+const handleUserUpdate = async () => {
+  if (!targetUser.value) return
 
   submitLoading.value = true
   try {
-    await request.post('/admin/user/role', {
+    // 1. Submit role change if specified
+    if (selectedRoleId.value) {
+      await request.post('/admin/user/role', {
+        userId: targetUser.value.id,
+        roleId: selectedRoleId.value
+      })
+    }
+
+    // 2. Submit department change
+    await request.put('/admin/user/dept', {
       userId: targetUser.value.id,
-      roleId: selectedRoleId.value
+      deptId: selectedDeptId.value || null
     })
-    ElMessage.success(`Role updated successfully for @${targetUser.value.username}.`)
+
+    // 3. Submit clearance change
+    await request.put('/admin/user/clearance', {
+      userId: targetUser.value.id,
+      clearanceLevel: selectedClearanceLevel.value
+    })
+
+    ElMessage.success(`User settings updated successfully for @${targetUser.value.username}.`)
     closeDialog()
-    await fetchUsers() // Reload user list
-  } catch (error) {
-    console.error('Failed to assign role:', error)
+    await fetchUsers()
+  } catch (error: any) {
+    console.error('Failed to update user settings:', error)
+    ElMessage.error(error.message || 'Failed to save changes')
   } finally {
     submitLoading.value = false
   }
 }
 
-// Styling & Format helpers
-const getRoleClass = (roleName: string) => {
-  if (roleName.includes('管理员') || roleName.toLowerCase().includes('admin')) {
-    return 'admin'
+const fetchDepartments = async () => {
+  try {
+    const res: any = await getDepartmentsList()
+    departments.value = res || []
+  } catch (error) {
+    console.error('Failed to load departments list:', error)
   }
-  return 'user'
-}
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return date.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
 }
 
 onMounted(() => {
   fetchUsers()
   fetchRoles()
+  fetchDepartments()
 })
 </script>
 
@@ -294,10 +359,10 @@ onMounted(() => {
 .user-management {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   max-width: 1200px;
-  padding-top: 16px;
+  padding: 16px 0;
 }
 
-/* ── Header ─────────────────────────────────────── */
+/* ── Header ── */
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -321,62 +386,43 @@ onMounted(() => {
 }
 
 .refresh-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   background: #fff !important;
   border: 1px solid #e5e7eb !important;
   border-radius: 9px !important;
   color: #374151 !important;
   font-size: 13px !important;
   font-weight: 500 !important;
-  padding: 8px 14px !important;
-  height: 36px;
+  height: 38px !important;
+  padding: 0 16px !important;
   transition: all 0.15s;
 }
 
 .refresh-btn:hover {
-  border-color: #d1d5db !important;
-  color: #111827 !important;
   background: #f9fafb !important;
+  border-color: #cbd5e1 !important;
+  color: #111827 !important;
 }
 
-.refresh-btn svg.spin {
-  animation: rotate 1s linear infinite;
+.spin {
+  animation: spin 1s linear infinite;
 }
 
-@keyframes rotate {
+@keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-/* ── Table Card ─────────────────────────────────── */
+/* ── Table Card ── */
 .table-card {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 14px;
   border: 1px solid #f0f0f0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
   overflow: hidden;
-  padding: 8px;
 }
 
-/* Custom Table styling */
-.custom-table :deep(.el-table__header-wrapper) th {
-  background: #fcfcfd;
-  color: #4b5563;
-  font-weight: 600;
-  font-size: 12.5px;
-  border-bottom: 1px solid #f3f4f6;
-  padding: 12px 16px;
-}
-
-.custom-table :deep(.el-table__row) td {
-  padding: 14px 16px;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.custom-table :deep(.el-table__row:last-child) td {
-  border-bottom: none;
+.custom-table {
+  --el-table-header-bg-color: #fafafa;
+  --el-table-row-hover-bg-color: #f9fafb;
 }
 
 .user-info-cell {
@@ -386,69 +432,93 @@ onMounted(() => {
 }
 
 .avatar-circle {
-  width: 32px;
-  height: 32px;
-  background: #111827;
-  border-radius: 9px;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #4b5563;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid #e5e7eb;
 }
 
 .name-details {
   display: flex;
   flex-direction: column;
-  gap: 1px;
 }
 
 .real-name {
-  font-size: 13.5px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   color: #111827;
 }
 
 .username {
-  font-size: 11.5px;
+  font-size: 12px;
   color: #9ca3af;
+  margin-top: 1px;
 }
 
-/* Badges */
-.role-badge {
-  display: inline-block;
-  font-size: 11.5px;
+.dept-text {
+  font-size: 13.5px;
+  color: #374151;
   font-weight: 500;
-  padding: 2.5px 8px;
+}
+
+.clearance-badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.clearance-badge.level-1 {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.clearance-badge.level-2 {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.clearance-badge.level-3 {
+  background: #fff1f2;
+  color: #f43f5e;
+}
+
+.role-badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 8px;
   border-radius: 20px;
   margin-right: 4px;
 }
 
 .role-badge.admin {
-  background: #eef2ff;
-  color: #4f46e5;
-  border: 1px solid #e0e7ff;
+  background: #fff1f2;
+  color: #f43f5e;
+}
+
+.role-badge.dept-admin {
+  background: #fdf4ff;
+  color: #a855f7;
 }
 
 .role-badge.user {
-  background: #ecfdf5;
-  color: #059669;
-  border: 1px solid #d1fae5;
+  background: #f0fdfa;
+  color: #0d9488;
 }
 
 .role-badge.default {
   background: #f3f4f6;
   color: #6b7280;
-  border: 1px solid #e5e7eb;
 }
 
-.date-text {
-  font-size: 13px;
-  color: #6b7280;
-}
-
-/* Custom Switch overrides */
 .status-cell {
   display: flex;
   align-items: center;
@@ -457,18 +527,12 @@ onMounted(() => {
 
 .status-text-label {
   font-size: 13px;
-  font-weight: 500;
   color: #9ca3af;
-  transition: color 0.15s;
 }
 
 .status-text-label.is-active {
-  color: #10b981;
-}
-
-.custom-switch :deep(.el-switch__core) {
-  border-radius: 20px;
-  height: 20px;
+  color: #374151;
+  font-weight: 500;
 }
 
 .action-btn {
@@ -478,22 +542,19 @@ onMounted(() => {
   color: #374151 !important;
   font-size: 12.5px !important;
   font-weight: 500 !important;
-  height: 32px !important;
-  padding: 0 16px !important;
-  transition: all 0.15s;
 }
 
-.action-btn:hover:not(:disabled) {
-  border-color: #111827 !important;
-  color: #111827 !important;
+.action-btn:hover {
   background: #f9fafb !important;
+  border-color: #cbd5e1 !important;
+  color: #111827 !important;
 }
 
-/* ── Dialog ─────────────────────────────────────── */
+/* ── Dialog styles ── */
 .custom-dialog :deep(.el-dialog) {
-  border-radius: 20px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .custom-dialog :deep(.el-dialog__header) {

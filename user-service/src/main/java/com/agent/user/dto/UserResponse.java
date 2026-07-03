@@ -10,6 +10,9 @@ public class UserResponse {
     private String username;
     private String realName;
     private Integer status;
+    private Long deptId;
+    private String deptName;
+    private Integer clearanceLevel;
     private LocalDateTime createTime;
     private List<String> roles;
 }

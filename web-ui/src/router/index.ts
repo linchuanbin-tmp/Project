@@ -55,6 +55,12 @@ const routes = [
                 meta: { title: 'RAG Agent' }
             },
             {
+                path: 'dept-docs',
+                name: 'DeptDocuments',
+                component: () => import('@views/document/index.vue'),
+                meta: { title: 'Department Documents' }
+            },
+            {
                 path: 'admin/users',
                 name: 'UserManagement',
                 component: () => import('@views/admin/UserManagement.vue'),
@@ -67,6 +73,12 @@ const routes = [
                 meta: { title: 'Resource Management', requiresRole: 'ROLE_ADMIN' }
             },
             {
+                path: 'admin/my-dept',
+                name: 'MyDepartment',
+                component: () => import('@views/admin/MyDepartment.vue'),
+                meta: { title: 'My Department', requiresAnyRole: ['ROLE_DEPT_ADMIN', 'ROLE_ADMIN'] }
+            },
+            {
                 path: 'settings',
                 name: 'Settings',
                 component: () => import('@views/settings/index.vue'),
@@ -77,6 +89,12 @@ const routes = [
                 name: 'MySchedules',
                 component: () => import('@views/tool/MySchedules.vue'),
                 meta: { title: 'My Schedules' }
+            },
+            {
+                path: 'notification',
+                name: 'Notification',
+                component: () => import('@views/notification/index.vue'),
+                meta: { title: 'Messages' }
             }
         ]
     },
@@ -122,6 +140,17 @@ router.beforeEach(async (to, _from, next) => {
         const hasRole = userStore.userInfo?.roles?.includes(requiredRole)
         if (!hasRole) {
             ElMessage.warning('Access denied: Administrator privileges required.')
+            next('/app/dashboard')
+        } else {
+            next()
+        }
+    }
+    // 5. Multi-role guard
+    else if (to.meta.requiresAnyRole) {
+        const requiredRoles = to.meta.requiresAnyRole as string[]
+        const hasAnyRole = requiredRoles.some(role => userStore.userInfo?.roles?.includes(role))
+        if (!hasAnyRole) {
+            ElMessage.warning('Access denied: Unauthorized role.')
             next('/app/dashboard')
         } else {
             next()

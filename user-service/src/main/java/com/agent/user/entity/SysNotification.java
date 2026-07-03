@@ -5,28 +5,25 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("sys_user")
-public class User {
+@TableName("sys_notification")
+public class SysNotification {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private String username;
+    private Long senderId;
 
-    private String password;
+    private Long receiverId;
 
-    private String realName;
+    private String title;
 
-    private String role;
+    private String content;
+
+    private String notifyType;
 
     private Integer status;
 
-    private Long deptId;
-
-    private Integer clearanceLevel;
-
-    @TableField(exist = false)
-    private String deptName;
+    private String payload;
 
     private LocalDateTime createTime;
 

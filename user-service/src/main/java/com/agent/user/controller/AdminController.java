@@ -17,6 +17,7 @@ import java.util.List;
 public class AdminController {
 
     private final UserService userService;
+    private final com.agent.user.mapper.SysDepartmentMapper sysDepartmentMapper;
 
     @GetMapping("/users")
     public Result<List<UserResponse>> listUsers() {
@@ -46,5 +47,55 @@ public class AdminController {
     @GetMapping("/roles")
     public Result<List<SysRole>> listRoles() {
         return Result.success(userService.listRoles());
+    }
+
+    @PutMapping("/user/dept")
+    public Result<String> updateUserDept(@Valid @RequestBody UpdateUserDeptRequest request) {
+        try {
+            userService.updateUserDept(request.getUserId(), request.getDeptId());
+            return Result.success("Department updated successfully");
+        } catch (RuntimeException e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    @PutMapping("/user/clearance")
+    public Result<String> updateUserClearance(@Valid @RequestBody UpdateUserClearanceRequest request) {
+        try {
+            userService.updateUserClearance(request.getUserId(), request.getClearanceLevel());
+            return Result.success("Clearance level updated successfully");
+        } catch (RuntimeException e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    @PostMapping("/dept")
+    public Result<String> createDept(@RequestBody com.agent.user.entity.SysDepartment dept) {
+        try {
+            sysDepartmentMapper.insert(dept);
+            return Result.success("Department created successfully");
+        } catch (RuntimeException e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    @PutMapping("/dept")
+    public Result<String> updateDept(@RequestBody com.agent.user.entity.SysDepartment dept) {
+        try {
+            sysDepartmentMapper.updateById(dept);
+            return Result.success("Department updated successfully");
+        } catch (RuntimeException e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/dept/{id}")
+    public Result<String> deleteDept(@PathVariable("id") Long id) {
+        try {
+            sysDepartmentMapper.deleteById(id);
+            return Result.success("Department deleted successfully");
+        } catch (RuntimeException e) {
+            return Result.error(400, e.getMessage());
+        }
     }
 }

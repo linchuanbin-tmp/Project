@@ -16,6 +16,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final com.agent.user.mapper.SysDepartmentMapper sysDepartmentMapper;
 
     @PostMapping("/login")
     public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
@@ -52,11 +53,22 @@ public class UserController {
         List<String> roles = userService.getRolesByUserId(user.getId());
         List<String> permissions = userService.getPermissionsByUserId(user.getId());
 
+        String deptName = null;
+        if (user.getDeptId() != null) {
+            com.agent.user.entity.SysDepartment dept = sysDepartmentMapper.selectById(user.getDeptId());
+            if (dept != null) {
+                deptName = dept.getDeptName();
+            }
+        }
+
         UserInfoResponse response = new UserInfoResponse(
                 user.getUsername(),
                 user.getRealName(),
                 roles,
-                permissions
+                permissions,
+                user.getDeptId(),
+                deptName,
+                user.getClearanceLevel() != null ? user.getClearanceLevel() : 1
         );
         return Result.success(response);
     }
@@ -92,5 +104,10 @@ public class UserController {
     @GetMapping("/list")
     public Result<List<UserResponse>> listUsers() {
         return Result.success(userService.listUsers());
+    }
+
+    @GetMapping("/dept/list")
+    public Result<List<com.agent.user.entity.SysDepartment>> listDepartments() {
+        return Result.success(sysDepartmentMapper.selectList(null));
     }
 }
