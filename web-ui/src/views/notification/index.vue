@@ -933,6 +933,7 @@ onMounted(() => {
 .type-badge.rag_apply { background: #fef3c7; color: #92400e; }
 .type-badge.sql_audit { background: #fee2e2; color: #991b1b; }
 .type-badge.bug_report { background: #f3e8ff; color: #6b21a8; }
+.type-badge.meeting { background: #dcfce7; color: #166534; }
 
 .msg-summary {
   font-size: 12.5px;

@@ -486,6 +486,7 @@ export default {
     security: 'Security',
     securityDesc: 'Change your login password',
     language: 'Language',
+    languageDesc: 'Select your preferred display language for the interface',
     theme: 'Theme',
     username: 'Username',
     realName: 'Real Name',

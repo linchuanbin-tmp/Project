@@ -139,4 +139,114 @@ body {
   align-items: center !important;
   justify-content: center !important;
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   macOS-style Premium ElNotification Custom Styling & Animations
+   ────────────────────────────────────────────────────────────────── */
+.el-notification {
+  border-radius: 14px !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08) !important;
+  padding: 14px 18px !important;
+  width: 320px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+}
+
+.el-notification__title {
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: #1d1d1f !important;
+  line-height: 1.4 !important;
+}
+
+.el-notification__content {
+  font-size: 12.5px !important;
+  color: #515154 !important;
+  margin-top: 4px !important;
+  line-height: 1.4 !important;
+}
+
+.el-notification__closeBtn {
+  top: 14px !important;
+  right: 14px !important;
+  color: #86868b !important;
+}
+
+.el-notification__closeBtn:hover {
+  color: #1d1d1f !important;
+}
+
+
+
+/* Custom slide-in snappier transition animation (Mac-like easing) */
+.el-notification-fade-enter-from {
+  transform: translateX(120%) !important;
+  opacity: 0 !important;
+}
+
+.el-notification-fade-enter-active {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.el-notification-fade-leave-active {
+  transition: all 0.25s ease !important;
+}
+
+.el-notification-fade-leave-to {
+  transform: translateX(120%) !important;
+  opacity: 0 !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   macOS-style Premium ElMessage Custom Styling & Animations
+   ────────────────────────────────────────────────────────────────── */
+.el-message {
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08) !important;
+  padding: 10px 16px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+  min-width: unset !important;
+  width: 320px !important; /* Match ElNotification width */
+
+  /* Place on the right side instead of top-center */
+  left: auto !important;
+  right: 16px !important;
+  transform: translateX(0) !important;
+}
+
+.el-message__content {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #1d1d1f !important;
+}
+
+
+
+/* Override default icons color and size to look native and clean */
+.el-message .el-message-icon--success { color: #10b981 !important; }
+.el-message .el-message-icon--error { color: #ef4444 !important; }
+.el-message .el-message-icon--warning { color: #f59e0b !important; }
+.el-message .el-message-icon--info { color: #3b82f6 !important; }
+
+/* Custom slide-in from right boundary animation for ElMessage */
+.el-message-fade-enter-from,
+.el-message-fade-leave-to {
+  opacity: 0 !important;
+  transform: translateX(120%) !important;
+}
+
+.el-message-fade-enter-active {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.el-message-fade-leave-active {
+  transition: all 0.25s ease !important;
+}
 </style>

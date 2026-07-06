@@ -486,6 +486,7 @@ export default {
     security: '安全设置',
     securityDesc: '修改您的登录密码',
     language: '语言偏好',
+    languageDesc: '选择您偏好的系统界面显示语言',
     theme: '主题设置',
     username: '用户名',
     realName: '真实姓名',

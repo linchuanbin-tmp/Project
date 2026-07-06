@@ -39,6 +39,24 @@
         <button class="edit-btn" @click="openPasswordDialog">{{ $t('common.edit') }}</button>
       </div>
 
+      <!-- Language item -->
+      <div class="settings-item">
+        <div class="item-left">
+          <div class="item-icon-wrap">
+            <Globe :size="17" :stroke-width="1.7" />
+          </div>
+          <div class="item-text">
+            <span class="item-title">{{ $t('settings.language') }}</span>
+            <span class="item-desc">{{ $t('settings.languageDesc') }}</span>
+          </div>
+        </div>
+        <el-select v-model="currentLocale" @change="handleLocaleChange" class="locale-select" style="width: 140px;">
+          <el-option label="简体中文" value="zh-CN" />
+          <el-option label="繁體中文" value="zh-TW" />
+          <el-option label="English" value="en" />
+        </el-select>
+      </div>
+
     </div>
 
     <!-- ── Profile Dialog ──────────────────────────── -->
@@ -176,10 +194,23 @@ import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { User, Lock, Shield, Key, ShieldCheck, Check, X } from 'lucide-vue-next'
+import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe } from 'lucide-vue-next'
 import request from '@utils/request'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const currentLocale = ref(locale.value)
+
+const handleLocaleChange = (lang: string) => {
+  locale.value = lang
+  localStorage.setItem('lang', lang)
+  ElMessage.success(
+    lang === 'en'
+      ? 'Language switched successfully!'
+      : lang === 'zh-TW'
+        ? '語言切換成功！'
+        : '语言切换成功！'
+  )
+}
 const userStore = useUserStore()
 
 // Normalize legacy Chinese realName values stored in old databases
@@ -403,6 +434,17 @@ const resetPasswordForm = () => {
 .edit-btn:hover {
   background: #f5f5f7;
   border-color: #d1d5db;
+}
+
+.locale-select :deep(.el-select__wrapper) {
+  border-radius: 9px;
+  box-shadow: 0 0 0 1px #e5e7eb;
+}
+.locale-select :deep(.el-select__wrapper:hover) {
+  box-shadow: 0 0 0 1px #d1d5db;
+}
+.locale-select :deep(.el-select__wrapper.is-focus) {
+  box-shadow: 0 0 0 2px #111827 !important;
 }
 
 /* ── Dialog form ─────────────────────────────────── */

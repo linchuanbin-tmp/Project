@@ -480,6 +480,7 @@ export default {
     security: '安全設定',
     securityDesc: '修改您的登入密碼',
     language: '語言偏好',
+    languageDesc: '選擇您偏好的系統介面顯示語言',
     theme: '主題設定',
     username: '使用者名稱',
     realName: '真實姓名',

@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -31,6 +32,7 @@ public class ToolController {
     private final MeetingRoomService meetingRoomService;
     private final ScheduleService scheduleService;
     private final MeetingScheduleService meetingScheduleService;
+    private final JdbcTemplate jdbcTemplate;
 
     @PostMapping("/execute")
     public Result<Map<String, Object>> executeTool(@RequestBody ToolRequest request) {
@@ -79,7 +81,26 @@ public class ToolController {
         LocalDateTime endTime = parseTime(endStr);
 
         boolean success = meetingRoomService.bookRoom(roomId, booker, startTime, endTime, topic);
-        return success ? Result.success("预定成功") : Result.error("该会议室时段已被预定");
+        if (success) {
+            try {
+                String roomName = "Unknown Room";
+                MeetingRoom room = meetingRoomService.getById(roomId);
+                if (room != null) {
+                    roomName = room.getRoomName();
+                }
+                String title = "Meeting Room Reserved";
+                String content = String.format("You have successfully reserved %s for topic: \"%s\" from %s to %s.",
+                    roomName, topic, startStr, endStr);
+                String payload = String.format("{\"roomId\":%d,\"roomName\":\"%s\",\"startTime\":\"%s\",\"endTime\":\"%s\",\"topic\":\"%s\"}",
+                    roomId, roomName, startStr, endStr, topic);
+                sendSystemNotification(booker, title, content, "MEETING", payload);
+            } catch (Exception e) {
+                log.error("Failed to send booking notification", e);
+            }
+            return Result.success("预定成功");
+        } else {
+            return Result.error("该会议室时段已被预定");
+        }
     }
 
     /**
@@ -236,6 +257,26 @@ public class ToolController {
             if (schedule.getRoomId() == null || schedule.getRoomId() == 0) {
                 scheduleService.removeSchedule(username, "event_" + id);
             }
+
+            try {
+                String roomName = "Personal Schedule";
+                if (schedule.getRoomId() != null && schedule.getRoomId() > 0) {
+                    MeetingRoom room = meetingRoomService.getById(schedule.getRoomId());
+                    if (room != null) {
+                        roomName = room.getRoomName();
+                    } else {
+                        roomName = "Room " + schedule.getRoomId();
+                    }
+                }
+                String title = "Meeting Room Reservation Cancelled";
+                String content = String.format("Your reservation for %s (Topic: \"%s\") on %s to %s has been cancelled.",
+                    roomName, schedule.getTopic(), schedule.getStartTime(), schedule.getEndTime());
+                String payload = String.format("{\"roomId\":%d,\"roomName\":\"%s\",\"startTime\":\"%s\",\"endTime\":\"%s\",\"topic\":\"%s\"}",
+                    schedule.getRoomId(), roomName, schedule.getStartTime(), schedule.getEndTime(), schedule.getTopic());
+                sendSystemNotification(username, title, content, "MEETING", payload);
+            } catch (Exception e) {
+                log.error("Failed to send cancellation notification", e);
+            }
             
             return Result.success("Schedule cancelled successfully");
         } catch (Exception e) {
@@ -282,5 +323,37 @@ public class ToolController {
             return LocalDateTime.parse(timeStr);
         }
         return LocalDateTime.parse(timeStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    }
+
+    private void sendSystemNotification(String username, String title, String content, String notifyType, String payload) {
+        try {
+            Long userId = null;
+            try {
+                userId = jdbcTemplate.queryForObject(
+                    "SELECT id FROM sys_user WHERE username = ? AND deleted = 0",
+                    Long.class,
+                    username
+                );
+            } catch (Exception e) {
+                log.warn("User not found in sys_user for username: {}", username);
+            }
+            
+            if (userId == null) {
+                userId = 1L; // Fallback to admin (id = 1)
+            }
+            
+            jdbcTemplate.update(
+                "INSERT INTO sys_notification (sender_id, receiver_id, title, content, notify_type, status, payload) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                1L,        // senderId = 1 (System / Admin)
+                userId,    // receiverId
+                title,     // title
+                content,   // content
+                notifyType,// notifyType
+                1,         // status = 1 (Unread)
+                payload    // payload JSON
+            );
+        } catch (Exception e) {
+            log.error("Failed to insert system notification", e);
+        }
     }
 }

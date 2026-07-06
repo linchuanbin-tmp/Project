@@ -14,27 +14,16 @@
           </el-form-item>
         </div>
 
-        <div class="form-field time-field">
-          <el-form-item :label="$t('meeting.startTime')">
-            <el-time-select
-                v-model="meetingForm.startTime"
-                start="08:00"
-                step="00:30"
-                end="22:00"
-                :placeholder="$t('meeting.startTime')"
-                style="width: 100%;"
-            />
-          </el-form-item>
-        </div>
-
-        <div class="form-field time-field">
-          <el-form-item :label="$t('meeting.endTime')">
-            <el-time-select
-                v-model="meetingForm.endTime"
-                start="08:00"
-                step="00:30"
-                end="22:00"
-                :placeholder="$t('meeting.endTime')"
+        <div class="form-field time-range-field">
+          <el-form-item :label="$t('meeting.timeRange')">
+            <el-time-picker
+                v-model="meetingForm.timeRange"
+                is-range
+                range-separator="-"
+                :start-placeholder="$t('meeting.startTime')"
+                :end-placeholder="$t('meeting.endTime')"
+                format="HH:mm"
+                value-format="HH:mm"
                 style="width: 100%;"
             />
           </el-form-item>
@@ -47,9 +36,11 @@
         </div>
 
         <div class="form-field button-field">
-          <el-button type="primary" class="query-btn" @click="queryMeetingRooms" :loading="loading">
-            {{ $t('meeting.searchBtn') }}
-          </el-button>
+          <el-form-item label="&nbsp;">
+            <el-button type="primary" class="query-btn" @click="queryMeetingRooms" :loading="loading">
+              {{ $t('meeting.searchBtn') }}
+            </el-button>
+          </el-form-item>
         </div>
       </el-form>
     </div>
@@ -122,10 +113,13 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { getMeetingRooms } from '@api/tool'
 import { Calendar } from 'lucide-vue-next'
+import { useUserStore } from '@stores/modules/user'
+
+const userStore = useUserStore()
 
 const { t } = useI18n()
 
@@ -140,8 +134,7 @@ const disabledDate = (time: Date) => {
 
 const meetingForm = reactive({
   date: '' as any,
-  startTime: '09:00',
-  endTime: '11:00',
+  timeRange: ['09:00', '11:00'] as [string, string],
   capacity: 10
 })
 
@@ -165,14 +158,32 @@ const formatDateTime = (date: Date): string => {
 
 const queryMeetingRooms = async () => {
   if (!meetingForm.date) {
-    ElMessage.warning(t('meeting.selectDate'))
+    ElNotification.warning({
+      title: t('meeting.selectDate'),
+      message: 'Please choose a booking date.',
+      position: 'top-right'
+    })
     return
   }
   
-  const [startH, startM] = meetingForm.startTime.split(':').map(Number)
-  const [endH, endM] = meetingForm.endTime.split(':').map(Number)
+  if (!meetingForm.timeRange || meetingForm.timeRange.length !== 2) {
+    ElNotification.warning({
+      title: t('meeting.invalidTime'),
+      message: 'Please specify a valid time range.',
+      position: 'top-right'
+    })
+    return
+  }
+
+  const [startTimeStr, endTimeStr] = meetingForm.timeRange
+  const [startH, startM] = startTimeStr.split(':').map(Number)
+  const [endH, endM] = endTimeStr.split(':').map(Number)
   if (startH > endH || (startH === endH && startM >= endM)) {
-    ElMessage.warning(t('meeting.invalidTime'))
+    ElNotification.warning({
+      title: t('meeting.invalidTime'),
+      message: 'The start time must be before the end time.',
+      position: 'top-right'
+    })
     return
   }
 
@@ -188,10 +199,20 @@ const queryMeetingRooms = async () => {
       capacity: meetingForm.capacity
     })
     meetingRooms.value = res || []
-    ElMessage.success(`Found ${meetingRooms.value.length} meeting rooms`)
+    ElNotification({
+      title: 'Search Completed',
+      message: `Found ${meetingRooms.value.length} meeting rooms available.`,
+      type: 'success',
+      duration: 4500,
+      position: 'top-right'
+    })
   } catch (error) {
     console.error(error)
-    ElMessage.error(t('request.failed'))
+    ElNotification.error({
+      title: t('request.failed'),
+      message: 'Failed to retrieve available meeting rooms.',
+      position: 'top-right'
+    })
   } finally {
     loading.value = false
   }
@@ -199,14 +220,32 @@ const queryMeetingRooms = async () => {
 
 const bookRoom = async (room: any) => {
   if (!meetingForm.date) {
-    ElMessage.warning(t('meeting.selectDate'))
+    ElNotification.warning({
+      title: t('meeting.selectDate'),
+      message: 'Please select a date before reserving.',
+      position: 'top-right'
+    })
     return
   }
 
-  const [startH, startM] = meetingForm.startTime.split(':').map(Number)
-  const [endH, endM] = meetingForm.endTime.split(':').map(Number)
+  if (!meetingForm.timeRange || meetingForm.timeRange.length !== 2) {
+    ElNotification.warning({
+      title: t('meeting.invalidTime'),
+      message: 'Please specify a valid reservation time range.',
+      position: 'top-right'
+    })
+    return
+  }
+
+  const [startTimeStr, endTimeStr] = meetingForm.timeRange
+  const [startH, startM] = startTimeStr.split(':').map(Number)
+  const [endH, endM] = endTimeStr.split(':').map(Number)
   if (startH > endH || (startH === endH && startM >= endM)) {
-    ElMessage.warning(t('meeting.invalidTime'))
+    ElNotification.warning({
+      title: t('meeting.invalidTime'),
+      message: 'The reservation start time must be before the end time.',
+      position: 'top-right'
+    })
     return
   }
 
@@ -225,7 +264,7 @@ const bookRoom = async (room: any) => {
       },
       body: JSON.stringify({
         roomId: room.id,
-        booker: 'admin',
+        booker: userStore.userInfo?.username || 'admin',
         startTime: formatDateTime(startTime),
         endTime: formatDateTime(endTime),
         topic: 'Meeting'
@@ -233,7 +272,13 @@ const bookRoom = async (room: any) => {
     })
     const data = await res.json()
     if (data.code === 200) {
-      ElMessage.success(t('meeting.bookSuccess'))
+      ElNotification({
+        title: t('meeting.bookSuccess'),
+        message: `${room.name} (${room.location}) has been reserved successfully.`,
+        type: 'success',
+        duration: 4500,
+        position: 'top-right'
+      })
       // Optimistic UI update
       const idx = meetingRooms.value.findIndex((r: any) => r.id === room.id)
       if (idx !== -1) {
@@ -242,11 +287,23 @@ const bookRoom = async (room: any) => {
       }
       await queryMeetingRooms()
     } else {
-      ElMessage.error(data.message || t('meeting.bookFailed'))
+      ElNotification({
+        title: t('meeting.bookFailed'),
+        message: data.message || 'The selected time slot has dynamic conflict.',
+        type: 'error',
+        duration: 4500,
+        position: 'top-right'
+      })
     }
   } catch (error) {
     console.error(error)
-    ElMessage.error(t('request.failed'))
+    ElNotification({
+      title: t('request.failed'),
+      message: 'Network issue occurred while processing booking.',
+      type: 'error',
+      duration: 4500,
+      position: 'top-right'
+    })
   } finally {
     bookingRoomId.value = null
   }
@@ -255,8 +312,9 @@ const bookRoom = async (room: any) => {
 // Expose interface for parent injection
 const setMeetingData = (data: { date?: any; startTime?: string; endTime?: string; capacity?: number; rooms?: any[] }) => {
   if (data.date) meetingForm.date = data.date
-  if (data.startTime) meetingForm.startTime = data.startTime
-  if (data.endTime) meetingForm.endTime = data.endTime
+  if (data.startTime && data.endTime) {
+    meetingForm.timeRange = [data.startTime, data.endTime]
+  }
   if (data.capacity) meetingForm.capacity = data.capacity
   if (data.rooms) meetingRooms.value = data.rooms
 }
@@ -376,32 +434,98 @@ defineExpose({ setMeetingData, queryMeetingRooms, meetingRooms })
   font-weight: 500;
   color: #374151;
   padding-bottom: 6px;
+  line-height: 1.2 !important;
+  height: 18px !important;
+  display: inline-flex;
+  align-items: center;
 }
-:deep(.el-input__wrapper), :deep(.el-input-number) {
+
+/* Unify heights of all Element Plus form components to exactly 38px */
+:deep(.el-input),
+:deep(.el-select),
+:deep(.el-range-editor.el-input__wrapper),
+:deep(.el-input-number) {
+  height: 38px !important;
+  box-sizing: border-box !important;
+}
+
+/* Align inputs and select wrappers precisely */
+:deep(.el-input__wrapper), 
+:deep(.el-select__wrapper), 
+:deep(.el-range-editor.el-input__wrapper) {
   background: #f9fafb !important;
   border: 1px solid #e5e7eb !important;
   border-radius: 10px !important;
   box-shadow: none !important;
+  height: 38px !important;
+  line-height: 36px !important;
+  box-sizing: border-box !important;
   transition: all 0.15s;
 }
-:deep(.el-input__wrapper:hover), :deep(.el-input-number:hover) {
+
+:deep(.el-input-number) {
+  background: #f9fafb !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  height: 38px !important;
+  line-height: 36px !important;
+  box-sizing: border-box !important;
+  transition: all 0.15s;
+  overflow: hidden !important;
+  width: 100% !important;
+}
+
+:deep(.el-input-number .el-input__wrapper) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  box-sizing: border-box !important;
+}
+
+:deep(.el-input-number__decrease), 
+:deep(.el-input-number__increase) {
+  height: 36px !important;
+  line-height: 36px !important;
+  background: #f3f4f6 !important;
+  border-color: #e5e7eb !important;
+  color: #374151 !important;
+}
+
+:deep(.el-input__wrapper:hover), 
+:deep(.el-select__wrapper:hover), 
+:deep(.el-range-editor.el-input__wrapper:hover),
+:deep(.el-input-number:hover) {
   border-color: #d1d5db !important;
 }
-:deep(.el-input__wrapper.is-focus), :deep(.el-input-number.is-focus) {
+
+:deep(.el-input__wrapper.is-focus), 
+:deep(.el-select__wrapper.is-focused), 
+:deep(.el-range-editor.el-input__wrapper.is-active),
+:deep(.el-input-number.is-focus) {
   border-color: #111827 !important;
   background: #fff !important;
   box-shadow: 0 0 0 3px rgba(17,24,39,0.08) !important;
 }
+
 :deep(.el-button--primary) {
   background-color: #111827 !important;
   border: none !important;
   border-radius: 10px !important;
   height: 38px !important;
+  line-height: 38px !important;
   font-weight: 500;
   transition: all 0.15s;
-  padding: 8px 18px !important;
+  padding: 0 18px !important;
   font-size: 13.5px !important;
+  box-sizing: border-box !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
+
 :deep(.el-button--primary:hover) {
   opacity: 0.88;
   transform: translateY(-1px);
@@ -428,35 +552,53 @@ defineExpose({ setMeetingData, queryMeetingRooms, meetingRooms })
 .search-inline-form {
   display: flex;
   align-items: flex-end;
-  gap: 16px;
-  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
 }
 
 .form-field {
-  flex: 1;
-  min-width: 140px;
+  flex-shrink: 1;
 }
 
 .date-field {
   flex: 1.5;
-  min-width: 150px;
+  min-width: 140px;
 }
 
-.time-field {
-  flex: 1.2;
-  min-width: 120px;
+.time-range-field {
+  flex: 2;
+  min-width: 180px;
 }
 
 .capacity-field {
+  flex: 1;
+  min-width: 90px;
+}
+
+.button-field {
   flex: 1.2;
   min-width: 120px;
 }
 
-.button-field {
-  flex: 1;
-  min-width: 130px;
-  display: flex;
-  justify-content: flex-end;
+@media (max-width: 768px) {
+  .search-inline-form {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    align-items: end;
+  }
+  .date-field {
+    grid-column: span 2;
+  }
+  .time-range-field {
+    grid-column: span 2;
+  }
+  .capacity-field {
+    grid-column: span 1;
+  }
+  .button-field {
+    grid-column: span 1;
+  }
 }
 
 :deep(.search-inline-form .el-form-item) {
