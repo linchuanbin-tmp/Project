@@ -8,8 +8,8 @@ import elementZhCN from 'element-plus/dist/locale/zh-cn.mjs'
 import elementZhTW from 'element-plus/dist/locale/zh-tw.mjs'
 import elementEn from 'element-plus/dist/locale/en.mjs'
 
-// 从 localStorage 读取用户语言偏好，默认简体中文
-const savedLang = localStorage.getItem('lang') || 'zh-CN'
+// 从 localStorage 读取用户语言偏好，默认英文
+const savedLang = localStorage.getItem('lang') || 'en'
 
 // Element Plus locale 映射（供 App.vue ElConfigProvider 使用）
 export const elLocaleMap: Record<string, any> = {
@@ -21,7 +21,7 @@ export const elLocaleMap: Record<string, any> = {
 const i18n = createI18n({
   legacy: false, // Composition API 模式
   locale: savedLang,
-  fallbackLocale: 'zh-CN',
+  fallbackLocale: 'en',
   messages: {
     'zh-CN': zhCN,
     'zh-TW': zhTW,
