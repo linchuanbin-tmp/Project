@@ -1,7 +1,7 @@
 import request from '@utils/request'
 
 // Fetch available meeting rooms
-export const getMeetingRooms = (params?: { date?: string; capacity?: number }) => {
+export const getMeetingRooms = (params?: { startTime?: string; endTime?: string; capacity?: number }) => {
     return request.get('/tool/meeting-rooms', { params })
 }
 

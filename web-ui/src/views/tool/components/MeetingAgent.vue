@@ -13,6 +13,32 @@
             />
           </el-form-item>
         </div>
+
+        <div class="form-field time-field">
+          <el-form-item :label="$t('meeting.startTime')">
+            <el-time-select
+                v-model="meetingForm.startTime"
+                start="08:00"
+                step="00:30"
+                end="22:00"
+                :placeholder="$t('meeting.startTime')"
+                style="width: 100%;"
+            />
+          </el-form-item>
+        </div>
+
+        <div class="form-field time-field">
+          <el-form-item :label="$t('meeting.endTime')">
+            <el-time-select
+                v-model="meetingForm.endTime"
+                start="08:00"
+                step="00:30"
+                end="22:00"
+                :placeholder="$t('meeting.endTime')"
+                style="width: 100%;"
+            />
+          </el-form-item>
+        </div>
         
         <div class="form-field capacity-field">
           <el-form-item :label="$t('meeting.capacity')">
@@ -114,6 +140,8 @@ const disabledDate = (time: Date) => {
 
 const meetingForm = reactive({
   date: '' as any,
+  startTime: '09:00',
+  endTime: '11:00',
   capacity: 10
 })
 
@@ -140,11 +168,19 @@ const queryMeetingRooms = async () => {
     ElMessage.warning(t('meeting.selectDate'))
     return
   }
+  
+  const [startH, startM] = meetingForm.startTime.split(':').map(Number)
+  const [endH, endM] = meetingForm.endTime.split(':').map(Number)
+  if (startH > endH || (startH === endH && startM >= endM)) {
+    ElMessage.warning(t('meeting.invalidTime'))
+    return
+  }
+
   loading.value = true
   try {
     const date = new Date(meetingForm.date)
-    const startTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0)
-    const endTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 11, 0, 0)
+    const startTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), startH, startM, 0)
+    const endTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), endH, endM, 0)
 
     const res: any = await getMeetingRooms({
       startTime: formatDateTime(startTime),
@@ -167,12 +203,19 @@ const bookRoom = async (room: any) => {
     return
   }
 
+  const [startH, startM] = meetingForm.startTime.split(':').map(Number)
+  const [endH, endM] = meetingForm.endTime.split(':').map(Number)
+  if (startH > endH || (startH === endH && startM >= endM)) {
+    ElMessage.warning(t('meeting.invalidTime'))
+    return
+  }
+
   bookingRoomId.value = room.id
   try {
     const token = getToken()
     const date = new Date(meetingForm.date)
-    const startTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0)
-    const endTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 11, 0, 0)
+    const startTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), startH, startM, 0)
+    const endTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), endH, endM, 0)
 
     const res = await fetch('/api/tool/meeting-room/book', {
       method: 'POST',
@@ -210,8 +253,10 @@ const bookRoom = async (room: any) => {
 }
 
 // Expose interface for parent injection
-const setMeetingData = (data: { date?: any; capacity?: number; rooms?: any[] }) => {
+const setMeetingData = (data: { date?: any; startTime?: string; endTime?: string; capacity?: number; rooms?: any[] }) => {
   if (data.date) meetingForm.date = data.date
+  if (data.startTime) meetingForm.startTime = data.startTime
+  if (data.endTime) meetingForm.endTime = data.endTime
   if (data.capacity) meetingForm.capacity = data.capacity
   if (data.rooms) meetingRooms.value = data.rooms
 }
@@ -393,8 +438,13 @@ defineExpose({ setMeetingData, queryMeetingRooms, meetingRooms })
 }
 
 .date-field {
-  flex: 2; /* Date field gets double width */
-  min-width: 180px;
+  flex: 1.5;
+  min-width: 150px;
+}
+
+.time-field {
+  flex: 1.2;
+  min-width: 120px;
 }
 
 .capacity-field {

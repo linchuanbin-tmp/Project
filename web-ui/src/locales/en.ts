@@ -258,6 +258,7 @@ export default {
     bookFailed: 'Booking failed',
     selectDate: 'Please select a date',
     capacityUnit: 'people',
+    invalidTime: 'End time must be after start time',
   },
 
   // Schedule Agent Sub-component

@@ -258,6 +258,7 @@ export default {
     bookFailed: '预订失败',
     selectDate: '请选择日期',
     capacityUnit: '人',
+    invalidTime: '结束时间必须晚于开始时间',
   },
 
   // 日程 Agent 子组件

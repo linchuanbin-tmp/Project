@@ -449,6 +449,19 @@ const fetchTaskResult = async () => {
       if (finalDateStr) updateData.date = new Date(finalDateStr + 'T00:00:00')
       if (finalCapacity) updateData.capacity = finalCapacity
 
+      let finalStartTime = '09:00'
+      let finalEndTime = '11:00'
+      const parsedTimeRangeStr = aiParams.timeRange || extracted.timeRange
+      if (parsedTimeRangeStr && parsedTimeRangeStr.includes(' to ')) {
+        const parts = parsedTimeRangeStr.split(' to ')
+        if (parts.length === 2) {
+          finalStartTime = parts[0]
+          finalEndTime = parts[1]
+        }
+      }
+      updateData.startTime = finalStartTime
+      updateData.endTime = finalEndTime
+
       meetingAgentRef.value?.setMeetingData(updateData)
       await meetingAgentRef.value?.queryMeetingRooms()
 
