@@ -579,8 +579,18 @@ const handleCommand = (command: string) => {
   transition: all 0.15s ease-in-out;
   user-select: none;
   max-width: 180px;
+  min-width: 80px; /* Prevent shrinking too small */
+  flex-shrink: 1; /* Allow sharing space when tabs pile up */
   overflow: hidden;
   box-sizing: border-box;
+}
+
+.tab-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0; /* Enable flex-child text truncation */
 }
 
 .tab-item.has-close {
@@ -611,6 +621,7 @@ const handleCommand = (command: string) => {
   border-radius: 50%;
   color: #94a3b8;
   transition: all 0.1s;
+  flex-shrink: 0; /* NEVER shrink or deform the close button */
 }
 
 .tab-close-icon:hover {
