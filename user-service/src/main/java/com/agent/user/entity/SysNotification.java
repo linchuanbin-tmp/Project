@@ -25,6 +25,10 @@ public class SysNotification {
 
     private String payload;
 
+    private Long parentId;
+
+    private Long threadId;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

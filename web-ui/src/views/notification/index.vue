@@ -129,13 +129,17 @@
               <div class="detail-meta-grid">
                 <div class="meta-item">
                   <span class="meta-label">{{ $t('notification.from') }}:</span>
-                  <span class="meta-value highlight">{{ selectedMessage.senderRealName || selectedMessage.senderName }}</span>
-                  <span class="meta-sub" v-if="selectedMessage.senderId > 0">@{{ selectedMessage.senderName }}</span>
+                  <span class="user-capsule-premium sender">
+                    <span class="capsule-name">{{ selectedMessage.senderRealName || selectedMessage.senderName }}</span>
+                    <span class="capsule-handle" v-if="selectedMessage.senderId > 0">@{{ selectedMessage.senderName }}</span>
+                  </span>
                 </div>
                 <div class="meta-item">
                   <span class="meta-label">{{ $t('notification.to') }}:</span>
-                  <span class="meta-value">{{ selectedMessage.receiverRealName || selectedMessage.receiverName }}</span>
-                  <span class="meta-sub">@{{ selectedMessage.receiverName }}</span>
+                  <span class="user-capsule-premium receiver">
+                    <span class="capsule-name">{{ selectedMessage.receiverRealName || selectedMessage.receiverName }}</span>
+                    <span class="capsule-handle">@{{ selectedMessage.receiverName }}</span>
+                  </span>
                 </div>
                 <div class="meta-item">
                   <span class="meta-label">{{ $t('notification.date') }}:</span>
@@ -152,88 +156,110 @@
 
             <!-- Detail Body -->
             <div class="detail-body">
-              <div class="message-text">
-                <p>{{ selectedMessage.content }}</p>
-              </div>
+              
+              <!-- Thread Messages Timeline Container -->
+              <div class="thread-timeline">
+                <div 
+                  v-for="msgItem in threadMessages" 
+                  :key="msgItem.id" 
+                  class="timeline-bubble-item" 
+                  :class="{ 
+                    'sent-by-me': msgItem.senderName === userStore.userInfo?.username,
+                    'ticket-bubble': msgItem.notifyType === 'SUPPORT_TICKET' || msgItem.notifyType === 'BUG_REPORT'
+                  }"
+                >
+                  <div class="bubble-header">
+                    <span class="bubble-sender-name">
+                      {{ msgItem.senderName === userStore.userInfo?.username ? $t('notification.sentMessages') : (msgItem.senderRealName || msgItem.senderName) }}
+                    </span>
+                    <span class="bubble-time">{{ formatTime(msgItem.createTime) }}</span>
+                  </div>
+                  <div class="bubble-content-wrap">
+                    <p class="bubble-text">{{ msgItem.content }}</p>
 
-              <!-- Custom Renderer: RAG_APPLY -->
-              <div v-if="selectedMessage.notifyType === 'RAG_APPLY' && parsedPayload" class="payload-container rag-card">
-                <div class="payload-header">
-                  <BookOpen :size="16" />
-                  <span>RAG Permission Request Details</span>
-                </div>
-                <div class="payload-body">
-                  <div class="info-grid">
-                    <div class="info-cell">
-                      <span class="info-label">Applicant:</span>
-                      <span class="info-val">{{ parsedPayload.username }} (ID: {{ parsedPayload.userId }})</span>
+                    <!-- Render payload ONLY on the message that contains it -->
+                    <!-- Custom Renderer: RAG_APPLY -->
+                    <div v-if="msgItem.notifyType === 'RAG_APPLY' && msgItem.payload && parseSinglePayload(msgItem.payload)" class="payload-container rag-card">
+                      <div class="payload-header">
+                        <BookOpen :size="16" />
+                        <span>RAG Permission Request Details</span>
+                      </div>
+                      <div class="payload-body">
+                        <div class="info-grid">
+                          <div class="info-cell">
+                            <span class="info-label">Applicant:</span>
+                            <span class="info-val">{{ parseSinglePayload(msgItem.payload).username }} (ID: {{ parseSinglePayload(msgItem.payload).userId }})</span>
+                          </div>
+                          <div class="info-cell">
+                            <span class="info-label">Target Document:</span>
+                            <span class="info-val code-font">{{ parseSinglePayload(msgItem.payload).docName }}</span>
+                          </div>
+                          <div class="info-cell">
+                            <span class="info-label">Document ID:</span>
+                            <span class="info-val">{{ parseSinglePayload(msgItem.payload).docId }}</span>
+                          </div>
+                          <div class="info-cell">
+                            <span class="info-label">Required Security Level:</span>
+                            <span class="info-val">
+                              <span class="level-tag" :class="'level-' + parseSinglePayload(msgItem.payload).level">
+                                Level {{ parseSinglePayload(msgItem.payload).level }}
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div class="info-cell">
-                      <span class="info-label">Target Document:</span>
-                      <span class="info-val code-font">{{ parsedPayload.docName }}</span>
-                    </div>
-                    <div class="info-cell">
-                      <span class="info-label">Document ID:</span>
-                      <span class="info-val">{{ parsedPayload.docId }}</span>
-                    </div>
-                    <div class="info-cell">
-                      <span class="info-label">Required Security Level:</span>
-                      <span class="info-val">
-                        <span class="level-tag" :class="'level-' + parsedPayload.level">
-                          Level {{ parsedPayload.level }}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              <!-- Custom Renderer: SQL_AUDIT -->
-              <div v-if="selectedMessage.notifyType === 'SQL_AUDIT' && parsedPayload" class="payload-container sql-card">
-                <div class="payload-header">
-                  <Database :size="16" />
-                  <span>SQL Interception Audit details</span>
-                </div>
-                <div class="payload-body">
-                  <div class="audit-meta">
-                    <span class="meta-lbl">Triggered By:</span>
-                    <span class="meta-val">{{ parsedPayload.username }} (ID: {{ parsedPayload.userId }})</span>
-                  </div>
-                  <div class="audit-meta">
-                    <span class="meta-lbl">Intercept Reason:</span>
-                    <span class="meta-val warning-text">{{ parsedPayload.reason }}</span>
-                  </div>
-                  <div class="sql-code-block">
-                    <div class="code-header">Generated SQL Query</div>
-                    <pre><code>{{ parsedPayload.sql }}</code></pre>
-                  </div>
-                </div>
-              </div>
+                    <!-- Custom Renderer: SQL_AUDIT -->
+                    <div v-if="msgItem.notifyType === 'SQL_AUDIT' && msgItem.payload && parseSinglePayload(msgItem.payload)" class="payload-container sql-card">
+                      <div class="payload-header">
+                        <Database :size="16" />
+                        <span>SQL Interception Audit details</span>
+                      </div>
+                      <div class="payload-body">
+                        <div class="audit-meta">
+                          <span class="meta-lbl">Triggered By:</span>
+                          <span class="meta-val">{{ parseSinglePayload(msgItem.payload).username }} (ID: {{ parseSinglePayload(msgItem.payload).userId }})</span>
+                        </div>
+                        <div class="audit-meta">
+                          <span class="meta-lbl">Intercept Reason:</span>
+                          <span class="meta-val warning-text">{{ parseSinglePayload(msgItem.payload).reason }}</span>
+                        </div>
+                        <div class="sql-code-block">
+                          <div class="code-header">Generated SQL Query</div>
+                          <pre><code>{{ parseSinglePayload(msgItem.payload).sql }}</code></pre>
+                        </div>
+                      </div>
+                    </div>
 
-              <!-- Custom Renderer: BUG_REPORT -->
-              <div v-if="selectedMessage.notifyType === 'BUG_REPORT' && parsedPayload" class="payload-container bug-card">
-                <div class="payload-header">
-                  <Bug :size="16" />
-                  <span>AI Agent Execution Trace Panel</span>
-                </div>
-                <div class="payload-body">
-                  <el-collapse class="trace-collapse">
-                    <el-collapse-item title="1. User Prompt" name="1">
-                      <div class="trace-box">{{ parsedPayload.prompt }}</div>
-                    </el-collapse-item>
-                    <el-collapse-item title="2. RAG Retrieved Documents (Milvus Top-K)" name="2">
-                      <pre class="trace-box pre-wrap">{{ parsedPayload.milvusTopK || 'No retrieval data.' }}</pre>
-                    </el-collapse-item>
-                    <el-collapse-item title="3. LLM Response Output" name="3">
-                      <pre class="trace-box pre-wrap">{{ parsedPayload.response || 'No response content.' }}</pre>
-                    </el-collapse-item>
-                    <el-collapse-item title="4. Generated SQL Code" name="4" v-if="parsedPayload.generatedSql">
-                      <pre class="trace-box sql-font"><code>{{ parsedPayload.generatedSql }}</code></pre>
-                    </el-collapse-item>
-                    <el-collapse-item title="5. System Error Output" name="5" v-if="parsedPayload.error">
-                      <pre class="trace-box error-text">{{ parsedPayload.error }}</pre>
-                    </el-collapse-item>
-                  </el-collapse>
+                    <!-- Custom Renderer: BUG_REPORT -->
+                    <div v-if="msgItem.notifyType === 'BUG_REPORT' && msgItem.payload && parseSinglePayload(msgItem.payload)" class="payload-container bug-card">
+                      <div class="payload-header">
+                        <Bug :size="16" />
+                        <span>AI Agent Execution Trace Panel</span>
+                      </div>
+                      <div class="payload-body">
+                        <el-collapse class="trace-collapse">
+                          <el-collapse-item title="1. User Prompt" name="1">
+                            <div class="trace-box">{{ parseSinglePayload(msgItem.payload).prompt }}</div>
+                          </el-collapse-item>
+                          <el-collapse-item title="2. RAG Retrieved Documents (Milvus Top-K)" name="2">
+                            <pre class="trace-box pre-wrap">{{ parseSinglePayload(msgItem.payload).milvusTopK || 'No retrieval data.' }}</pre>
+                          </el-collapse-item>
+                          <el-collapse-item title="3. LLM Response Output" name="3">
+                            <pre class="trace-box pre-wrap">{{ parseSinglePayload(msgItem.payload).response || 'No response content.' }}</pre>
+                          </el-collapse-item>
+                          <el-collapse-item title="4. Generated SQL Code" name="4" v-if="parseSinglePayload(msgItem.payload).generatedSql">
+                            <pre class="trace-box sql-font"><code>{{ parseSinglePayload(msgItem.payload).generatedSql }}</code></pre>
+                          </el-collapse-item>
+                          <el-collapse-item title="5. System Error Output" name="5" v-if="parseSinglePayload(msgItem.payload).error">
+                            <pre class="trace-box error-text">{{ parseSinglePayload(msgItem.payload).error }}</pre>
+                          </el-collapse-item>
+                        </el-collapse>
+                      </div>
+                    </div>
+
+                  </div>
                 </div>
               </div>
 
@@ -268,6 +294,19 @@
                   </el-button>
                 </div>
               </div>
+
+              <!-- Quick Reply Trigger Button -->
+              <div v-else-if="canReplySelected" class="reply-trigger-box">
+                <el-button
+                  type="primary"
+                  class="btn-reply-trigger"
+                  @click="openReplyDialog"
+                >
+                  <Reply :size="14" />
+                  <span>{{ $t('notification.replyBtn') }}</span>
+                </el-button>
+              </div>
+
             </div>
           </div>
         </el-col>
@@ -278,45 +317,123 @@
     <el-dialog
       v-model="sendDialogVisible"
       :title="$t('notification.composeMessage')"
-      width="520px"
+      width="820px"
       class="custom-dialog"
       :before-close="closeSendDialog"
     >
-      <el-form :model="sendForm" :rules="sendRules" ref="sendFormRef" label-position="top">
-        <el-form-item :label="$t('notification.recipient')" prop="receiverId">
-          <el-select v-model="sendForm.receiverId" :placeholder="$t('notification.selectRecipient')" style="width: 100%">
-            <el-option
-              v-for="user in userList"
-              :key="user.id"
-              :label="`${user.realName || user.username} (@${user.username})`"
-              :value="user.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="$t('notification.messageType')" prop="notifyType">
-          <el-select v-model="sendForm.notifyType" :placeholder="$t('notification.selectType')" style="width: 100%" @change="onNotifyTypeChange">
-            <el-option label="Chat Message" value="CHAT" />
-            <el-option label="RAG Permission Escalation (Mock Request)" value="RAG_APPLY" />
-            <el-option label="SQL Security Intercept (Mock Intercept)" value="SQL_AUDIT" />
-            <el-option label="Bug / Hallucination Trace Report (Mock Bug)" value="BUG_REPORT" />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="$t('notification.titleField')" prop="title">
-          <el-input v-model="sendForm.title" :placeholder="$t('notification.titlePlaceholder')" />
-        </el-form-item>
-        <el-form-item :label="$t('notification.content')" prop="content">
-          <el-input
-            v-model="sendForm.content"
-            type="textarea"
-            :rows="4"
-            :placeholder="$t('notification.contentPlaceholder')"
-          />
-        </el-form-item>
-      </el-form>
+      <div class="compose-split-layout">
+        <!-- Left: Recipient Selection -->
+        <div class="compose-left-pane">
+          <h4 class="pane-title">{{ $t('notification.selectRecipients') }}</h4>
+          <div class="recipient-groups-list">
+            <div v-for="(group, deptName) in groupedUsers" :key="deptName" class="dept-group-item">
+              <div class="dept-group-header">
+                <el-checkbox
+                  v-model="group.selectedAll"
+                  :indeterminate="group.isIndeterminate"
+                  @change="(val) => handleDeptSelectAll(deptName, val)"
+                >
+                  <span class="dept-group-name">{{ deptName }}</span>
+                </el-checkbox>
+                <span class="dept-count-badge">{{ group.users.length }}</span>
+              </div>
+              <div class="dept-group-members">
+                <el-checkbox
+                  v-for="user in group.users"
+                  :key="user.id"
+                  v-model="user.selected"
+                  @change="handleUserSelectChange(deptName)"
+                  class="member-checkbox"
+                >
+                  <div class="member-checkbox-label">
+                    <span class="member-realname">{{ user.realName || user.username }}</span>
+                    <span class="member-username">@{{ user.username }}</span>
+                  </div>
+                </el-checkbox>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Message Form -->
+        <div class="compose-right-pane">
+          <el-form :model="sendForm" :rules="sendRules" ref="sendFormRef" label-position="top">
+            <el-form-item :label="$t('notification.messageType')" prop="notifyType">
+              <el-select v-model="sendForm.notifyType" :placeholder="$t('notification.selectType')" style="width: 100%" @change="onNotifyTypeChange">
+                <el-option label="Chat Message" value="CHAT" />
+                <el-option label="RAG Permission Escalation (Mock Request)" value="RAG_APPLY" />
+                <el-option label="SQL Security Intercept (Mock Intercept)" value="SQL_AUDIT" />
+                <el-option label="Bug / Hallucination Trace Report (Mock Bug)" value="BUG_REPORT" />
+              </el-select>
+            </el-form-item>
+            <el-form-item :label="$t('notification.titleField')" prop="title">
+              <el-input v-model="sendForm.title" :placeholder="$t('notification.titlePlaceholder')" />
+            </el-form-item>
+            <el-form-item :label="$t('notification.content')" prop="content">
+              <el-input
+                v-model="sendForm.content"
+                type="textarea"
+                :rows="4"
+                :placeholder="$t('notification.contentPlaceholder')"
+              />
+            </el-form-item>
+          </el-form>
+
+          <!-- Selection Summary Badge -->
+          <div class="selected-recipients-summary">
+            <span>{{ $t('notification.recipient') }}: </span>
+            <el-tag type="info" class="recipients-tag">
+              {{ selectedReceiverIds.length }} {{ $t('notification.unread') === 'Unread' ? 'users' : '人' }}
+            </el-tag>
+          </div>
+        </div>
+      </div>
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="closeSendDialog">{{ $t('common.cancel') }}</el-button>
           <el-button type="primary" @click="submitSendMessage" :loading="sendingMessage">{{ $t('common.send') }}</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- Reply Message Dialog -->
+    <el-dialog
+      v-model="replyDialogVisible"
+      :title="$t('notification.replyTitle')"
+      width="480px"
+      class="custom-dialog"
+      :before-close="closeReplyDialog"
+    >
+      <div class="reply-dialog-body" style="padding: 10px 0;">
+        <el-form label-position="top">
+          <el-form-item :label="$t('notification.replyTo')">
+            <el-input :value="selectedMessage ? (selectedMessage.senderRealName || selectedMessage.senderName) : ''" disabled />
+          </el-form-item>
+          <el-form-item :label="$t('notification.content')">
+            <el-input
+              v-model="replyContent"
+              :placeholder="$t('notification.replyPlaceholder')"
+              type="textarea"
+              :rows="4"
+              class="reply-textarea"
+              maxlength="1000"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="closeReplyDialog">{{ $t('common.cancel') }}</el-button>
+          <el-button
+            type="primary"
+            :loading="sendingReply"
+            :disabled="!replyContent.trim()"
+            class="confirm-btn"
+            @click="submitReply"
+          >
+            {{ $t('common.submit') }}
+          </el-button>
         </div>
       </template>
     </el-dialog>
@@ -333,11 +450,12 @@ import {
   markAsRead,
   handleAction,
   sendNotification,
-  getUsers
+  getUsers,
+  getThread
 } from '@/api/notification'
 import {
   Plus, RefreshCw, Inbox, Mail, Send,
-  Clock, Check, X, BookOpen, Database, Bug
+  Clock, Check, X, BookOpen, Database, Bug, Reply
 } from 'lucide-vue-next'
 
 const { t } = useI18n()
@@ -363,7 +481,6 @@ const sendDialogVisible = ref(false)
 const userList = ref<any[]>([])
 const sendFormRef = ref<any>(null)
 const sendForm = ref({
-  receiverId: null as number | null,
   notifyType: 'CHAT',
   title: '',
   content: '',
@@ -371,7 +488,6 @@ const sendForm = ref({
 })
 
 const sendRules = {
-  receiverId: [{ required: true, message: t('notification.selectRecipient'), trigger: 'change' }],
   notifyType: [{ required: true, message: t('notification.selectType'), trigger: 'change' }],
   title: [{ required: true, message: t('notification.titleRequired'), trigger: 'blur' }],
   content: [{ required: true, message: t('notification.contentRequired'), trigger: 'blur' }]
@@ -433,16 +549,100 @@ const fetchData = async () => {
   }
 }
 
+const threadMessages = ref<any[]>([])
+const loadingThread = ref(false)
+const replyContent = ref('')
+const sendingReply = ref(false)
+
+const canReplySelected = computed(() => {
+  const msg = selectedMessage.value
+  if (!msg) return false
+  if (msg.senderId === 0) return false
+  if (msg.status === 2 && activeFilter.value !== 'sent') return false
+  return true
+})
+
+const fetchThread = async (msg: any) => {
+  if (msg.threadId) {
+    loadingThread.value = true
+    try {
+      const res: any = await getThread(msg.threadId)
+      threadMessages.value = res || []
+    } catch (e: any) {
+      console.error('Failed to load thread:', e)
+      threadMessages.value = [msg]
+    } finally {
+      loadingThread.value = false
+    }
+  } else {
+    threadMessages.value = [msg]
+  }
+}
+
+const parseSinglePayload = (payloadStr: string) => {
+  if (!payloadStr) return null
+  try {
+    return JSON.parse(payloadStr)
+  } catch (e) {
+    return null
+  }
+}
+
+const replyDialogVisible = ref(false)
+
+const openReplyDialog = () => {
+  replyContent.value = ''
+  replyDialogVisible.value = true
+}
+
+const closeReplyDialog = () => {
+  replyContent.value = ''
+  replyDialogVisible.value = false
+}
+
+const submitReply = async () => {
+  if (!selectedMessage.value || !replyContent.value.trim()) return
+  sendingReply.value = true
+  try {
+    const parentMsg = selectedMessage.value
+    const receiverId = parentMsg.senderName === userStore.userInfo?.username ? parentMsg.receiverId : parentMsg.senderId
+
+    await sendNotification({
+      receiverId,
+      title: parentMsg.title.startsWith('Re:') ? parentMsg.title : `Re: ${parentMsg.title}`,
+      content: replyContent.value.trim(),
+      notifyType: parentMsg.notifyType,
+      parentId: parentMsg.id
+    })
+
+    ElMessage.success(t('notification.replySuccess'))
+    closeReplyDialog()
+    
+    if (parentMsg.threadId) {
+      await fetchThread(parentMsg)
+    } else {
+      parentMsg.threadId = parentMsg.id
+      await fetchThread(parentMsg)
+      fetchData()
+    }
+  } catch (e: any) {
+    ElMessage.error(t('notification.sendError') + e.message)
+  } finally {
+    sendingReply.value = false
+  }
+}
+
 const selectMessage = async (msg: any) => {
   selectedMessage.value = msg
   opinion.value = ''
+  replyContent.value = ''
 
-  // Mark as read immediately if it's currently unread and we are in inbox
+  await fetchThread(msg)
+
   if (msg.status === 0 && activeFilter.value !== 'sent') {
     try {
       await markAsRead(msg.id)
-      msg.status = 1 // update state locally
-      // refresh badges
+      msg.status = 1
       unreadCounts.value.unread = Math.max(0, unreadCounts.value.unread - 1)
     } catch (e) {
       console.error(e)
@@ -476,21 +676,84 @@ const submitApproval = async (action: 'APPROVE' | 'DENY') => {
   }
 }
 
+const groupedUsers = ref<Record<string, {
+  selectedAll: boolean
+  isIndeterminate: boolean
+  users: Array<{
+    id: number
+    username: string
+    realName: string
+    selected: boolean
+  }>
+}>>({})
+
+const buildGroupedUsers = () => {
+  const groups: Record<string, any> = {}
+  userList.value.forEach((u: any) => {
+    const deptName = u.deptName || 'Unassigned'
+    if (!groups[deptName]) {
+      groups[deptName] = {
+        selectedAll: false,
+        isIndeterminate: false,
+        users: []
+      }
+    }
+    groups[deptName].users.push({
+      id: u.id,
+      username: u.username,
+      realName: u.realName,
+      selected: false
+    })
+  })
+  groupedUsers.value = groups
+}
+
+const handleDeptSelectAll = (deptName: string, checked: boolean) => {
+  const group = groupedUsers.value[deptName]
+  if (!group) return
+  group.users.forEach((user) => {
+    user.selected = checked
+  })
+  group.isIndeterminate = false
+}
+
+const handleUserSelectChange = (deptName: string) => {
+  const group = groupedUsers.value[deptName]
+  if (!group) return
+  const checkedCount = group.users.filter(u => u.selected).length
+  const totalCount = group.users.length
+
+  group.selectedAll = checkedCount === totalCount
+  group.isIndeterminate = checkedCount > 0 && checkedCount < totalCount
+}
+
+const selectedReceiverIds = computed(() => {
+  const ids: number[] = []
+  Object.values(groupedUsers.value).forEach((group) => {
+    group.users.forEach((user) => {
+      if (user.selected) {
+        ids.push(user.id)
+      }
+    })
+  })
+  return ids
+})
+
 // Compose Dialog Actions
 const openSendDialog = async () => {
   sendDialogVisible.value = true
   sendForm.value = {
-    receiverId: null,
     notifyType: 'CHAT',
     title: '',
     content: '',
     payload: ''
   }
+  groupedUsers.value = {}
 
   try {
     const users: any = await getUsers()
-    // Exclude current user from recipient selection
     userList.value = (users || []).filter((u: any) => u.username !== userStore.userInfo?.username)
+    buildGroupedUsers()
   } catch (e: any) {
     ElMessage.error(t('notification.loadUserError') + e.message)
   }
@@ -541,18 +804,26 @@ const onNotifyTypeChange = (type: string) => {
 }
 
 const submitSendMessage = () => {
+  if (selectedReceiverIds.value.length === 0) {
+    ElMessage.warning(t('notification.selectRecipient'))
+    return
+  }
   if (!sendFormRef.value) return
   sendFormRef.value.validate(async (valid: boolean) => {
     if (valid) {
       sendingMessage.value = true
       try {
-        await sendNotification({
-          receiverId: sendForm.value.receiverId!,
-          title: sendForm.value.title,
-          content: sendForm.value.content,
-          notifyType: sendForm.value.notifyType,
-          payload: sendForm.value.payload || undefined
-        })
+        const sendPromises = selectedReceiverIds.value.map(receiverId => 
+          sendNotification({
+            receiverId,
+            title: sendForm.value.title,
+            content: sendForm.value.content,
+            notifyType: sendForm.value.notifyType,
+            payload: sendForm.value.payload || undefined
+          })
+        )
+        await Promise.all(sendPromises)
+
         ElMessage.success(t('notification.sendSuccess'))
         closeSendDialog()
         fetchData()
@@ -934,6 +1205,7 @@ onMounted(() => {
 .type-badge.sql_audit { background: #fee2e2; color: #991b1b; }
 .type-badge.bug_report { background: #f3e8ff; color: #6b21a8; }
 .type-badge.meeting { background: #dcfce7; color: #166534; }
+.type-badge.support_ticket { background: #e0f2fe; color: #0369a1; }
 
 .msg-summary {
   font-size: 12.5px;
@@ -1000,9 +1272,9 @@ onMounted(() => {
 }
 
 .detail-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
 }
 
 .meta-item {
@@ -1017,24 +1289,52 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.meta-value {
-  color: #1e293b;
-  font-weight: 600;
+.user-capsule-premium {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-size: 12.5px;
+  line-height: 1.2;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-.meta-value.highlight {
+.user-capsule-premium .capsule-name {
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 150px;
+}
+
+.user-capsule-premium.sender .capsule-name {
   color: #10b981;
 }
 
-.meta-sub {
+.user-capsule-premium.receiver .capsule-name {
+  color: #1e293b;
+}
+
+.user-capsule-premium .capsule-handle {
   color: #94a3b8;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 120px;
 }
 
 .detail-body {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  flex: 1;
+  overflow: hidden;
 }
 
 .message-text {
@@ -1042,6 +1342,152 @@ onMounted(() => {
   color: #334155;
   line-height: 1.6;
   white-space: pre-wrap;
+}
+
+/* Thread Timeline & Reply Box Styles */
+.thread-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 6px;
+  margin-bottom: 16px;
+}
+
+.timeline-bubble-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 85%;
+  align-self: flex-start;
+}
+
+.timeline-bubble-item.sent-by-me {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.bubble-header {
+  display: flex;
+  gap: 8px;
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+  padding: 0 4px;
+}
+
+.bubble-sender-name {
+  font-weight: 600;
+}
+
+.bubble-content-wrap {
+  background: #f1f5f9;
+  border-radius: 12px;
+  border-top-left-radius: 4px;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+}
+
+.sent-by-me .bubble-content-wrap {
+  background: #f0fdf4;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 4px;
+  border-color: #dcfce7;
+}
+
+.bubble-text {
+  font-size: 13.5px;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.sent-by-me .bubble-text {
+  color: #14532d;
+}
+
+.reply-editor-box {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reply-textarea :deep(.el-textarea__inner) {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13.5px;
+  box-shadow: none !important;
+  transition: all 0.15s;
+}
+
+.reply-textarea :deep(.el-textarea__inner:hover) {
+  border-color: #cbd5e1;
+  background: #fff;
+}
+
+.reply-textarea :deep(.el-textarea__inner:focus) {
+  border-color: #1e293b;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.08) !important;
+}
+
+.reply-actions-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-send-reply {
+  background: #1e293b;
+  border-color: #1e293b;
+  border-radius: 8px;
+  font-size: 13px;
+  padding: 8px 16px;
+  font-weight: 500;
+}
+
+.btn-send-reply:hover {
+  background: #334155 !important;
+  border-color: #334155 !important;
+}
+
+.reply-trigger-box {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 16px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.btn-reply-trigger {
+  background: #1e293b;
+  border-color: #1e293b;
+  border-radius: 8px;
+  font-size: 13px;
+  padding: 8px 18px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-reply-trigger:hover {
+  background: #334155 !important;
+  border-color: #334155 !important;
+}
+
+/* Special bubble colors for Support Tickets & Bug Reports */
+.timeline-bubble-item.ticket-bubble:not(.sent-by-me) .bubble-content-wrap {
+  background: #f0f9ff;
+  border-color: #e0f2fe;
+}
+
+.timeline-bubble-item.ticket-bubble:not(.sent-by-me) .bubble-text {
+  color: #0369a1;
 }
 
 /* Payloads */
@@ -1266,5 +1712,124 @@ onMounted(() => {
   border-top: 1px solid #f1f5f9;
   padding-top: 16px;
   margin-top: 20px;
+}
+
+/* Compose Message Split Dialog Styles */
+.compose-split-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 24px;
+  min-height: 380px;
+}
+
+.compose-left-pane {
+  border-right: 1px solid #f1f5f9;
+  padding-right: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 400px;
+  overflow: hidden;
+}
+
+.pane-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 12px 0;
+}
+
+.recipient-groups-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dept-group-item {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.dept-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 6px;
+}
+
+.dept-group-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #334155;
+}
+
+.dept-count-badge {
+  background: #cbd5e1;
+  color: #475569;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.dept-group-members {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 6px;
+}
+
+.member-checkbox {
+  margin-right: 0 !important;
+  height: auto !important;
+  display: flex;
+  align-items: center;
+}
+
+.member-checkbox-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.2;
+}
+
+.member-realname {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.member-username {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.compose-right-pane {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.selected-recipients-summary {
+  margin-top: auto;
+  background: #f1f5f9;
+  padding: 10px 14px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #475569;
+}
+
+.recipients-tag {
+  font-weight: 600;
+  font-size: 12px;
 }
 </style>

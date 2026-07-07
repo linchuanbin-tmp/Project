@@ -309,10 +309,13 @@ CREATE TABLE `sys_notification` (
   `status`      int          DEFAULT '1'    COMMENT '1=Unread, 2=Read Pending Approval, 3=Approved/Resolved, 4=Rejected/Denied',
   `payload`     text         DEFAULT NULL   COMMENT 'JSON payload parameters',
   `opinion`     text         DEFAULT NULL   COMMENT 'Approval review comments',
+  `parent_id`   bigint       DEFAULT NULL   COMMENT 'Parent notification ID',
+  `thread_id`   bigint       DEFAULT NULL   COMMENT 'Root conversation thread ID',
   `create_time` datetime     DEFAULT CURRENT_TIMESTAMP,
   `update_time` datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted`     tinyint      NOT NULL DEFAULT 0 COMMENT '逻辑删除 0=正常 1=已删除',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_thread_id` (`thread_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统通知表';
 
 INSERT INTO `sys_notification` VALUES

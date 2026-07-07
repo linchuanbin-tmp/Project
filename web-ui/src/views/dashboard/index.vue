@@ -57,7 +57,7 @@
             <button class="schedule-btn" @click="router.push('/app/tool')">{{ $t('dashboard.bookRoom') }}</button>
           </div>
           <div v-else class="events-list">
-            <div v-for="event in comingEvents" :key="event.id" class="event-item-premium">
+            <div v-for="event in displayedEvents" :key="event.id" class="event-item-premium">
               <div class="event-content-premium">
                 <div class="event-meta-row-premium">
                   <div class="event-date-pill">
@@ -85,6 +85,11 @@
                 </div>
               </div>
             </div>
+            
+            <div v-if="comingEvents.length > 2" class="more-events-link" @click="showAllEventsDialog = true">
+              <span>{{ comingEvents.length - 2 }} more events</span>
+              <ArrowRight :size="12" class="arrow-icon" />
+            </div>
           </div>
         </div>
       </div>
@@ -101,6 +106,46 @@
         </div>
       </div>
     </div>
+    <!-- All Events Modal Dialog -->
+    <el-dialog
+        v-model="showAllEventsDialog"
+        :title="$t('dashboard.comingEvents')"
+        width="520px"
+        destroy-on-close
+        align-center
+        class="premium-dialog-events"
+    >
+      <div class="dialog-events-list">
+        <div v-for="event in comingEvents" :key="event.id" class="event-item-premium dialog-item">
+          <div class="event-content-premium">
+            <div class="event-meta-row-premium">
+              <div class="event-date-pill">
+                <Calendar :size="11" />
+                <span>{{ formatEventDate(event.startTime) }}</span>
+              </div>
+              <div class="event-time-premium">
+                <Clock :size="11" />
+                <span>{{ formatEventTime(event.startTime) }}</span>
+              </div>
+            </div>
+            <h4 class="event-title-premium">
+              <span class="event-category-dot" :class="getEventCategoryClass(event)"></span>
+              <span>{{ event.topic || 'Meeting Schedule' }}</span>
+            </h4>
+            <div class="event-details-row-premium">
+              <div class="event-detail-item">
+                <MapPin :size="12" class="detail-icon" />
+                <span>{{ event.roomId && event.roomId !== 0 ? event.roomName || 'Meeting Room' : 'Personal Schedule' }}</span>
+              </div>
+              <div class="event-detail-item" v-if="event.booker">
+                <User :size="12" class="detail-icon" />
+                <span>@{{ event.booker }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
 
   </div>
 </template>
@@ -161,29 +206,15 @@ const fetchSchedules = async () => {
   }
 }
 
+const showAllEventsDialog = ref(false)
+
 const comingEvents = computed(() => {
-  if (allSchedules.value.length > 0) {
-    return allSchedules.value.slice(0, 3)
-  }
-  // Return premium mock schedule if empty
-  return [
-    {
-      id: 'mock-1',
-      topic: 'Q3 Credit Audit Review Meeting',
-      startTime: new Date(Date.now() + 4 * 3600 * 1000).toISOString(),
-      roomName: 'Conference Room 302',
-      booker: 'admin',
-      roomId: 1
-    },
-    {
-      id: 'mock-2',
-      topic: 'Compliance Risk Assessment Panel',
-      startTime: new Date(Date.now() + 28 * 3600 * 1000).toISOString(),
-      roomName: 'Meeting Room 201',
-      booker: 'system',
-      roomId: 2
-    }
-  ]
+  // Sort schedules by start time to make sure upcoming events are in chronological order
+  return [...allSchedules.value].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+})
+
+const displayedEvents = computed(() => {
+  return comingEvents.value.slice(0, 2)
 })
 
 const formatEventTime = (timeStr: string) => {
@@ -484,6 +515,64 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+}
+
+.more-events-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: auto;
+  color: #94a3b8;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  user-select: none;
+  align-self: flex-start;
+}
+.more-events-link span {
+  border-bottom: 1px dashed #cbd5e1;
+  padding-bottom: 1px;
+  transition: all 0.15s ease;
+}
+.more-events-link:hover {
+  color: #4b5563;
+}
+.more-events-link:hover span {
+  border-color: #94a3b8;
+}
+.more-events-link .arrow-icon {
+  color: #cbd5e1;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+.more-events-link:hover .arrow-icon {
+  transform: translateX(2px);
+  color: #94a3b8;
+}
+
+.dialog-events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.dialog-events-list::-webkit-scrollbar {
+  width: 4px;
+}
+.dialog-events-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.dialog-events-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.event-item-premium.dialog-item {
+  margin-bottom: 2px;
 }
 
 .event-item-premium {

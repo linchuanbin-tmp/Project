@@ -142,11 +142,36 @@
 
     <!-- Main content area -->
     <el-main class="main-content">
-      <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
+      <!-- Tabs Bar -->
+      <transition-group name="tab-fade" tag="div" class="layout-tabs-bar" v-if="openTabs.length > 0">
+        <div 
+          v-for="tab in openTabs" 
+          :key="tab.path" 
+          class="tab-item"
+          :class="{ active: route.path === tab.path, 'has-close': openTabs.length > 1 }"
+          @click="switchTab(tab.path)"
+        >
+          <span class="tab-title">{{ $t(`menu.${tab.metaKey}`) || tab.title }}</span>
+          <span 
+            v-if="openTabs.length > 1" 
+            class="tab-close-icon" 
+            @click.stop="closeTab(tab.path)"
+          >
+            <X :size="12" :stroke-width="2.2" />
+          </span>
+        </div>
+      </transition-group>
+      
+      <!-- Content View -->
+      <div class="main-content-view">
+        <router-view v-slot="{ Component, route: currentRoute }">
+          <transition name="fade-slide" mode="out-in">
+            <keep-alive>
+              <component :is="Component" :key="currentRoute.fullPath + '-' + (cacheKeys[currentRoute.path] || 0)" />
+            </keep-alive>
+          </transition>
+        </router-view>
+      </div>
     </el-main>
 
   </el-container>
@@ -162,7 +187,7 @@ import { getUnreadCount } from '@/api/notification'
 import {
   Home, Wrench, FileText, BookOpen,
   Settings, ChevronDown, Users, Database,
-  PanelLeftClose, PanelLeftOpen, Menu, CalendarDays, Bell, Briefcase, FolderOpen
+  PanelLeftClose, PanelLeftOpen, Menu, CalendarDays, Bell, Briefcase, FolderOpen, X
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -172,6 +197,65 @@ const userStore = useUserStore()
 const collapsed = ref(false)
 const mobileOpen = ref(false)
 const activeMenu = computed(() => route.path)
+
+// Multi-Tab management
+const openTabs = ref<Array<{ path: string; title: string; metaKey: string }>>([])
+const cacheKeys = ref<Record<string, number>>({})
+
+const addTab = (path: string, title: string, metaKey: string) => {
+  if (!openTabs.value.some(t => t.path === path)) {
+    openTabs.value.push({ path, title, metaKey })
+  }
+}
+
+const switchTab = (path: string) => {
+  router.push(path)
+}
+
+const closeTab = (path: string) => {
+  const index = openTabs.value.findIndex(t => t.path === path)
+  if (index === -1) return
+
+  // Increment counter key to evict keepalive cached view state
+  cacheKeys.value[path] = (cacheKeys.value[path] || 0) + 1
+
+  openTabs.value.splice(index, 1)
+
+  // Switch active page to next remaining tab
+  if (route.path === path) {
+    const nextTab = openTabs.value[index] || openTabs.value[index - 1]
+    if (nextTab) {
+      router.push(nextTab.path)
+    } else {
+      router.push('/app/dashboard')
+    }
+  }
+}
+
+watch(
+  () => route.path,
+  (newPath) => {
+    if (newPath.startsWith('/app/')) {
+      const title = (route.meta.title as string) || 'Page'
+      let metaKey = 'dashboard'
+      if (newPath === '/app/my-schedules') metaKey = 'mySchedules'
+      else if (newPath === '/app/notification') metaKey = 'messages'
+      else if (newPath === '/app/tool') metaKey = 'toolAgent'
+      else if (newPath === '/app/code') metaKey = 'codeAgent'
+      else if (newPath === '/app/rag') metaKey = 'ragAgent'
+      else if (newPath === '/app/dept-docs') metaKey = 'documents'
+      else if (newPath === '/app/admin/my-dept') {
+        metaKey = userStore.userInfo?.roles?.includes('ROLE_ADMIN') ? 'deptManagement' : 'myDept'
+      }
+      else if (newPath === '/app/admin/users') metaKey = 'userManagement'
+      else if (newPath === '/app/admin/resources') metaKey = 'resourceManagement'
+      else if (newPath === '/app/settings') metaKey = 'settings'
+
+      addTab(newPath, title, metaKey)
+    }
+  },
+  { immediate: true }
+)
 
 const unreadCount = ref(0)
 let timer: any = null
@@ -435,10 +519,119 @@ const handleCommand = (command: string) => {
 
 /* ── 主内容 ───────────────────────────────────── */
 .main-content {
-  background: #f0f2f5;
-  padding: 28px;
-  overflow-y: auto;
+  background: #f8fafc;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden !important; /* Prevents outer container scrollbar */
   flex: 1;
+}
+
+.main-content-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px 24px 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.main-content-view > * {
+  max-width: 100% !important;
+}
+
+/* ── 标签页选项卡样式 (Discrete Floating Card Style) ─────────────────────────── */
+.layout-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Generous gap to separate tabs clearly */
+  padding: 12px 24px 6px 24px;
+  background: #f8fafc; /* Matches off-white workspace background for zero-divider layout */
+  flex-shrink: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  height: 54px;
+  box-sizing: border-box;
+}
+
+/* Hide scrollbars for the tabs bar itself */
+.layout-tabs-bar::-webkit-scrollbar {
+  display: none;
+}
+.layout-tabs-bar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px; /* Balanced gap between text and close icon */
+  height: 36px;
+  padding: 0 16px; /* Symmetric padding when close button is absent */
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  user-select: none;
+  max-width: 180px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.tab-item.has-close {
+  padding-left: 16px;
+  padding-right: 8px; /* Tighter right side space to visually balance the close icon circle */
+}
+
+.tab-item:hover {
+  background: #edf2f7;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.tab-item.active {
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  border: 1.5px solid #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.tab-close-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: #94a3b8;
+  transition: all 0.1s;
+}
+
+.tab-close-icon:hover {
+  background: #cbd5e1;
+  color: #1e293b;
+}
+
+/* Tab closing/adding animations */
+.tab-fade-enter-active,
+.tab-fade-leave-active {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-fade-enter-from,
+.tab-fade-leave-to {
+  opacity: 0;
+  transform: translateY(4px) scale(0.95);
+  max-width: 0;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-right: -4px;
 }
 
 /* ── 响应式适配 (移动端) ────────────────────────── */
@@ -549,11 +742,21 @@ const handleCommand = (command: string) => {
   display: inline-block;
 }
 
-/* ── 路由动画 ─────────────────────────────────── */
-.fade-enter-active,
-.fade-leave-active { transition: opacity 0.18s ease; }
-.fade-enter-from,
-.fade-leave-to { opacity: 0; }
+/* ── 路由选项卡切面动画 ─────────────────────────── */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
 </style>
 
 <!-- Global Element Plus dropdown overrides (teleported to body, scoped styles won't reach) -->

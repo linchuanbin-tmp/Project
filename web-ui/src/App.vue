@@ -10,7 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { elLocaleMap } from '@/i18n'
 
 const { locale } = useI18n()
-const elLocale = computed(() => elLocaleMap[locale.value] || elLocaleMap['zh-CN'])
+const elLocale = computed(() => elLocaleMap[locale.value] || elLocaleMap['en'])
 
 // 同步 document.documentElement.lang 和 localStorage
 watch(locale, (val) => {

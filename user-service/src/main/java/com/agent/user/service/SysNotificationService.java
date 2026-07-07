@@ -16,4 +16,6 @@ public interface SysNotificationService {
     void readNotification(Long id, Long userId);
 
     void handleAction(NotificationActionRequest request, Long userId);
+
+    List<NotificationResponse> getThread(Long threadId, Long userId);
 }

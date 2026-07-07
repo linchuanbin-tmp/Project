@@ -57,6 +57,8 @@ public class SysNotificationServiceImpl implements SysNotificationService {
             resp.setNotifyType(n.getNotifyType());
             resp.setStatus(n.getStatus());
             resp.setPayload(n.getPayload());
+            resp.setParentId(n.getParentId());
+            resp.setThreadId(n.getThreadId());
             resp.setCreateTime(n.getCreateTime());
             resp.setUpdateTime(n.getUpdateTime());
 
@@ -118,6 +120,25 @@ public class SysNotificationServiceImpl implements SysNotificationService {
         }
         
         notification.setPayload(request.getPayload());
+        notification.setParentId(request.getParentId());
+        
+        if (request.getParentId() != null) {
+            SysNotification parent = notificationMapper.selectById(request.getParentId());
+            if (parent != null) {
+                if (parent.getThreadId() != null) {
+                    notification.setThreadId(parent.getThreadId());
+                } else {
+                    notification.setThreadId(parent.getId());
+                    parent.setThreadId(parent.getId());
+                    notificationMapper.updateById(parent);
+                }
+            } else {
+                notification.setThreadId(null);
+            }
+        } else {
+            notification.setThreadId(null);
+        }
+        
         notification.setCreateTime(LocalDateTime.now());
         notification.setUpdateTime(LocalDateTime.now());
         notification.setDeleted(0);
@@ -165,5 +186,64 @@ public class SysNotificationServiceImpl implements SysNotificationService {
         
         notification.setUpdateTime(LocalDateTime.now());
         notificationMapper.updateById(notification);
+    }
+
+    @Override
+    public List<NotificationResponse> getThread(Long threadId, Long userId) {
+        LambdaQueryWrapper<SysNotification> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysNotification::getThreadId, threadId)
+               .orderByAsc(SysNotification::getCreateTime);
+        List<SysNotification> list = notificationMapper.selectList(wrapper);
+
+        boolean authorized = list.stream().anyMatch(n -> 
+            n.getSenderId().equals(userId) || n.getReceiverId().equals(userId)
+        );
+        if (!authorized) {
+            throw new RuntimeException("Unauthorized to view this message thread");
+        }
+
+        List<User> users = userMapper.selectList(null);
+        Map<Long, User> userMap = users.stream().collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+
+        return list.stream().map(n -> {
+            NotificationResponse resp = new NotificationResponse();
+            resp.setId(n.getId());
+            resp.setSenderId(n.getSenderId());
+            resp.setReceiverId(n.getReceiverId());
+            resp.setTitle(n.getTitle());
+            resp.setContent(n.getContent());
+            resp.setNotifyType(n.getNotifyType());
+            resp.setStatus(n.getStatus());
+            resp.setPayload(n.getPayload());
+            resp.setParentId(n.getParentId());
+            resp.setThreadId(n.getThreadId());
+            resp.setCreateTime(n.getCreateTime());
+            resp.setUpdateTime(n.getUpdateTime());
+
+            if (n.getSenderId() == 0) {
+                resp.setSenderName("system");
+                resp.setSenderRealName("System");
+            } else {
+                User sender = userMap.get(n.getSenderId());
+                if (sender != null) {
+                    resp.setSenderName(sender.getUsername());
+                    resp.setSenderRealName(sender.getRealName());
+                } else {
+                    resp.setSenderName("unknown");
+                    resp.setSenderRealName("Unknown User");
+                }
+            }
+
+            User receiver = userMap.get(n.getReceiverId());
+            if (receiver != null) {
+                resp.setReceiverName(receiver.getUsername());
+                resp.setReceiverRealName(receiver.getRealName());
+            } else {
+                resp.setReceiverName("unknown");
+                resp.setReceiverRealName("Unknown User");
+            }
+
+            return resp;
+        }).collect(Collectors.toList());
     }
 }

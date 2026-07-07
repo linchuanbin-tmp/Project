@@ -8,53 +8,99 @@
       </div>
     </div>
 
-    <!-- Settings item list -->
-    <div class="settings-list">
+    <!-- Settings Sections -->
+    <div class="settings-sections">
 
-      <!-- Profile item -->
-      <div class="settings-item">
-        <div class="item-left">
-          <div class="item-icon-wrap">
-            <User :size="17" :stroke-width="1.7" />
+      <!-- Category: Account & Security -->
+      <div class="settings-category">
+        <h3 class="category-title">{{ $t('settings.categoryAccount') }}</h3>
+        <div class="category-card">
+          <!-- Profile item -->
+          <div class="settings-item">
+            <div class="item-left">
+              <div class="item-icon-wrap">
+                <User :size="17" :stroke-width="1.7" />
+              </div>
+              <div class="item-text">
+                <span class="item-title">{{ $t('settings.profile') }}</span>
+                <span class="item-desc">{{ $t('settings.profileDesc') }}</span>
+              </div>
+            </div>
+            <button class="edit-btn" @click="openProfileDialog">{{ $t('common.edit') }}</button>
           </div>
-          <div class="item-text">
-            <span class="item-title">{{ $t('settings.profile') }}</span>
-            <span class="item-desc">{{ $t('settings.profileDesc') }}</span>
+
+          <!-- Security item -->
+          <div class="settings-item">
+            <div class="item-left">
+              <div class="item-icon-wrap">
+                <Lock :size="17" :stroke-width="1.7" />
+              </div>
+              <div class="item-text">
+                <span class="item-title">{{ $t('settings.security') }}</span>
+                <span class="item-desc">{{ $t('settings.securityDesc') }}</span>
+              </div>
+            </div>
+            <button class="edit-btn" @click="openPasswordDialog">{{ $t('common.edit') }}</button>
           </div>
         </div>
-        <button class="edit-btn" @click="openProfileDialog">{{ $t('common.edit') }}</button>
       </div>
 
-      <!-- Security item -->
-      <div class="settings-item">
-        <div class="item-left">
-          <div class="item-icon-wrap">
-            <Lock :size="17" :stroke-width="1.7" />
-          </div>
-          <div class="item-text">
-            <span class="item-title">{{ $t('settings.security') }}</span>
-            <span class="item-desc">{{ $t('settings.securityDesc') }}</span>
+      <!-- Category: Preferences -->
+      <div class="settings-category">
+        <h3 class="category-title">{{ $t('settings.categoryPreferences') }}</h3>
+        <div class="category-card">
+          <!-- Language item -->
+          <div class="settings-item">
+            <div class="item-left">
+              <div class="item-icon-wrap">
+                <Globe :size="17" :stroke-width="1.7" />
+              </div>
+              <div class="item-text">
+                <span class="item-title">{{ $t('settings.language') }}</span>
+                <span class="item-desc">{{ $t('settings.languageDesc') }}</span>
+              </div>
+            </div>
+            <el-select v-model="currentLocale" @change="handleLocaleChange" class="locale-select" style="width: 140px;">
+              <el-option label="简体中文" value="zh-CN" />
+              <el-option label="繁體中文" value="zh-TW" />
+              <el-option label="English" value="en" />
+            </el-select>
           </div>
         </div>
-        <button class="edit-btn" @click="openPasswordDialog">{{ $t('common.edit') }}</button>
       </div>
 
-      <!-- Language item -->
-      <div class="settings-item">
-        <div class="item-left">
-          <div class="item-icon-wrap">
-            <Globe :size="17" :stroke-width="1.7" />
+      <!-- Category: Support & About -->
+      <div class="settings-category">
+        <h3 class="category-title">{{ $t('settings.categorySupport') }}</h3>
+        <div class="category-card">
+          <!-- Report Issue item -->
+          <div class="settings-item">
+            <div class="item-left">
+              <div class="item-icon-wrap">
+                <AlertCircle :size="17" :stroke-width="1.7" />
+              </div>
+              <div class="item-text">
+                <span class="item-title">{{ $t('settings.reportIssue') }}</span>
+                <span class="item-desc">{{ $t('settings.reportIssueDesc') }}</span>
+              </div>
+            </div>
+            <button class="edit-btn" @click="openReportDialog">{{ $t('common.submit') }}</button>
           </div>
-          <div class="item-text">
-            <span class="item-title">{{ $t('settings.language') }}</span>
-            <span class="item-desc">{{ $t('settings.languageDesc') }}</span>
+
+          <!-- About item -->
+          <div class="settings-item">
+            <div class="item-left">
+              <div class="item-icon-wrap">
+                <Info :size="17" :stroke-width="1.7" />
+              </div>
+              <div class="item-text">
+                <span class="item-title">{{ $t('settings.about') }}</span>
+                <span class="item-desc">{{ $t('settings.aboutDesc') }}</span>
+              </div>
+            </div>
+            <button class="edit-btn" @click="openAboutDialog">{{ $t('settings.aboutViewBtn') }}</button>
           </div>
         </div>
-        <el-select v-model="currentLocale" @change="handleLocaleChange" class="locale-select" style="width: 140px;">
-          <el-option label="简体中文" value="zh-CN" />
-          <el-option label="繁體中文" value="zh-TW" />
-          <el-option label="English" value="en" />
-        </el-select>
       </div>
 
     </div>
@@ -185,6 +231,109 @@
       </template>
     </el-dialog>
 
+    <!-- ── Report Issue Dialog ────────────────────── -->
+    <el-dialog
+      v-model="reportDialogVisible"
+      :title="$t('settings.reportIssue')"
+      width="460px"
+      :close-on-click-modal="false"
+      class="settings-dialog"
+      @close="resetReportForm"
+    >
+      <el-form
+        ref="reportFormRef"
+        :model="reportForm"
+        :rules="reportRules"
+        label-position="top"
+        class="dialog-form"
+      >
+        <el-form-item :label="$t('settings.issueType')" prop="notifyType">
+          <el-select v-model="reportForm.notifyType" class="dialog-select" style="width: 100%;">
+            <el-option :label="$t('settings.issueTypeBug')" value="BUG_REPORT" />
+            <el-option :label="$t('settings.issueTypeFailure')" value="SYSTEM_FAILURE" />
+            <el-option :label="$t('settings.issueTypeTicket')" value="SUPPORT_TICKET" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item :label="$t('settings.issueTitle')" prop="title">
+          <el-input
+            v-model="reportForm.title"
+            :placeholder="$t('settings.issueTitlePlaceholder')"
+            class="dialog-input"
+            maxlength="100"
+            show-word-limit
+          />
+        </el-form-item>
+
+        <el-form-item :label="$t('settings.issueContent')" prop="content">
+          <el-input
+            v-model="reportForm.content"
+            type="textarea"
+            :rows="5"
+            :placeholder="$t('settings.issueContentPlaceholder')"
+            class="dialog-textarea"
+            maxlength="1000"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button class="cancel-btn" @click="reportDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+          <el-button type="primary" :loading="reportLoading" class="confirm-btn" @click="handleSendReport">
+            {{ $t('common.submit') }}
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- ── About Dialog ───────────────────────────── -->
+    <el-dialog
+      v-model="aboutDialogVisible"
+      :title="$t('settings.aboutSystemTitle')"
+      width="580px"
+      class="settings-dialog about-dialog"
+    >
+      <div class="about-container">
+        <div class="about-logo-area">
+          <div class="logo-box">BA</div>
+          <div class="logo-text-wrap">
+            <h2 class="about-app-title">BankAgent</h2>
+            <p class="about-app-sub">Intelligent Financial Co-Running Platform</p>
+          </div>
+        </div>
+        
+        <p class="about-description">
+          {{ $t('settings.aboutSystemText') }}
+        </p>
+
+        <el-divider class="dialog-divider" />
+
+        <div class="about-metadata-list">
+          <div class="meta-row">
+            <span class="meta-label">{{ $t('settings.aboutVersion') }}:</span>
+            <span class="meta-val">v1.2.0-stable</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">{{ $t('settings.aboutDeveloper') }}:</span>
+            <span class="meta-val">Google DeepMind - Antigravity Team</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">{{ $t('settings.aboutCoreTech') }}:</span>
+            <span class="meta-val">Spring Cloud / Milvus RAG / Vue 3 / Element Plus</span>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="dialog-footer" style="justify-content: flex-start; padding-left: 8px;">
+          <el-button type="primary" class="confirm-btn" style="width: 120px;" @click="aboutDialogVisible = false">
+            {{ $t('common.confirm') }}
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -194,7 +343,7 @@ import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe } from 'lucide-vue-next'
+import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe, AlertCircle, Info } from 'lucide-vue-next'
 import request from '@utils/request'
 
 const { t, locale } = useI18n()
@@ -331,6 +480,68 @@ const resetPasswordForm = () => {
   passwordForm.confirmPassword = ''
   passwordFormRef.value?.resetFields()
 }
+
+const reportDialogVisible = ref(false)
+const reportLoading = ref(false)
+const reportFormRef = ref()
+const reportForm = reactive({
+  notifyType: 'BUG_REPORT',
+  title: '',
+  content: ''
+})
+
+const reportRules = reactive({
+  notifyType: [{ required: true, message: 'Type is required', trigger: 'change' }],
+  title: [{ required: true, message: 'Title is required', trigger: 'blur' }],
+  content: [{ required: true, message: 'Description is required', trigger: 'blur' }]
+})
+
+const openReportDialog = () => {
+  reportDialogVisible.value = true
+}
+
+const resetReportForm = () => {
+  if (reportFormRef.value) {
+    reportFormRef.value.resetFields()
+  }
+  reportForm.notifyType = 'BUG_REPORT'
+  reportForm.title = ''
+  reportForm.content = ''
+}
+
+const handleSendReport = async () => {
+  if (!reportFormRef.value) return
+  try {
+    await reportFormRef.value.validate()
+    reportLoading.value = true
+    
+    // Send to admin (ID 1)
+    await request.post('/user/notification/send', {
+      receiverId: 1,
+      title: reportForm.title,
+      content: reportForm.content,
+      notifyType: reportForm.notifyType,
+      payload: JSON.stringify({
+        reporter: userStore.userInfo?.username || 'user',
+        reportTime: new Date().toISOString()
+      })
+    })
+
+    ElMessage.success(t('settings.reportSuccess'))
+    reportDialogVisible.value = false
+    resetReportForm()
+  } catch (error) {
+    console.error('Failed to submit ticket:', error)
+    ElMessage.error(t('request.failed'))
+  } finally {
+    reportLoading.value = false
+  }
+}
+
+const aboutDialogVisible = ref(false)
+const openAboutDialog = () => {
+  aboutDialogVisible.value = true
+}
 </script>
 
 <style scoped>
@@ -362,12 +573,33 @@ const resetPasswordForm = () => {
   margin: 0;
 }
 
-/* ── Settings list card ──────────────────────────── */
-.settings-list {
+/* ── Settings Sections ───────────────────────────── */
+.settings-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.settings-category {
+  display: flex;
+  flex-direction: column;
+}
+
+.category-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  margin: 0 0 12px 4px;
+}
+
+.category-card {
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border-radius: 14px;
   border: 1px solid #f0f0f0;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01);
 }
 
 .settings-item {
@@ -633,6 +865,103 @@ const resetPasswordForm = () => {
 .confirm-btn:hover {
   background: #1f2937 !important;
   border-color: #1f2937 !important;
+}
+
+/* About Dialog Styles */
+.about-container {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  padding: 4px 8px;
+}
+
+.about-logo-area {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.logo-box {
+  width: 54px;
+  height: 54px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.15);
+  flex-shrink: 0;
+}
+
+.about-app-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 2px 0;
+}
+
+.about-app-sub {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 0;
+  font-weight: 500;
+}
+
+.about-description {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #4b5563;
+  text-align: left;
+}
+
+.about-metadata-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.meta-label {
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.meta-val {
+  color: #111827;
+  font-weight: 600;
+}
+
+.dialog-textarea :deep(.el-textarea__inner) {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: none !important;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.dialog-textarea :deep(.el-textarea__inner:hover) {
+  border-color: #d1d5db;
+  background: #fff;
+}
+
+.dialog-textarea :deep(.el-textarea__inner:focus) {
+  border-color: #111827;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(17,24,39,0.08) !important;
 }
 </style>
 

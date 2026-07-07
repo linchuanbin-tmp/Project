@@ -24,7 +24,8 @@ export const useUserStore = defineStore('user', () => {
             message: `Hello, ${userInfo.value?.realName || username}! You have successfully logged in.`,
             type: 'success',
             duration: 4500,
-            position: 'top-right'
+            position: 'top-right',
+            showClose: true
         })
 
         return res
@@ -42,7 +43,8 @@ export const useUserStore = defineStore('user', () => {
             message: `Goodbye, ${name}! You have signed out successfully.`,
             type: 'success',
             duration: 4500,
-            position: 'top-right'
+            position: 'top-right',
+            showClose: true
         })
     }
 

@@ -17,8 +17,14 @@ export const sendNotification = (data: {
     content: string
     notifyType?: string
     payload?: string
+    parentId?: number
 }) => {
     return request.post('/user/notification/send', data)
+}
+
+// Fetch the message thread
+export const getThread = (threadId: number) => {
+    return request.get(`/user/notification/thread/${threadId}`)
 }
 
 // Mark a single notification as read

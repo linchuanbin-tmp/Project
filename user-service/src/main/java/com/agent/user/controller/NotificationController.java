@@ -87,4 +87,15 @@ public class NotificationController {
             return Result.error(e.getMessage());
         }
     }
+
+    @GetMapping("/thread/{threadId}")
+    public Result<List<NotificationResponse>> getThread(@PathVariable Long threadId) {
+        try {
+            Long userId = getCurrentUserId();
+            List<NotificationResponse> list = notificationService.getThread(threadId, userId);
+            return Result.success(list);
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
 }

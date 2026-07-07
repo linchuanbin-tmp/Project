@@ -19,4 +19,6 @@ public class NotificationSendRequest {
     private String notifyType = "CHAT";
 
     private String payload;
+
+    private Long parentId;
 }

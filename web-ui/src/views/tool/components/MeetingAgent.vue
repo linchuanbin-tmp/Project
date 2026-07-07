@@ -156,12 +156,13 @@ const formatDateTime = (date: Date): string => {
   return `${y}-${m}-${d} ${h}:${min}:${s}`
 }
 
-const queryMeetingRooms = async () => {
+const queryMeetingRooms = async (silent = false) => {
   if (!meetingForm.date) {
     ElNotification.warning({
       title: t('meeting.selectDate'),
       message: 'Please choose a booking date.',
-      position: 'top-right'
+      position: 'top-right',
+      showClose: true
     })
     return
   }
@@ -170,7 +171,8 @@ const queryMeetingRooms = async () => {
     ElNotification.warning({
       title: t('meeting.invalidTime'),
       message: 'Please specify a valid time range.',
-      position: 'top-right'
+      position: 'top-right',
+      showClose: true
     })
     return
   }
@@ -182,7 +184,8 @@ const queryMeetingRooms = async () => {
     ElNotification.warning({
       title: t('meeting.invalidTime'),
       message: 'The start time must be before the end time.',
-      position: 'top-right'
+      position: 'top-right',
+      showClose: true
     })
     return
   }
@@ -199,19 +202,24 @@ const queryMeetingRooms = async () => {
       capacity: meetingForm.capacity
     })
     meetingRooms.value = res || []
-    ElNotification({
-      title: 'Search Completed',
-      message: `Found ${meetingRooms.value.length} meeting rooms available.`,
-      type: 'success',
-      duration: 4500,
-      position: 'top-right'
-    })
+    
+    if (!silent) {
+      ElNotification({
+        title: 'Search Completed',
+        message: `Found ${meetingRooms.value.length} meeting rooms available.`,
+        type: 'success',
+        duration: 4500,
+        position: 'top-right',
+        showClose: true
+      })
+    }
   } catch (error) {
     console.error(error)
     ElNotification.error({
       title: t('request.failed'),
       message: 'Failed to retrieve available meeting rooms.',
-      position: 'top-right'
+      position: 'top-right',
+      showClose: true
     })
   } finally {
     loading.value = false
@@ -223,7 +231,8 @@ const bookRoom = async (room: any) => {
     ElNotification.warning({
       title: t('meeting.selectDate'),
       message: 'Please select a date before reserving.',
-      position: 'top-right'
+      position: 'top-right',
+      showClose: true
     })
     return
   }
@@ -232,7 +241,8 @@ const bookRoom = async (room: any) => {
     ElNotification.warning({
       title: t('meeting.invalidTime'),
       message: 'Please specify a valid reservation time range.',
-      position: 'top-right'
+      position: 'top-right',
+      showClose: true
     })
     return
   }
@@ -244,7 +254,8 @@ const bookRoom = async (room: any) => {
     ElNotification.warning({
       title: t('meeting.invalidTime'),
       message: 'The reservation start time must be before the end time.',
-      position: 'top-right'
+      position: 'top-right',
+      showClose: true
     })
     return
   }
@@ -277,7 +288,8 @@ const bookRoom = async (room: any) => {
         message: `${room.name} (${room.location}) has been reserved successfully.`,
         type: 'success',
         duration: 4500,
-        position: 'top-right'
+        position: 'top-right',
+        showClose: true
       })
       // Optimistic UI update
       const idx = meetingRooms.value.findIndex((r: any) => r.id === room.id)
@@ -285,14 +297,15 @@ const bookRoom = async (room: any) => {
         meetingRooms.value[idx].available = false
         meetingRooms.value[idx].statusText = 'Booked'
       }
-      await queryMeetingRooms()
+      await queryMeetingRooms(true) // Silent query to refresh state without double alerts
     } else {
       ElNotification({
         title: t('meeting.bookFailed'),
         message: data.message || 'The selected time slot has dynamic conflict.',
         type: 'error',
         duration: 4500,
-        position: 'top-right'
+        position: 'top-right',
+        showClose: true
       })
     }
   } catch (error) {
@@ -302,7 +315,8 @@ const bookRoom = async (room: any) => {
       message: 'Network issue occurred while processing booking.',
       type: 'error',
       duration: 4500,
-      position: 'top-right'
+      position: 'top-right',
+      showClose: true
     })
   } finally {
     bookingRoomId.value = null

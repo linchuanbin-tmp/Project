@@ -17,6 +17,8 @@ public class NotificationResponse {
     private String notifyType;
     private Integer status;
     private String payload;
+    private Long parentId;
+    private Long threadId;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
