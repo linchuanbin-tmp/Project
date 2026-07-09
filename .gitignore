@@ -51,4 +51,6 @@ application-prod.yml
 # === Docker ===
 docker-compose.override.yml
 
-docs/
+docs/*
+!docs/RAG_DESIGN.md
+!docs/RAG_TODO.md

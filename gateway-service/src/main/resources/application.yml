@@ -64,6 +64,14 @@ spring:
           filters:
             - StripPrefix=1
 
+        # RAG Agent route
+        - id: rag-agent
+          uri: ${RAG_SERVICE_URI:http://localhost:8085}
+          predicates:
+            - Path=/api/rag/**
+          filters:
+            - StripPrefix=1
+
         # Dashboard Intent Router 路由
         - id: dashboard-route
           uri: ${CODE_AGENT_PYTHON_BASE_URL:http://localhost:8090}

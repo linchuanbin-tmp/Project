@@ -24,6 +24,7 @@
         <module>user-service</module>
         <module>task-service</module>
         <module>tool-agent</module>
+        <module>rag-agent</module>
     </modules>
 
     <properties>

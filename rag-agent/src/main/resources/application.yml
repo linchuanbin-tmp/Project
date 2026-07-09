@@ -1,0 +1,52 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: rag-agent
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/agent_platform?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      database: 0
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  mapper-locations: classpath*:/mapper/**/*.xml
+
+rag:
+  vector-store:
+    provider: ${RAG_VECTOR_STORE_PROVIDER:milvus}
+    milvus:
+      host: ${MILVUS_HOST:localhost}
+      port: ${MILVUS_PORT:19530}
+      collection-name: ${RAG_MILVUS_COLLECTION:rag_document_chunks}
+      dimension: ${RAG_EMBEDDING_DIM:768}
+      metric-type: ${RAG_VECTOR_METRIC:COSINE}
+      index-type: ${RAG_VECTOR_INDEX:HNSW}
+  embedding:
+    provider: ${RAG_EMBEDDING_PROVIDER:http}
+    endpoint: ${RAG_EMBEDDING_ENDPOINT:http://localhost:8091/embed}
+    dimension: ${RAG_EMBEDDING_DIM:768}
+  llm:
+    api-key: ${RAG_LLM_API_KEY:${DEEPSEEK_API_KEY:}}
+    base-url: ${RAG_LLM_BASE_URL:${DEEPSEEK_BASE_URL:https://maas-api.cn-huabei-1.xf-yun.com/v2}}
+    model: ${RAG_LLM_MODEL:${DEEPSEEK_MODEL:xopdeepseekv32}}
+
+logging:
+  level:
+    com.agent.rag: DEBUG
