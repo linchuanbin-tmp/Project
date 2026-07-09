@@ -23,6 +23,7 @@ export default {
     yes: '是',
     no: '否',
     remove: '移除',
+    saving: '保存中...',
   },
 
   // 侧边栏 / 主导航
@@ -551,6 +552,11 @@ export default {
     aboutVersion: '系统版本',
     aboutDeveloper: '研发团队',
     aboutCoreTech: '核心技术',
+    categoryAdmin: '系统管理',
+    sessionTimeout: '会话不活动超时',
+    sessionTimeoutDesc: '用户在此时间内无操作将自动退出登录（单位：分钟）',
+    sessionTimeoutSaved: '会话超时配置保存成功',
+    sessionTimeoutFailed: '会话超时配置保存失败',
   },
 
   // 管理员 - 用户管理

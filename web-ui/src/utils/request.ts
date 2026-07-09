@@ -4,6 +4,8 @@ import { useUserStore } from '@stores/modules/user'
 import router from '@router/index'
 import i18n from '@/i18n'
 
+let isSessionExpiredAlertActive = false
+
 const request = axios.create({
     baseURL: '/api',  // proxied via Vite config
     timeout: 60000,   // 60s timeout for potentially slow AI requests
@@ -33,26 +35,20 @@ request.interceptors.response.use(
 
         // Check if response is wrapped in a standard Result class
         if (res.code !== undefined && res.code !== 200) {
-            ElMessage.error(res.message || i18n.global.t('request.failed'))
-
             // 401: Token expired — only show dialog when inside the app, not on auth pages
             if (res.code === 401) {
-                const publicPaths = ['/login', '/register']
+                const publicPaths = ['/login', '/register', '/user/logout']
                 const isPublic = publicPaths.some(p => router.currentRoute.value.path.startsWith(p))
                 if (!isPublic) {
-                    ElMessageBox.confirm(
-                        i18n.global.t('request.sessionExpired'),
-                        i18n.global.t('request.tip'),
-                        {
-                            confirmButtonText: i18n.global.t('request.relogin'),
-                            cancelButtonText: i18n.global.t('request.cancel'),
-                            type: 'warning'
-                        }
-                    ).then(() => {
-                        const userStore = useUserStore()
-                        userStore.logout()
-                    }).catch(() => {})
+                    const userStore = useUserStore()
+                    userStore.logout(true) // Silent logout, bypasses server call to prevent loop
+                    router.push({ path: '/login', query: { expired: '1' } })
+                } else {
+                    // Authentication error on login page (e.g. wrong password)
+                    ElMessage.error(res.message || i18n.global.t('request.failed'))
                 }
+            } else {
+                ElMessage.error(res.message || i18n.global.t('request.failed'))
             }
             return Promise.reject(new Error(res.message || i18n.global.t('request.failed')))
         }
@@ -63,12 +59,14 @@ request.interceptors.response.use(
     (error) => {
         const response = error.response
         if (response && response.status === 401) {
-            const publicPaths = ['/login', '/register']
+            const publicPaths = ['/login', '/register', '/user/logout']
             const isPublic = publicPaths.some(p => router.currentRoute.value.path.startsWith(p))
             if (!isPublic) {
                 const userStore = useUserStore()
-                userStore.logout()
-                ElMessage.error(i18n.global.t('request.sessionExpired'))
+                userStore.logout(true) // Silent logout, clears token first
+                router.push({ path: '/login', query: { expired: '1' } })
+            } else {
+                ElMessage.error(response.data?.message || i18n.global.t('request.failed'))
             }
         } else {
             ElMessage.error(error.message || i18n.global.t('request.networkError'))

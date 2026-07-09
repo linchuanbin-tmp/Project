@@ -37,7 +37,7 @@ public class SecurityConfig {
                 )
                 // 放行登录和注册接口，其他需要认证
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/user/login", "/user/register").permitAll()
+                        .requestMatchers("/user/login", "/user/register", "/user/logout", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 // 添加 JWT 过滤器

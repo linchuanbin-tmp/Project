@@ -5,6 +5,16 @@
       <!-- Brand label -->
       <p class="app-label">{{ $t('login.appLabel') }}</p>
 
+      <!-- Session Expired Alert -->
+      <el-alert
+        v-if="showExpiredAlert"
+        :title="$t('request.sessionExpired')"
+        type="warning"
+        show-icon
+        :closable="false"
+        style="margin-bottom: 20px; border-radius: 10px; border: 1px solid #fef0f0;"
+      />
+
       <!-- Page heading -->
       <div class="heading-block">
         <h1 class="page-heading">{{ $t('login.heading') }}</h1>
@@ -50,16 +60,18 @@
 
 <script setup lang="ts">
 import { reactive, ref, h } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { Mail, Lock } from 'lucide-vue-next'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const { t } = useI18n()
 const loading = ref(false)
 const formRef = ref()
+const showExpiredAlert = ref(route.query.expired === '1')
 
 const form = reactive({ username: '', password: '' })
 

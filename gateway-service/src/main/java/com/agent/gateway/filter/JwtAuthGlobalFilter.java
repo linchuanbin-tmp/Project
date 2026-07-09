@@ -17,6 +17,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -24,6 +27,9 @@ import java.util.List;
 
 @Component
 public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
+
+    @Autowired
+    private ReactiveStringRedisTemplate redisTemplate;
 
     @Value("${jwt.secret}")
     private String secret;
@@ -66,26 +72,54 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                     .getPayload();
 
             String username = claims.getSubject();
-            
-            // 解析 roles 与 permissions
-            List<?> roles = claims.get("roles", List.class);
-            List<?> permissions = claims.get("permissions", List.class);
+            String sessionKey = "session:active:" + username;
 
-            String rolesStr = roles != null ? StringUtils.collectionToCommaDelimitedString(roles) : "";
-            String permsStr = permissions != null ? StringUtils.collectionToCommaDelimitedString(permissions) : "";
+            // 4. Redis session check & renewal (Sliding Window)
+            return redisTemplate.opsForValue().get(sessionKey)
+                    .switchIfEmpty(Mono.defer(() -> Mono.error(new RuntimeException("Session expired due to inactivity."))))
+                    .flatMap(activeToken -> {
+                        if (!activeToken.equals(token)) {
+                            return Mono.error(new RuntimeException("Session expired due to inactivity."));
+                        }
 
-            // 4. 将解析出的用户信息封装到 Request Header，透传给下游微服务
-            ServerHttpRequest mutatedRequest = request.mutate()
-                    .header("X-User-Name", username)
-                    .header("X-User-Roles", rolesStr)
-                    .header("X-User-Permissions", permsStr)
-                    .build();
+                        // Sliding window: reset TTL on every non-polling request
+                        boolean isBackgroundPoll = path != null && path.endsWith("/notification/unread-count");
+                        if (!isBackgroundPoll) {
+                            return redisTemplate.opsForValue().get("sys:config:session_timeout")
+                                    .defaultIfEmpty("30")
+                                    .flatMap(timeoutStr -> {
+                                        long timeout = 30;
+                                        try {
+                                            timeout = Long.parseLong(timeoutStr);
+                                        } catch (NumberFormatException ignored) {}
+                                        return redisTemplate.expire(sessionKey, java.time.Duration.ofMinutes(timeout));
+                                    })
+                                    .then(proceedWithRequest(exchange, chain, username, claims));
+                        }
 
-            return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                        return proceedWithRequest(exchange, chain, username, claims);
+                    })
+                    .onErrorResume(e -> handleUnauthorized(exchange, e.getMessage()));
 
         } catch (Exception e) {
             return handleUnauthorized(exchange, "Token validation failed: " + e.getMessage());
         }
+    }
+
+    private Mono<Void> proceedWithRequest(ServerWebExchange exchange, GatewayFilterChain chain, String username, Claims claims) {
+        List<?> roles = claims.get("roles", List.class);
+        List<?> permissions = claims.get("permissions", List.class);
+
+        String rolesStr = roles != null ? StringUtils.collectionToCommaDelimitedString(roles) : "";
+        String permsStr = permissions != null ? StringUtils.collectionToCommaDelimitedString(permissions) : "";
+
+        ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                .header("X-User-Name", username)
+                .header("X-User-Roles", rolesStr)
+                .header("X-User-Permissions", permsStr)
+                .build();
+
+        return chain.filter(exchange.mutate().request(mutatedRequest).build());
     }
 
     private boolean isWhitelisted(String path) {

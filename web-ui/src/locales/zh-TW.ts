@@ -23,6 +23,7 @@ export default {
     yes: '是',
     no: '否',
     remove: '移除',
+    saving: '儲存中...',
   },
 
   // 側邊欄 / 主導航
@@ -545,6 +546,11 @@ export default {
     aboutVersion: '系統版本',
     aboutDeveloper: '研發團隊',
     aboutCoreTech: '核心技術',
+    categoryAdmin: '系統管理',
+    sessionTimeout: '会話不活動逾時',
+    sessionTimeoutDesc: '使用者在此時間內無操作將自動登出（單位：分鐘）',
+    sessionTimeoutSaved: '会話逾時設定儲存成功',
+    sessionTimeoutFailed: '会話逾時設定儲存失敗',
   },
 
   adminUsers: {

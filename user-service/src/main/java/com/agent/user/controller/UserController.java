@@ -28,6 +28,15 @@ public class UserController {
         }
     }
 
+    @PostMapping("/logout")
+    public Result<String> logout() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (!"anonymousUser".equals(username)) {
+            userService.logout(username);
+        }
+        return Result.success("Logged out successfully");
+    }
+
     @PostMapping("/register")
     public Result<String> register(@Valid @RequestBody RegisterRequest request) {
         try {

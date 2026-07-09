@@ -103,6 +103,38 @@
         </div>
       </div>
 
+      <!-- Category: System Administration (Admin only) -->
+      <div v-if="isAdmin" class="settings-category">
+        <h3 class="category-title">{{ $t('settings.categoryAdmin') }}</h3>
+        <div class="category-card">
+          <div class="settings-item">
+            <div class="item-left">
+              <div class="item-icon-wrap">
+                <Timer :size="17" :stroke-width="1.7" />
+              </div>
+              <div class="item-text">
+                <span class="item-title">{{ $t('settings.sessionTimeout') }}</span>
+                <span class="item-desc">{{ $t('settings.sessionTimeoutDesc') }}</span>
+              </div>
+            </div>
+            <div class="session-timeout-ctrl">
+              <el-input-number
+                v-model="sessionTimeoutMinutes"
+                :min="1"
+                :max="1440"
+                :step="5"
+                controls-position="right"
+                style="width: 120px;"
+              />
+              <span class="timeout-unit">min</span>
+              <button class="edit-btn" :disabled="sessionTimeoutSaving" @click="handleSaveSessionTimeout">
+                {{ sessionTimeoutSaving ? $t('common.saving') : $t('common.save') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ── Profile Dialog ──────────────────────────── -->
@@ -338,12 +370,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe, AlertCircle, Info } from 'lucide-vue-next'
+import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe, AlertCircle, Info, Timer } from 'lucide-vue-next'
 import request from '@utils/request'
 
 const { t, locale } = useI18n()
@@ -377,6 +409,32 @@ const avatarLetter = computed(() => {
   const name = normalizeRealName(userStore.userInfo?.realName) || userStore.userInfo?.username || 'U'
   return name.charAt(0).toUpperCase()
 })
+
+// ── Admin: Session Timeout ─────────────────────────────────
+const sessionTimeoutMinutes = ref(30)
+const sessionTimeoutSaving  = ref(false)
+
+const loadSessionTimeout = async () => {
+  if (!isAdmin.value) return
+  try {
+    const res: any = await request.get('/user/config/session-timeout')
+    if (res != null) sessionTimeoutMinutes.value = Number(res)
+  } catch (_) {}
+}
+
+const handleSaveSessionTimeout = async () => {
+  sessionTimeoutSaving.value = true
+  try {
+    await request.put('/user/config/session-timeout', { timeout: sessionTimeoutMinutes.value })
+    ElMessage.success(t('settings.sessionTimeoutSaved'))
+  } catch (_) {
+    ElMessage.error(t('settings.sessionTimeoutFailed'))
+  } finally {
+    sessionTimeoutSaving.value = false
+  }
+}
+
+onMounted(() => { loadSessionTimeout() })
 
 // ── Profile Dialog ────────────────────────────────
 const profileDialogVisible = ref(false)
@@ -962,6 +1020,20 @@ const openAboutDialog = () => {
   border-color: #111827;
   background: #fff;
   box-shadow: 0 0 0 3px rgba(17,24,39,0.08) !important;
+}
+
+.session-timeout-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.timeout-unit {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  white-space: nowrap;
 }
 </style>
 

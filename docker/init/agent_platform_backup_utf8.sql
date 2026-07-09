@@ -323,4 +323,21 @@ INSERT INTO `sys_notification` (`id`, `sender_id`, `receiver_id`, `title`, `cont
   (2, 3, 2, 'Warning: Risky SQL Execution Request', 'AI Agent has intercepted a suspicious database deletion command by @credit_staff.', 'SQL_AUDIT', 2, '{"sql":"DELETE FROM bank_ledger WHERE customer_id = 992 AND balance < 100.00;","riskScore":98,"reason":"Unrestricted deletion statement detected without where index."}', NULL, '2026-07-03 10:25:48', '2026-07-03 10:25:48', 0),
   (3, 5, 4, 'Bug Diagnosis Report: Model Hallucination', 'Automated trace log for abnormal retrieval citation matching score.', 'BUG_REPORT', 1, '{"citationScore":0.31,"prompts":"What is the maximum credit line for high-net-worth clients?","output":"According to Section 4, the maximum credit line is 50 million dollars. [Unverifiable Citation: Section 9]","milvusRetrieval":["Section 4: Credit limits are determined by risk rating...","Section 7: Shell companies are restricted to 1 million..."]}', NULL, '2026-07-03 10:25:48', '2026-07-03 10:25:48', 0);
 
+-- ----------------------------
+-- System Configuration Table (dynamic params, e.g. session timeout)
+-- ----------------------------
+DROP TABLE IF EXISTS `sys_config`;
+CREATE TABLE `sys_config` (
+  `id`          bigint       NOT NULL AUTO_INCREMENT,
+  `param_key`   varchar(100) NOT NULL COMMENT 'Config key',
+  `param_value` varchar(500) NOT NULL COMMENT 'Config value',
+  `description` varchar(250) DEFAULT NULL COMMENT 'Description',
+  `update_time` datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_param_key` (`param_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='System Configuration Table';
+
+INSERT INTO `sys_config` (`id`, `param_key`, `param_value`, `description`) VALUES
+  (1, 'session_timeout', '30', 'Session inactivity timeout in minutes');
+
 SET FOREIGN_KEY_CHECKS = 1;

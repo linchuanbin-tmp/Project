@@ -7,6 +7,7 @@ import com.agent.user.service.UserService;
 import com.agent.user.utils.JwtUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,6 +29,12 @@ public class UserServiceImpl implements UserService {
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
     private final SysDepartmentMapper sysDepartmentMapper;
+    private final StringRedisTemplate redisTemplate;
+    private final SysConfigMapper sysConfigMapper;
+
+    private static final String SESSION_KEY_PREFIX        = "session:active:";
+    private static final String REDIS_KEY_SESSION_TIMEOUT = "sys:config:session_timeout";
+    private static final long   DEFAULT_SESSION_TIMEOUT   = 30L;
 
     @Override
     public LoginResponse login(LoginRequest request) {
@@ -64,6 +72,15 @@ public class UserServiceImpl implements UserService {
         // 4. 生成JWT
         String token = jwtUtil.generateToken(user.getUsername(), roleCodes, permCodes);
 
+        // 5. 写入 Redis session（滑动过期窗口）
+        long timeoutMinutes = resolveSessionTimeout();
+        redisTemplate.opsForValue().set(
+                SESSION_KEY_PREFIX + user.getUsername(),
+                token,
+                timeoutMinutes,
+                TimeUnit.MINUTES
+        );
+
         return new LoginResponse(
                 token,
                 user.getUsername(),
@@ -71,6 +88,31 @@ public class UserServiceImpl implements UserService {
                 permCodes,
                 user.getRealName()
         );
+    }
+
+    @Override
+    public void logout(String username) {
+        redisTemplate.delete(SESSION_KEY_PREFIX + username);
+    }
+
+    /**
+     * Resolve session timeout: Redis cache → DB → default 30 min.
+     */
+    private long resolveSessionTimeout() {
+        String cached = redisTemplate.opsForValue().get(REDIS_KEY_SESSION_TIMEOUT);
+        if (cached != null) {
+            try { return Long.parseLong(cached); } catch (NumberFormatException ignored) {}
+        }
+        SysConfig config = sysConfigMapper.selectOne(
+                new LambdaQueryWrapper<SysConfig>()
+                        .eq(SysConfig::getParamKey, "session_timeout")
+        );
+        long value = DEFAULT_SESSION_TIMEOUT;
+        if (config != null) {
+            try { value = Long.parseLong(config.getParamValue()); } catch (NumberFormatException ignored) {}
+        }
+        redisTemplate.opsForValue().set(REDIS_KEY_SESSION_TIMEOUT, String.valueOf(value));
+        return value;
     }
 
     @Override

@@ -23,6 +23,7 @@ export default {
     yes: 'Yes',
     no: 'No',
     remove: 'Remove',
+    saving: 'Saving...',
   },
 
   // Sidebar / Main Navigation
@@ -551,6 +552,11 @@ export default {
     aboutVersion: 'Version',
     aboutDeveloper: 'Development Team',
     aboutCoreTech: 'Core Stack',
+    categoryAdmin: 'System Administration',
+    sessionTimeout: 'Session Inactivity Timeout',
+    sessionTimeoutDesc: 'Automatically sign out users after this many minutes of inactivity',
+    sessionTimeoutSaved: 'Session timeout updated successfully',
+    sessionTimeoutFailed: 'Failed to update session timeout',
   },
 
   // Admin - User Management

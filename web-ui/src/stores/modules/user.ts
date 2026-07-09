@@ -31,21 +31,30 @@ export const useUserStore = defineStore('user', () => {
         return res
     }
 
-    const logout = () => {
+    const logout = async (isExpired = false) => {
+        if (!token.value) return
         const name = userInfo.value?.realName || userInfo.value?.username || 'User'
+
+        if (!isExpired) {
+            // Notify server to delete Redis session key (only if explicit user logout)
+            try { await request.post('/user/logout') } catch (_) {}
+        }
+
         token.value = ''
         userInfo.value = null
         localStorage.removeItem('token')
         router.push('/login')
 
-        ElNotification({
-            title: 'Signed Out',
-            message: `Goodbye, ${name}! You have signed out successfully.`,
-            type: 'success',
-            duration: 4500,
-            position: 'top-right',
-            showClose: true
-        })
+        if (!isExpired) {
+            ElNotification({
+                title: 'Signed Out',
+                message: `Goodbye, ${name}! You have signed out successfully.`,
+                type: 'success',
+                duration: 4500,
+                position: 'top-right',
+                showClose: true
+            })
+        }
     }
 
     const getUserInfo = async () => {

@@ -70,7 +70,36 @@ docker compose up -d mysql redis
 echo "⏳ Waiting for MySQL to initialize (10 seconds)..."
 sleep 10
 
-# 8. Define terminal opening function
+# 7b. Database patch: ensure sys_config table exists (for session timeout config)
+echo "🛠  Running DB migration (sys_config table)..."
+docker exec agent_mysql mysql -uroot -p"${DB_PASSWORD:-123456}" "${DB_NAME:-agent_platform}" 2>/dev/null <<'SQL'
+CREATE TABLE IF NOT EXISTS `sys_config` (
+  `id`          bigint       NOT NULL AUTO_INCREMENT,
+  `param_key`   varchar(100) NOT NULL COMMENT 'Config key',
+  `param_value` varchar(500) NOT NULL COMMENT 'Config value',
+  `description` varchar(250) DEFAULT NULL COMMENT 'Description',
+  `update_time` datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_param_key` (`param_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='System Configuration Table';
+
+INSERT IGNORE INTO `sys_config` (`id`, `param_key`, `param_value`, `description`) VALUES
+  (1, 'session_timeout', '30', 'Session inactivity timeout in minutes');
+SQL
+if [ $? -eq 0 ]; then
+    echo "   ✅ DB migration OK — sys_config table is ready."
+else
+    echo "   ⚠️  DB migration skipped or failed."
+fi
+
+# 7c. Verify Redis is up
+echo "🔍 Verifying Redis connectivity..."
+if docker exec agent_redis redis-cli ping 2>/dev/null | grep -q "PONG"; then
+    echo "   ✅ Redis is alive and responding."
+else
+    echo "   ⚠️  Redis did not respond. Check docker compose status."
+fi
+
 open_new_terminal() {
     local title=$1
     local cmd=$2
@@ -123,6 +152,22 @@ echo "✅ All services initiated!"
 echo ""
 echo "   Frontend Web UI:  http://localhost:3000"
 echo "   API Gateway:      http://localhost:8080"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🧪 Session timeout test commands:"
+echo ""
+echo "  List active session keys:"
+echo "    docker exec agent_redis redis-cli keys 'session:active:*'"
+echo ""
+echo "  Check a user's session TTL (seconds):"
+echo "    docker exec agent_redis redis-cli ttl 'session:active:<username>'"
+echo ""
+echo "  Force-expire a session in 10s (quick test):"
+echo "    docker exec agent_redis redis-cli expire 'session:active:<username>' 10"
+echo ""
+echo "  Check cached session timeout config:"
+echo "    docker exec agent_redis redis-cli get 'sys:config:session_timeout'"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "To stop infrastructure services, run:"
 echo "  docker compose stop mysql redis"

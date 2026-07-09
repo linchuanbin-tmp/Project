@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface UserService {
     LoginResponse login(LoginRequest request);
+    void logout(String username);
     void register(RegisterRequest request);
     User getUserByUsername(String username);
     List<UserResponse> listUsers();
