@@ -12,18 +12,18 @@
 
 ## Milestone 2: Data Model
 
-- [ ] Add `docker/init/patch_rag_tables.sql`.
-- [ ] Add `rag_document_chunk`.
-- [ ] Add `rag_query_log`.
-- [ ] Add `rag_index_task`.
-- [ ] Add entity and mapper classes.
+- [x] Add `docker/init/patch_rag_tables.sql`.
+- [x] Add `rag_document_chunk`.
+- [x] Add `rag_query_log`.
+- [x] Add `rag_index_task`.
+- [x] Add entity and mapper classes.
 
 ## Milestone 3: Permission Layer
 
-- [ ] Resolve current user from gateway headers.
-- [ ] Load user department, clearance level, and roles.
-- [ ] Compute accessible document IDs.
-- [ ] Support approved `RAG_APPLY` temporary access.
+- [x] Resolve current user from gateway headers.
+- [x] Load user department, clearance level, and roles.
+- [x] Compute accessible document IDs.
+- [x] Support approved `RAG_APPLY` temporary access.
 - [ ] Add permission unit tests.
 
 ## Milestone 4: Chunking and Indexing
