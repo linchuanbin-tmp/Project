@@ -34,9 +34,15 @@
           :collapse="collapsed"
           :collapse-transition="false"
       >
+        <div v-if="!collapsed" class="menu-section-title">{{ $t('menu.workspace') }}</div>
+
         <el-menu-item index="/app/dashboard">
           <template #title>{{ $t('menu.dashboard') }}</template>
           <Home :size="16" :stroke-width="1.6" />
+        </el-menu-item>
+        <el-menu-item index="/app/my-tasks">
+          <template #title>{{ $t('menu.myTasks') }}</template>
+          <ClipboardList :size="16" :stroke-width="1.6" />
         </el-menu-item>
         <el-menu-item index="/app/my-schedules">
           <template #title>{{ $t('menu.mySchedules') }}</template>
@@ -73,18 +79,16 @@
           <FolderOpen :size="16" :stroke-width="1.6" />
         </el-menu-item>
 
-        <!-- Department section -->
+        <!-- Management section -->
         <template v-if="userStore.userInfo?.roles?.includes('ROLE_DEPT_ADMIN') || userStore.userInfo?.roles?.includes('ROLE_ADMIN')">
-          <div v-if="!collapsed" class="menu-section-title">{{ $t('menu.department') }}</div>
+          <div v-if="!collapsed" class="menu-section-title">{{ $t('menu.management') }}</div>
           <el-menu-item index="/app/admin/my-dept">
             <template #title>{{ userStore.userInfo?.roles?.includes('ROLE_ADMIN') ? $t('menu.deptManagement') : $t('menu.myDept') }}</template>
             <Briefcase :size="16" :stroke-width="1.6" />
           </el-menu-item>
         </template>
 
-        <!-- Admin section -->
         <template v-if="userStore.userInfo?.roles?.includes('ROLE_ADMIN')">
-          <div v-if="!collapsed" class="menu-section-title">{{ $t('menu.administration') }}</div>
           <el-menu-item index="/app/admin/users">
             <template #title>{{ $t('menu.userManagement') }}</template>
             <Users :size="16" :stroke-width="1.6" />
@@ -92,6 +96,10 @@
           <el-menu-item index="/app/admin/resources">
             <template #title>{{ $t('menu.resourceManagement') }}</template>
             <Database :size="16" :stroke-width="1.6" />
+          </el-menu-item>
+          <el-menu-item index="/app/admin/task-center">
+            <template #title>{{ $t('menu.taskCenter') }}</template>
+            <LayoutDashboard :size="16" :stroke-width="1.6" />
           </el-menu-item>
         </template>
       </el-menu>
@@ -187,7 +195,8 @@ import { getUnreadCount } from '@/api/notification'
 import {
   Home, Wrench, FileText, BookOpen,
   Settings, ChevronDown, Users, Database,
-  PanelLeftClose, PanelLeftOpen, Menu, CalendarDays, Bell, Briefcase, FolderOpen, X
+  PanelLeftClose, PanelLeftOpen, Menu, CalendarDays, Bell, Briefcase, FolderOpen, X,
+  ClipboardList, LayoutDashboard
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -249,6 +258,8 @@ watch(
       }
       else if (newPath === '/app/admin/users') metaKey = 'userManagement'
       else if (newPath === '/app/admin/resources') metaKey = 'resourceManagement'
+      else if (newPath === '/app/admin/task-center') metaKey = 'taskCenter'
+      else if (newPath === '/app/my-tasks') metaKey = 'myTasks'
       else if (newPath === '/app/settings') metaKey = 'settings'
 
       addTab(newPath, title, metaKey)
@@ -372,7 +383,7 @@ const handleCommand = (command: string) => {
 
 .menu-section-title {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   color: #9ca3af;
   letter-spacing: 0.3px;
   padding: 14px 8px 5px;

@@ -140,7 +140,7 @@ open_new_terminal "Tool Agent (8083)"   "$JDK_CMD && cd '$PROJECT_DIR/tool-agent
 sleep 1
 open_new_terminal "Code Agent (8084)"   "$JDK_CMD && cd '$PROJECT_DIR/code-agent'       && $MVN_CMD spring-boot:run -DskipTests"
 sleep 1
-open_new_terminal "Code Agent Python (8090)" "export DB_PASSWORD='${DB_PASSWORD:-123456}' && export DB_USER='${DB_USER:-root}' && cd '$PROJECT_DIR/code-agent/data' && $PYTHON_CMD infer_server.py"
+open_new_terminal "Code Agent Python (8090)" "export DB_PASSWORD='${DB_PASSWORD:-123456}' && export DB_USER='${DB_USER:-root}' && export DEEPSEEK_API_KEY='${DEEPSEEK_API_KEY}' && export DEEPSEEK_BASE_URL='${DEEPSEEK_BASE_URL}' && export DEEPSEEK_MODEL='${DEEPSEEK_MODEL}' && cd '$PROJECT_DIR/code-agent/data' && $PYTHON_CMD infer_server.py"
 sleep 1
 
 # 10. Launch Frontend

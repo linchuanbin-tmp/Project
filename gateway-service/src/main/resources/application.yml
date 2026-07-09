@@ -40,6 +40,14 @@ spring:
           filters:
             - StripPrefix=1
 
+        # Task Service WebSocket 路由
+        - id: task-ws
+          uri: ${TASK_SERVICE_WS_URI:ws://localhost:8082}
+          predicates:
+            - Path=/ws/task/**
+          filters:
+            - StripPrefix=1
+
         # Tool Agent WebSocket 路由
         - id: tool-ws
           uri: ${TOOL_SERVICE_WS_URI:ws://localhost:8083}

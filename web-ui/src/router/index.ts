@@ -61,6 +61,12 @@ const routes = [
                 meta: { title: 'Department Documents' }
             },
             {
+                path: 'my-tasks',
+                name: 'MyTasks',
+                component: () => import('@views/task/MyTasks.vue'),
+                meta: { title: 'My Tasks' }
+            },
+            {
                 path: 'admin/users',
                 name: 'UserManagement',
                 component: () => import('@views/admin/UserManagement.vue'),
@@ -77,6 +83,12 @@ const routes = [
                 name: 'MyDepartment',
                 component: () => import('@views/admin/MyDepartment.vue'),
                 meta: { title: 'My Department', requiresAnyRole: ['ROLE_DEPT_ADMIN', 'ROLE_ADMIN'] }
+            },
+            {
+                path: 'admin/task-center',
+                name: 'TaskCenter',
+                component: () => import('@views/admin/TaskCenter.vue'),
+                meta: { title: 'Task Center', requiresRole: 'ROLE_ADMIN' }
             },
             {
                 path: 'settings',
@@ -96,6 +108,7 @@ const routes = [
                 component: () => import('@views/notification/index.vue'),
                 meta: { title: 'Messages' }
             }
+
         ]
     },
     // Catch-all: redirect root to login

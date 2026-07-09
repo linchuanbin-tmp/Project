@@ -23,122 +23,37 @@
       </div>
     </div>
 
-    <!-- Main Listing View Container -->
-    <div class="library-container">
-      <!-- Search & Filters Toolbar -->
-      <div class="toolbar-box">
-        <div class="search-wrap">
-          <el-input
-            v-model="searchQuery"
-            :placeholder="$t('document.searchPlaceholder')"
-            class="search-input"
-            clearable
-          >
-            <template #prefix>
-              <Search :size="16" class="search-icon" />
-            </template>
-          </el-input>
-        </div>
-
-        <div class="filter-tabs">
-          <button
-            class="filter-tab-btn"
-            :class="{ 'active': activeTab === 'system' }"
-            @click="activeTab = 'system'"
-          >
-            <BookOpen :size="15" />
-            {{ $t('document.systemManuals') }}
-          </button>
-          <button
-            class="filter-tab-btn"
-            :class="{ 'active': activeTab === 'department' }"
-            @click="activeTab = 'department'"
-          >
-            <Briefcase :size="15" />
-            {{ $t('document.deptAssets') }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Tab Content Area -->
-      <div class="listing-content">
+    <!-- Main Listing View Container (Border-card style) -->
+    <div class="library-container-relative">
+      <el-tabs v-model="activeTab" class="library-tabs" type="border-card">
         <!-- 1. System Guides Tab -->
-        <template v-if="activeTab === 'system'">
-          <div v-if="filteredSystemDocs.length === 0 && !loading" class="empty-state-box">
-            <FolderOpen :size="48" class="empty-icon" />
-            <h3>{{ $t('document.noSystemDocs') }}</h3>
-            <p>{{ $t('document.noSystemDocsDesc') }}</p>
-          </div>
-
-          <div v-else class="cards-grid">
-            <div
-              v-for="doc in filteredSystemDocs"
-              :key="doc.id"
-              class="document-card system-doc"
-            >
-              <div class="card-header">
-                <div class="icon-box system">
-                  <BookOpen :size="18" />
-                </div>
-                <div class="header-right-side" style="display: flex; align-items: center; gap: 8px;">
-                  <span class="security-badge global">{{ $t('document.global') }}</span>
-                  <div v-if="canManage(doc)" class="card-mgmt-actions">
-                    <el-button class="icon-action-btn edit" @click.stop="openEditDialog(doc)">
-                      <Edit :size="12" />
-                    </el-button>
-                    <el-button class="icon-action-btn delete" @click.stop="handleDeleteDoc(doc)">
-                      <Trash2 :size="12" />
-                    </el-button>
-                  </div>
-                </div>
-              </div>
-              <div class="card-body">
-                <h3 class="doc-title">{{ doc.title }}</h3>
-                <p class="doc-excerpt">{{ $t('document.openAccessDesc') }}</p>
-              </div>
-              <div class="card-footer">
-                <span class="doc-date">{{ $t('document.created') }}: {{ formatDate(doc.createTime) }}</span>
-                <el-button class="read-action-btn" @click="enterReadingMode(doc)">
-                  {{ $t('document.readDoc') }}
-                  <ChevronRight :size="14" />
-                </el-button>
-              </div>
+        <el-tab-pane name="system">
+          <template #label>
+            <div class="tab-label">
+              <BookOpen :size="15" />
+              <span>{{ $t('document.systemManuals') }}</span>
             </div>
-          </div>
-        </template>
+          </template>
 
-        <!-- 2. Department Assets Tab -->
-        <template v-if="activeTab === 'department'">
-          <!-- Case: No department assigned -->
-          <div v-if="!userStore.userInfo?.deptId" class="empty-state-box">
-            <Briefcase :size="48" class="empty-icon text-rose" />
-            <h3>{{ $t('document.noDeptAssigned') }}</h3>
-            <p>{{ $t('document.noDeptAssignedDesc') }}</p>
-          </div>
-
-          <template v-else>
-            <div v-if="filteredDeptDocs.length === 0 && !loading" class="empty-state-box">
+          <div class="tab-content-inner">
+            <div v-if="filteredSystemDocs.length === 0 && !loading" class="empty-state-box">
               <FolderOpen :size="48" class="empty-icon" />
-              <h3>{{ $t('document.emptyDeptLib') }}</h3>
-              <p>{{ $t('document.emptyDeptLibDesc', { dept: userStore.userInfo?.deptName }) }}</p>
+              <h3>{{ $t('document.noSystemDocs') }}</h3>
+              <p>{{ $t('document.noSystemDocsDesc') }}</p>
             </div>
 
             <div v-else class="cards-grid">
               <div
-                v-for="doc in filteredDeptDocs"
+                v-for="doc in filteredSystemDocs"
                 :key="doc.id"
-                class="document-card"
-                :class="{ 'restricted-card': !doc.accessible }"
+                class="document-card system-doc"
               >
                 <div class="card-header">
-                  <div class="icon-box" :class="{ 'locked': !doc.accessible }">
-                    <Lock v-if="!doc.accessible" :size="18" />
-                    <FileText v-else :size="18" />
+                  <div class="icon-box system">
+                    <BookOpen :size="18" />
                   </div>
                   <div class="header-right-side" style="display: flex; align-items: center; gap: 8px;">
-                    <span class="security-badge" :class="'level-' + doc.securityLevel">
-                      Level-{{ doc.securityLevel }} ({{ getClearanceLabel(doc.securityLevel) }})
-                    </span>
+                    <span class="security-badge global">{{ $t('document.global') }}</span>
                     <div v-if="canManage(doc)" class="card-mgmt-actions">
                       <el-button class="icon-action-btn edit" @click.stop="openEditDialog(doc)">
                         <Edit :size="12" />
@@ -151,36 +66,117 @@
                 </div>
                 <div class="card-body">
                   <h3 class="doc-title">{{ doc.title }}</h3>
-                  <p class="doc-excerpt" v-if="doc.accessible">{{ $t('document.internalAccessDesc') }}</p>
-                  <p class="doc-excerpt restricted-text" v-else>
-                    {{ $t('document.restrictedAccessDesc', { level: doc.securityLevel }) }}
-                  </p>
+                  <p class="doc-excerpt">{{ $t('document.openAccessDesc') }}</p>
                 </div>
                 <div class="card-footer">
                   <span class="doc-date">{{ $t('document.created') }}: {{ formatDate(doc.createTime) }}</span>
-
-                  <el-button
-                    v-if="doc.accessible"
-                    class="read-action-btn"
-                    @click="enterReadingMode(doc)"
-                  >
+                  <el-button class="read-action-btn" @click="enterReadingMode(doc)">
                     {{ $t('document.readDoc') }}
                     <ChevronRight :size="14" />
-                  </el-button>
-                  <el-button
-                    v-else
-                    type="warning"
-                    class="request-action-btn"
-                    @click="enterReadingMode(doc)"
-                  >
-                    {{ $t('document.requestAccess') }}
-                    <ShieldAlert :size="14" />
                   </el-button>
                 </div>
               </div>
             </div>
+          </div>
+        </el-tab-pane>
+
+        <!-- 2. Department Assets Tab -->
+        <el-tab-pane name="department">
+          <template #label>
+            <div class="tab-label">
+              <Briefcase :size="15" />
+              <span>{{ $t('document.deptAssets') }}</span>
+            </div>
           </template>
-        </template>
+
+          <div class="tab-content-inner">
+            <!-- Case: No department assigned -->
+            <div v-if="!userStore.userInfo?.deptId" class="empty-state-box">
+              <Briefcase :size="48" class="empty-icon text-rose" />
+              <h3>{{ $t('document.noDeptAssigned') }}</h3>
+              <p>{{ $t('document.noDeptAssignedDesc') }}</p>
+            </div>
+
+            <template v-else>
+              <div v-if="filteredDeptDocs.length === 0 && !loading" class="empty-state-box">
+                <FolderOpen :size="48" class="empty-icon" />
+                <h3>{{ $t('document.emptyDeptLib') }}</h3>
+                <p>{{ $t('document.emptyDeptLibDesc', { dept: userStore.userInfo?.deptName }) }}</p>
+              </div>
+
+              <div v-else class="cards-grid">
+                <div
+                  v-for="doc in filteredDeptDocs"
+                  :key="doc.id"
+                  class="document-card"
+                  :class="{ 'restricted-card': !doc.accessible }"
+                >
+                  <div class="card-header">
+                    <div class="icon-box" :class="{ 'locked': !doc.accessible }">
+                      <Lock v-if="!doc.accessible" :size="18" />
+                      <FileText v-else :size="18" />
+                    </div>
+                    <div class="header-right-side" style="display: flex; align-items: center; gap: 8px;">
+                      <span class="security-badge" :class="'level-' + doc.securityLevel">
+                        Level-{{ doc.securityLevel }} ({{ getClearanceLabel(doc.securityLevel) }})
+                      </span>
+                      <div v-if="canManage(doc)" class="card-mgmt-actions">
+                        <el-button class="icon-action-btn edit" @click.stop="openEditDialog(doc)">
+                          <Edit :size="12" />
+                        </el-button>
+                        <el-button class="icon-action-btn delete" @click.stop="handleDeleteDoc(doc)">
+                          <Trash2 :size="12" />
+                        </el-button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <h3 class="doc-title">{{ doc.title }}</h3>
+                    <p class="doc-excerpt" v-if="doc.accessible">{{ $t('document.internalAccessDesc') }}</p>
+                    <p class="doc-excerpt restricted-text" v-else>
+                      {{ $t('document.restrictedAccessDesc', { level: doc.securityLevel }) }}
+                    </p>
+                  </div>
+                  <div class="card-footer">
+                    <span class="doc-date">{{ $t('document.created') }}: {{ formatDate(doc.createTime) }}</span>
+
+                    <el-button
+                      v-if="doc.accessible"
+                      class="read-action-btn"
+                      @click="enterReadingMode(doc)"
+                    >
+                      {{ $t('document.readDoc') }}
+                      <ChevronRight :size="14" />
+                    </el-button>
+                    <el-button
+                      v-else
+                      type="warning"
+                      class="request-action-btn"
+                      @click="enterReadingMode(doc)"
+                    >
+                      {{ $t('document.requestAccess') }}
+                      <ShieldAlert :size="14" />
+                    </el-button>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+
+      <!-- Search Input positioned in the header area -->
+      <div class="header-search-wrap">
+        <el-input
+          v-model="searchQuery"
+          :placeholder="$t('document.searchPlaceholder')"
+          class="search-input"
+          clearable
+        >
+          <template #prefix>
+            <Search :size="16" class="search-icon" />
+          </template>
+        </el-input>
       </div>
     </div>
 
@@ -906,76 +902,103 @@ onMounted(() => {
   to { transform: rotate(360deg); }
 }
 
-/* ── Library Container ── */
-.library-container {
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+/* ── Library Container (Border-card tabs style) ── */
+.library-container-relative {
+  position: relative;
 }
 
-/* Toolbar Box */
-.toolbar-box {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.search-wrap {
-  width: 320px;
+/* Modern Pill-Shaped Right-Aligned Search Box */
+.header-search-wrap {
+  position: absolute;
+  top: 10px; /* Centered vertically inside 56px header */
+  right: 16px;
+  z-index: 10;
+  width: 280px;
 }
 
 .search-input :deep(.el-input__wrapper) {
-  border-radius: 10px;
-  background: #f9fafb;
+  border-radius: 99px; /* Pill shape */
+  background: #f3f4f6; /* Modern soft gray */
+  border: none !important;
   box-shadow: none !important;
-  border: 1px solid #e5e7eb;
-  padding: 6px 12px;
+  padding: 4px 14px;
+  height: 36px;
+  transition: all 0.25s ease;
+}
+
+.search-input :deep(.el-input__wrapper:hover) {
+  background: #e5e7eb;
 }
 
 .search-input :deep(.el-input__wrapper.is-focus) {
-  border-color: #111827;
-  background: #fff;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #111827 !important; /* Elegant thin border on focus */
 }
 
 .search-icon {
   color: #9ca3af;
-  margin-right: 4px;
+  margin-right: 6px;
+  transition: color 0.2s;
 }
 
-.filter-tabs {
-  display: flex;
-  background: #eef2f6;
-  padding: 3px;
-  border-radius: 8px;
-  gap: 2px;
+.search-input :deep(.el-input__wrapper.is-focus) .search-icon {
+  color: #111827;
 }
 
-.filter-tab-btn {
-  border: none;
-  background: transparent;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #64748b;
-  cursor: pointer;
+.tab-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.2s;
 }
 
-.filter-tab-btn.active {
+.tab-content-inner {
+  padding: 24px;
+}
+
+/* Custom Sleek Tabs Overrides for Library */
+:deep(.el-tabs--border-card) {
   background: #ffffff;
-  color: #0f172a;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+
+:deep(.el-tabs--border-card > .el-tabs__header) {
+  background-color: #ffffff; /* Modern pure white background */
+  border-bottom: 1px solid #f3f4f6; /* Super faint modern divider */
+  padding: 0 16px;
+  height: 56px; /* Increased height for spacious breathing room */
+  display: flex;
+  align-items: center;
+}
+
+:deep(.el-tabs--border-card > .el-tabs__header .el-tabs__nav-wrap) {
+  margin-bottom: 0;
+}
+
+:deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item) {
+  color: #6b7280;
+  font-weight: 500;
+  font-size: 14px;
+  height: 56px;
+  line-height: 56px;
+  transition: all 0.25s ease;
+  border: none !important;
+  margin: 0 8px;
+  padding: 0 4px !important;
+  border-bottom: 2px solid transparent !important;
+}
+
+:deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item.is-active) {
+  color: #111827;
+  background-color: transparent !important;
+  font-weight: 600;
+  border-bottom: 2px solid #111827 !important;
+}
+
+:deep(.el-tabs--border-card > .el-tabs__content) {
+  padding: 0;
 }
 
 /* Document Grid Cards */

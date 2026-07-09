@@ -141,6 +141,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { executeTool } from '@api/tool'
+import { submitTask, getTask } from '@api/task'
 import { wsClient } from '@utils/websocket'
 
 // Sub-components import
@@ -265,7 +266,6 @@ const executeWithWebSocket = async () => {
     return
   }
 
-  const taskId = generateTaskId()
   isExecuting.value = true
   hasFetchedResult = false
   taskProgress.value = 0
@@ -275,12 +275,26 @@ const executeWithWebSocket = async () => {
 
   wsClient.close?.()
 
+  // Step 1: Submit task to task-service to get a real database task ID
+  let dbTaskId: number | null = null
+  try {
+    const submitRes: any = await submitTask({ taskType: 'TOOL', input: naturalQuery.value })
+    dbTaskId = submitRes?.data?.data?.id ?? submitRes?.data?.id ?? null
+  } catch (err) {
+    // Fallback to mock ID if task-service is unavailable
+    console.warn('task-service unavailable, falling back to mock WS flow')
+  }
+
+  // Step 2: Connect WebSocket using real taskId if available
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
-  const wsUrl = `${protocol}//${host}/ws/?taskId=${taskId}`
+  const wsUrl = dbTaskId
+    ? `${protocol}//${host}/ws/task/progress?taskId=${dbTaskId}`
+    : `${protocol}//${host}/ws/?taskId=fallback_${Date.now()}`
+
   wsClient.connect(wsUrl)
 
-  wsClient.on('message', (rawData: any) => {
+  wsClient.on('message', async (rawData: any) => {
     const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
 
     taskProgress.value = data.progress ?? 0
@@ -290,13 +304,39 @@ const executeWithWebSocket = async () => {
     if (data.status === 'completed' && !hasFetchedResult) {
       hasFetchedResult = true
       taskMessage.value = t('tool.ai.fetchingResult')
-      fetchTaskResult().then(() => {
-        taskProgress.value = 100
-        isExecuting.value = false
-        ElMessage.success(t('tool.ai.complete'))
-      }).catch(() => {
-        isExecuting.value = false
-      })
+      if (dbTaskId) {
+        // Fetch result directly from task record
+        try {
+          const taskRes: any = await getTask(dbTaskId)
+          const record = taskRes?.data?.data ?? taskRes?.data
+          if (record?.output) {
+            try {
+              aiResponse.value = JSON.parse(record.output)
+            } catch {
+              aiResponse.value = { rawText: record.output }
+            }
+          }
+          taskProgress.value = 100
+          isExecuting.value = false
+          ElMessage.success(t('tool.ai.complete'))
+          // Also attempt rich sub-agent result enrichment
+          if (aiResponse.value) {
+            fetchTaskResult().catch(() => {})
+          }
+        } catch {
+          isExecuting.value = false
+          ElMessage.error(t('tool.ai.aiResultFailed'))
+        }
+      } else {
+        // Fallback: use old /tool/execute endpoint
+        fetchTaskResult().then(() => {
+          taskProgress.value = 100
+          isExecuting.value = false
+          ElMessage.success(t('tool.ai.complete'))
+        }).catch(() => {
+          isExecuting.value = false
+        })
+      }
     } else if (data.status === 'error') {
       isExecuting.value = false
       taskMessage.value = data.message || t('tool.ai.error')
@@ -313,7 +353,7 @@ const executeWithWebSocket = async () => {
   wsClient.on('open', () => {
     taskMessage.value = t('tool.ai.connected')
     wsClient.send(JSON.stringify({
-      taskType: 'AI',
+      taskType: 'TOOL',
       query: naturalQuery.value,
       parameters: {}
     }))
