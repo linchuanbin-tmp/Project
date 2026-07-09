@@ -27,3 +27,8 @@ services:
     build:
       context: ./code-agent
       dockerfile: Dockerfile.prod
+
+  rag-agent:
+    build:
+      context: ./rag-agent
+      dockerfile: Dockerfile.prod

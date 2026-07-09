@@ -22,7 +22,8 @@ services:
       - "${MYSQL_EXPOSED_PORT}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./docker/init/agent_platform_backup_utf8.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker/init/agent_platform_backup_utf8.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./docker/init/patch_rag_tables.sql:/docker-entrypoint-initdb.d/20_patch_rag_tables.sql:ro
     command: >
       --default-authentication-plugin=mysql_native_password
       --character-set-server=utf8mb4
@@ -53,6 +54,73 @@ services:
   # ─────────────────────────────────────────────────────────
   # 后端微服务
   # ─────────────────────────────────────────────────────────
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.18
+    container_name: agent_etcd
+    restart: unless-stopped
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - etcd_data:/etcd
+    command: >
+      etcd
+      -advertise-client-urls=http://127.0.0.1:2379
+      -listen-client-urls=http://0.0.0.0:2379
+      --data-dir=/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    container_name: agent_minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - minio_data:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  milvus:
+    image: milvusdb/milvus:v2.6.15
+    container_name: agent_milvus
+    restart: unless-stopped
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MILVUS_GRPC_PORT}:19530"
+      - "${MILVUS_HTTP_PORT}:9091"
+    volumes:
+      - milvus_data:/var/lib/milvus
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 20s
+      retries: 5
+
   user-service:
     build:
       context: .
@@ -166,6 +234,41 @@ services:
       code-agent-python:
         condition: service_started
 
+  rag-agent:
+    build:
+      context: .
+      dockerfile: rag-agent/Dockerfile
+    container_name: agent_rag_agent
+    restart: unless-stopped
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT}
+      - RAG_VECTOR_STORE_PROVIDER=${RAG_VECTOR_STORE_PROVIDER}
+      - MILVUS_HOST=${MILVUS_HOST}
+      - MILVUS_PORT=${MILVUS_PORT}
+      - MILVUS_TOKEN=${MILVUS_TOKEN}
+      - RAG_MILVUS_COLLECTION=${RAG_MILVUS_COLLECTION}
+      - RAG_EMBEDDING_PROVIDER=${RAG_EMBEDDING_PROVIDER}
+      - RAG_EMBEDDING_ENDPOINT=${RAG_EMBEDDING_ENDPOINT}
+      - RAG_EMBEDDING_DIM=${RAG_EMBEDDING_DIM}
+      - RAG_VECTOR_METRIC=${RAG_VECTOR_METRIC}
+      - RAG_VECTOR_INDEX=${RAG_VECTOR_INDEX}
+      - RAG_LLM_API_KEY=${RAG_LLM_API_KEY}
+      - RAG_LLM_BASE_URL=${RAG_LLM_BASE_URL}
+      - RAG_LLM_MODEL=${RAG_LLM_MODEL}
+    ports:
+      - "${RAG_AGENT_PORT}:8085"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+
   gateway-service:
     build:
       context: .
@@ -178,6 +281,7 @@ services:
       - USER_SERVICE_URI=${USER_SERVICE_URI}
       - TASK_SERVICE_URI=${TASK_SERVICE_URI}
       - TOOL_SERVICE_URI=${TOOL_SERVICE_URI}
+      - RAG_SERVICE_URI=${RAG_SERVICE_URI}
       - CODE_SERVICE_URI=http://code-agent:8084
       - JWT_SECRET=${JWT_SECRET}
       - TOOL_SERVICE_WS_URI=ws://tool-agent:8083
@@ -189,6 +293,7 @@ services:
       - task-service
       - tool-agent
       - code-agent
+      - rag-agent
 
   # ─────────────────────────────────────────────────────────
   # Nginx反向代理与前端静态托管
@@ -209,4 +314,10 @@ volumes:
   mysql_data:
     driver: local
   redis_data:
+    driver: local
+  etcd_data:
+    driver: local
+  minio_data:
+    driver: local
+  milvus_data:
     driver: local

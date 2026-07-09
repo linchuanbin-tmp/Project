@@ -1,0 +1,22 @@
+# Stage 1: Build
+FROM maven:3.9-eclipse-temurin-17 AS builder
+WORKDIR /build
+
+COPY pom.xml .
+COPY user-service/pom.xml user-service/
+COPY gateway-service/pom.xml gateway-service/
+COPY task-service/pom.xml task-service/
+COPY tool-agent/pom.xml tool-agent/
+COPY rag-agent/pom.xml rag-agent/
+
+RUN mvn install -N -q
+
+COPY rag-agent/src rag-agent/src
+RUN mvn package -pl rag-agent -DskipTests -q
+
+# Stage 2: Runtime
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+COPY --from=builder /build/rag-agent/target/*.jar app.jar
+ENV JAVA_OPTS="-Xmx256m -Xms128m"
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

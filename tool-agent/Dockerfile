@@ -7,6 +7,7 @@ COPY user-service/pom.xml user-service/
 COPY gateway-service/pom.xml gateway-service/
 COPY task-service/pom.xml task-service/
 COPY tool-agent/pom.xml tool-agent/
+COPY rag-agent/pom.xml rag-agent/
 
 RUN mvn install -N -q
 

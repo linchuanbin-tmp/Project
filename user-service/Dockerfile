@@ -8,6 +8,7 @@ COPY user-service/pom.xml user-service/
 COPY gateway-service/pom.xml gateway-service/
 COPY task-service/pom.xml task-service/
 COPY tool-agent/pom.xml tool-agent/
+COPY rag-agent/pom.xml rag-agent/
 
 # 安装父 pom（不构建子模块）
 RUN mvn install -N -q

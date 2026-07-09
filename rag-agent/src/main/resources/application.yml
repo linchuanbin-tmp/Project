@@ -29,6 +29,9 @@ mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
 
 rag:
+  index:
+    chunk-size-tokens: ${RAG_CHUNK_SIZE_TOKENS:700}
+    chunk-overlap-tokens: ${RAG_CHUNK_OVERLAP_TOKENS:100}
   vector-store:
     provider: ${RAG_VECTOR_STORE_PROVIDER:milvus}
     milvus:

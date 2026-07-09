@@ -28,11 +28,11 @@
 
 ## Milestone 4: Chunking and Indexing
 
-- [ ] Implement `DocumentChunker`.
-- [ ] Implement single-document indexing.
-- [ ] Implement full index rebuild.
-- [ ] Store chunk metadata in MySQL.
-- [ ] Track indexing tasks.
+- [x] Implement `DocumentChunker`.
+- [x] Implement single-document indexing.
+- [x] Implement full index rebuild.
+- [x] Store chunk metadata in MySQL.
+- [x] Track indexing tasks.
 
 ## Milestone 5: Milvus and Embeddings
 
