@@ -8,10 +8,9 @@
     </div>
 
     <el-row :gutter="20" style="margin-top: 20px;">
-      <!-- Left panel: feature tabs -->
-      <el-col :xs="24" :sm="24" :md="16">
+      <!-- Full width panel: feature tabs -->
+      <el-col :xs="24" :sm="24" :md="24">
         <el-tabs v-model="activeTab" type="border-card" class="tool-tabs">
-          <!-- Meeting room booking -->
           <!-- Meeting room booking -->
           <el-tab-pane :label="$t('tool.tabs.meeting')" name="meeting">
             <MeetingAgent ref="meetingAgentRef" />
@@ -28,130 +27,20 @@
           </el-tab-pane>
         </el-tabs>
       </el-col>
-
-      <!-- Right panel: AI assistant with real-time progress -->
-      <el-col :xs="24" :sm="24" :md="8">
-        <el-card class="ai-card">
-          <template #header>
-            <div class="card-header">
-              <span>{{ $t('tool.ai.title') }}</span>
-              <el-tag v-if="isExecuting" type="warning" effect="dark">{{ $t('tool.ai.running') }}</el-tag>
-            </div>
-          </template>
-
-          <div class="chat-mode">
-            <el-input
-                v-model="naturalQuery"
-                type="textarea"
-                :rows="4"
-                :placeholder="$t('tool.ai.placeholder')"
-                :disabled="isExecuting"
-            />
-
-            <el-button
-                type="primary"
-                style="width: 100%; margin-top: 10px;"
-                @click="executeWithWebSocket"
-                :loading="isExecuting"
-                :disabled="!naturalQuery.trim()"
-            >
-              {{ isExecuting ? $t('tool.ai.processing') : $t('tool.ai.sendBtn') }}
-            </el-button>
-
-            <AgentThinking :visible="isExecuting" />
-
-            <!-- AI result (shown after task completes) -->
-            <div v-if="aiResponse" class="ai-result">
-              <el-divider />
-              <h4>{{ $t('tool.ai.resultTitle') }}</h4>
-
-              <!-- Parsed intent from AI -->
-              <div v-if="aiResponse.aiParsed">
-                <el-descriptions :column="1" border size="small">
-                  <el-descriptions-item :label="$t('tool.ai.intent')">{{ aiResponse.aiParsed.intent || 'Query' }}</el-descriptions-item>
-                  <el-descriptions-item :label="$t('tool.ai.date')">
-                    {{ aiResponse.aiParsed.parameters?.date || aiResponse.aiParsed.date || $t('tool.ai.today') }}
-                  </el-descriptions-item>
-                  <el-descriptions-item :label="$t('tool.ai.timeRange')">
-                    {{ aiResponse.aiParsed.parameters?.timeRange || aiResponse.aiParsed.timeRange || $t('tool.ai.unspecified') }}
-                  </el-descriptions-item>
-                  <el-descriptions-item :label="$t('tool.ai.capacity')">
-                    {{ aiResponse.aiParsed.parameters?.capacity || aiResponse.aiParsed.capacity || $t('tool.ai.unspecified') }}
-                  </el-descriptions-item>
-                  <el-descriptions-item v-if="aiResponse.aiParsed.parameters?.equipment || aiResponse.aiParsed.equipment" :label="$t('tool.ai.equipment')">
-                    {{ (aiResponse.aiParsed.parameters?.equipment || aiResponse.aiParsed.equipment)?.join(', ') || $t('tool.ai.none') }}
-                  </el-descriptions-item>
-                </el-descriptions>
-              </div>
-
-              <!-- Recommended meeting rooms -->
-              <div v-if="aiResponse.rooms" style="margin-top: 10px;">
-                <h5>{{ $t('tool.ai.recommendedRoom') }}</h5>
-                <el-card v-for="room in aiResponse.rooms" :key="room.id" class="room-card" shadow="hover">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span><strong>{{ room.name }}</strong> ({{ room.id }})</span>
-                    <el-tag :type="room.available ? 'success' : 'danger'">
-                      {{ room.available ? 'Available' : 'Occupied' }}
-                    </el-tag>
-                  </div>
-                  <p style="margin: 5px 0; color: #666; font-size: 12px;">
-                    Capacity: {{ room.capacity }} people | Location: {{ room.location }} | Equipment: {{ room.equipment?.join(', ') }}
-                  </p>
-                  <p v-if="room.aiMatchScore" style="margin: 0; color: #409EFF; font-size: 12px;">
-                    {{ $t('tool.ai.aiMatchScore') }}: {{ room.aiMatchScore }}% - {{ room.aiReasoning }}
-                  </p>
-                </el-card>
-              </div>
-
-              <!-- Route planning result -->
-              <div v-if="aiResponse.distance">
-                <el-descriptions :column="2" border>
-                  <el-descriptions-item :label="$t('tool.ai.distance')">{{ aiResponse.distance }}</el-descriptions-item>
-                  <el-descriptions-item :label="$t('tool.ai.duration')">{{ aiResponse.duration }}</el-descriptions-item>
-                  <el-descriptions-item :label="$t('tool.ai.trafficStatus')">{{ aiResponse.trafficStatus }}</el-descriptions-item>
-                </el-descriptions>
-              </div>
-
-              <!-- Schedule conflict result -->
-              <div v-if="aiResponse.hasConflict !== undefined">
-                <el-alert
-                    :title="aiResponse.message"
-                    :type="aiResponse.hasConflict ? 'warning' : 'success'"
-                    show-icon
-                />
-              </div>
-
-              <!-- Raw JSON response (collapsible) -->
-              <el-collapse style="margin-top: 10px;">
-                <el-collapse-item :title="$t('tool.ai.rawData')">
-                  <pre style="font-size: 11px; background: #f5f7fa; padding: 8px;">{{ JSON.stringify(aiResponse, null, 2) }}</pre>
-                </el-collapse-item>
-              </el-collapse>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
     </el-row>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { executeTool } from '@api/tool'
-import { submitTask, getTask } from '@api/task'
-import { wsClient } from '@utils/websocket'
 
 // Sub-components import
 import MeetingAgent from './components/MeetingAgent.vue'
 import ScheduleAgent from './components/ScheduleAgent.vue'
 import RouteAgent from './components/RouteAgent.vue'
-import AgentThinking from '@/components/AgentThinking.vue'
 
 const { t } = useI18n()
-const router = useRouter()
 const activeTab = ref('meeting')
 
 // Component template refs
@@ -248,133 +137,13 @@ const extractFromQuery = (query: string) => {
   }
 }
 
-// --- WebSocket AI assistant ---
-const naturalQuery = ref('')
-const aiResponse = ref<any>(null)
+// --- Event binding to receive results from Global Copilot ---
+const handleCopilotToolResult = async (event: Event) => {
+  const customEvent = event as CustomEvent
+  const { payload, query } = customEvent.detail || {}
+  if (!payload) return
 
-const taskProgress = ref(0)
-const taskStatus = ref('')
-const taskMessage = ref(t('tool.ai.waiting'))
-const isExecuting = ref(false)
-let hasFetchedResult = false
-
-const generateTaskId = () => 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-
-const executeWithWebSocket = async () => {
-  if (!naturalQuery.value.trim()) {
-    ElMessage.warning(t('tool.ai.enterQuery'))
-    return
-  }
-
-  isExecuting.value = true
-  hasFetchedResult = false
-  taskProgress.value = 0
-  taskStatus.value = 'connected'
-  taskMessage.value = t('tool.ai.connecting')
-  aiResponse.value = null
-
-  wsClient.close?.()
-
-  // Step 1: Submit task to task-service to get a real database task ID
-  let dbTaskId: number | null = null
   try {
-    const submitRes: any = await submitTask({ taskType: 'TOOL', input: naturalQuery.value })
-    dbTaskId = submitRes?.data?.data?.id ?? submitRes?.data?.id ?? null
-  } catch (err) {
-    // Fallback to mock ID if task-service is unavailable
-    console.warn('task-service unavailable, falling back to mock WS flow')
-  }
-
-  // Step 2: Connect WebSocket using real taskId if available
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const host = window.location.host
-  const wsUrl = dbTaskId
-    ? `${protocol}//${host}/ws/task/progress?taskId=${dbTaskId}`
-    : `${protocol}//${host}/ws/?taskId=fallback_${Date.now()}`
-
-  wsClient.connect(wsUrl)
-
-  wsClient.on('message', async (rawData: any) => {
-    const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
-
-    taskProgress.value = data.progress ?? 0
-    taskStatus.value = data.status ?? ''
-    taskMessage.value = data.message ?? ''
-
-    if (data.status === 'completed' && !hasFetchedResult) {
-      hasFetchedResult = true
-      taskMessage.value = t('tool.ai.fetchingResult')
-      if (dbTaskId) {
-        // Fetch result directly from task record
-        try {
-          const taskRes: any = await getTask(dbTaskId)
-          const record = taskRes?.data?.data ?? taskRes?.data
-          if (record?.output) {
-            try {
-              aiResponse.value = JSON.parse(record.output)
-            } catch {
-              aiResponse.value = { rawText: record.output }
-            }
-          }
-          taskProgress.value = 100
-          isExecuting.value = false
-          ElMessage.success(t('tool.ai.complete'))
-          // Also attempt rich sub-agent result enrichment
-          if (aiResponse.value) {
-            fetchTaskResult().catch(() => {})
-          }
-        } catch {
-          isExecuting.value = false
-          ElMessage.error(t('tool.ai.aiResultFailed'))
-        }
-      } else {
-        // Fallback: use old /tool/execute endpoint
-        fetchTaskResult().then(() => {
-          taskProgress.value = 100
-          isExecuting.value = false
-          ElMessage.success(t('tool.ai.complete'))
-        }).catch(() => {
-          isExecuting.value = false
-        })
-      }
-    } else if (data.status === 'error') {
-      isExecuting.value = false
-      taskMessage.value = data.message || t('tool.ai.error')
-      ElMessage.error(data.message || t('tool.ai.error'))
-    }
-  })
-
-  wsClient.on('error', () => {
-    taskStatus.value = 'error'
-    taskMessage.value = t('tool.ai.connectionError')
-    isExecuting.value = false
-  })
-
-  wsClient.on('open', () => {
-    taskMessage.value = t('tool.ai.connected')
-    wsClient.send(JSON.stringify({
-      taskType: 'TOOL',
-      query: naturalQuery.value,
-      parameters: {}
-    }))
-  })
-}
-
-const fetchTaskResult = async () => {
-  try {
-    const res: any = await executeTool({
-      toolType: 'AI',
-      parameters: {},
-      naturalLanguage: naturalQuery.value
-    })
-
-    const payload = res?.data ?? res
-    aiResponse.value = payload
-    if (!payload) {
-      ElMessage.warning(t('tool.ai.aiEmpty'))
-      return
-    }
-
     const intentRaw = payload.aiParsed?.intent || payload.intent || ''
     const intent = intentRaw.toLowerCase()
 
@@ -414,24 +183,15 @@ const fetchTaskResult = async () => {
       })
 
     } else if (targetTab === 'schedule') {
-      const extracted = extractFromQuery(naturalQuery.value)
+      const extracted = extractFromQuery(query || '')
       const aiParams = payload.aiParsed?.parameters || {}
       
-      if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
-      if (!aiResponse.value.aiParsed.parameters) aiResponse.value.aiParsed.parameters = {}
-
-      // Prefer AI-extracted parameters
       const parsedTimeRangeStr = aiParams.timeRange || extracted.timeRange || t('tool.ai.unspecified')
       const parsedAttendees = aiParams.attendees || []
-
-      aiResponse.value.aiParsed.parameters.timeRange = parsedTimeRangeStr
-      aiResponse.value.aiParsed.parameters.attendees = parsedAttendees
-      aiResponse.value.aiParsed.parameters.date = aiParams.date || extracted.date || t('tool.ai.today')
 
       let timeRange: Date[] = []
       let attendees: string[] = parsedAttendees
 
-      // Parse time range to dates
       if (parsedTimeRangeStr && parsedTimeRangeStr !== t('tool.ai.unspecified')) {
         const parts = parsedTimeRangeStr.split(' to ')
         if (parts.length === 2) {
@@ -439,9 +199,8 @@ const fetchTaskResult = async () => {
         }
       }
 
-      // Fallback attendee regex if AI didn't catch it
-      if (attendees.length === 0) {
-        const userMatch = naturalQuery.value.match(/(admin|user|zhangsan|lisi|张三|李四)/i)
+      if (attendees.length === 0 && query) {
+        const userMatch = query.match(/(admin|user|zhangsan|lisi|张三|李四)/i)
         if (userMatch) {
           const userMap: Record<string, string> = {
             'admin': 'admin', 'user': 'user', 'zhangsan': 'zhangsan', '张三': 'zhangsan', 'lisi': 'lisi', '李四': 'lisi'
@@ -454,21 +213,16 @@ const fetchTaskResult = async () => {
 
       if (timeRange.length === 2 && attendees.length > 0) {
         await scheduleAgentRef.value?.checkConflict()
-        if (aiResponse.value && scheduleAgentRef.value?.conflictResult) {
-          aiResponse.value.hasConflict = scheduleAgentRef.value.conflictResult.hasConflict
-          aiResponse.value.message = scheduleAgentRef.value.conflictResult.message
-        }
       }
 
     } else if (targetTab === 'meeting') {
-      const extracted = extractFromQuery(naturalQuery.value)
+      const extracted = extractFromQuery(query || '')
       const aiParams = payload.aiParsed?.parameters || {}
       
       const updateData: any = {}
-      
-      // Determine final date string
       const aiDate = aiParams.date || extracted.date
       let finalDateStr = extracted.date
+      
       if (aiDate) {
         if (aiDate.toLowerCase() === 'today') {
           finalDateStr = new Date().toISOString().split('T')[0]
@@ -504,36 +258,18 @@ const fetchTaskResult = async () => {
 
       meetingAgentRef.value?.setMeetingData(updateData)
       await meetingAgentRef.value?.queryMeetingRooms()
-
-      if (aiResponse.value) {
-        if (!aiResponse.value.aiParsed) aiResponse.value.aiParsed = {}
-        if (!aiResponse.value.aiParsed.parameters) aiResponse.value.aiParsed.parameters = {}
-        
-        aiResponse.value.aiParsed.parameters.date = finalDateStr || t('tool.ai.today')
-        aiResponse.value.aiParsed.parameters.capacity = finalCapacity ? String(finalCapacity) : t('tool.ai.unspecified')
-        aiResponse.value.aiParsed.parameters.timeRange = aiParams.timeRange || extracted.timeRange || t('tool.ai.unspecified')
-        
-        aiResponse.value.rooms = (meetingAgentRef.value?.meetingRooms || []).map((room: any) => ({
-          id: room.id,
-          name: room.name,
-          capacity: room.capacity,
-          location: room.location,
-          equipment: room.equipment,
-          available: room.available,
-          aiMatchScore: room.available ? 100 : 0,
-          aiReasoning: room.available ? t('tool.ai.matchedReason') : t('tool.ai.occupiedReason')
-        }))
-      }
     }
-    ElMessage.success(t('tool.ai.intentMatched', { intent: targetTab }))
   } catch (error) {
-    console.error('fetchTaskResult error:', error)
-    ElMessage.error(t('tool.ai.aiResultFailed'))
+    console.error('Failed to sync Copilot tool result:', error)
   }
 }
 
+onMounted(() => {
+  window.addEventListener('copilot-tool-result', handleCopilotToolResult)
+})
+
 onUnmounted(() => {
-  wsClient.close?.()
+  window.removeEventListener('copilot-tool-result', handleCopilotToolResult)
 })
 </script>
 
@@ -558,30 +294,4 @@ onUnmounted(() => {
 :deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item.is-active) { color: #111827; background-color: transparent !important; font-weight: 600; border-bottom: 2px solid #111827 !important; }
 :deep(.el-tabs__content) { padding: 24px; flex-grow: 1; }
 .tool-tabs { height: 100%; min-height: 600px; box-sizing: border-box; }
-.ai-card { border-radius: 16px; border: 1px solid #f0f0f0; box-shadow: 0 4px 24px rgba(0,0,0,0.015); overflow: hidden; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
-:deep(.ai-card .el-card__header) { background: #f9fafb; border-bottom: 1px solid #f3f4f6; padding: 16px 20px; }
-:deep(.ai-card .el-card__body) { flex-grow: 1; display: flex; flex-direction: column; overflow-y: auto; }
-.card-header { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; color: #111827; }
-.chat-mode { display: flex; flex-direction: column; }
-.chat-mode :deep(.el-textarea__inner) { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 13.5px; transition: all 0.15s; padding: 12px; line-height: 1.5; }
-.chat-mode :deep(.el-textarea__inner:focus) { border-color: #111827; background: #fff; box-shadow: 0 0 0 3px rgba(17,24,39,0.08) !important; }
-.progress-section { margin-top: 18px; }
-.progress-info { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
-.status-label { color: #6b7280; font-weight: 500; }
-.progress-percent { font-weight: 600; color: #111827; }
-:deep(.el-progress-bar__inner) { background-color: #111827 !important; }
-.ai-result { margin-top: 18px; }
-.ai-result h4 { margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #111827; letter-spacing: -0.2px; }
-.ai-result h5 { margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: #374151; }
-:deep(.el-descriptions) { border-radius: 12px; overflow: hidden; border: 1px solid #f0f0f0; }
-:deep(.el-descriptions__label) { background: #f9fafb !important; font-weight: 600; color: #4b5563; width: 100px; }
-:deep(.el-descriptions__content) { color: #111827; }
-.room-card { margin-bottom: 8px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.01); transition: all 0.2s; padding: 4px; }
-.room-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-:deep(.el-collapse) { border: 1px solid #f0f0f0; border-radius: 12px; overflow: hidden; }
-:deep(.el-collapse-item__header) { padding: 0 16px; font-size: 13px; font-weight: 500; color: #6b7280; background-color: #f9fafb; }
-:deep(.el-collapse-item__content) { padding: 16px; background: #ffffff; }
-:deep(.el-button--primary) { background-color: #111827 !important; border: none !important; border-radius: 10px !important; height: 42px; font-weight: 500; transition: all 0.15s; padding: 10px 20px; }
-:deep(.el-button--primary:hover) { opacity: 0.88; transform: translateY(-1px); }
-:deep(.el-button--primary:active) { transform: translateY(0); }
 </style>

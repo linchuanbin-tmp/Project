@@ -252,7 +252,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Sparkles, Database, Play, RefreshCw, Copy, Check, FileSpreadsheet } from 'lucide-vue-next'
@@ -265,6 +266,8 @@ import {
 } from '@api/code'
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 
 // Quick prompt templates for Text-to-SQL (translated to English)
 const quickTemplates = computed(() => [
@@ -437,9 +440,22 @@ const exportCSV = () => {
   ElMessage.success(t('code.csvSuccess'))
 }
 
-onMounted(() => {
-  fetchMetadata()
+onMounted(async () => {
+  await fetchMetadata()
 })
+
+watch(
+  () => route.query.query,
+  (newQuery) => {
+    if (newQuery) {
+      question.value = newQuery as string
+      handleGenerate()
+      // Clear route query parameters
+      router.replace({ query: {} })
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

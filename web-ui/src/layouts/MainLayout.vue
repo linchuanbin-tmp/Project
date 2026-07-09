@@ -183,6 +183,8 @@
     </el-main>
 
   </el-container>
+  <!-- Global Copilot Widget -->
+  <CopilotWidget />
   </div>
 </template>
 
@@ -191,6 +193,7 @@ import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@stores/modules/user'
 import { getUnreadCount } from '@/api/notification'
+import CopilotWidget from '@/components/CopilotWidget.vue'
 
 import {
   Home, Wrench, FileText, BookOpen,
