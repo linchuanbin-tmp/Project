@@ -181,6 +181,7 @@ services:
       - CODE_SERVICE_URI=http://code-agent:8084
       - JWT_SECRET=${JWT_SECRET}
       - TOOL_SERVICE_WS_URI=ws://tool-agent:8083
+      - CODE_AGENT_PYTHON_BASE_URL=http://code-agent-python:8090
     ports:
       - "${GATEWAY_PORT}:8080"
     depends_on:

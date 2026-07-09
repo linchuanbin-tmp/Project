@@ -121,6 +121,26 @@ export default {
     online: '在线',
     comingSoon: '即将上线',
     loadingSchedules: '加载日程中...',
+    viewMode: {
+      kanban: '数据看板',
+      chat: '智能对话',
+    },
+    chat: {
+      greetingTitle: '您好，今天有什么可以帮您？',
+      greetingSub: '只需输入您的问题，我将自动帮您解析意图并分发给对应的 Agent 处理。',
+      inputPlaceholder: '请输入您想执行的任务... (支持回车发送)',
+      router: {
+        auto: '智能路由',
+        code: 'SQL 生成',
+        tool: '业务工具',
+        rag: '知识问答',
+      },
+      sug: {
+        balance: '查询我的账号状态，并按账户类别统计平均余额',
+        bookRoom: '帮我预订一间明天下午2点到4点、能容纳10人以上的会议室',
+        policy: '查询最新的个人住房贷款授信与额度控制政策',
+      }
+    },
   },
 
   // Code Agent (Text-to-SQL)
@@ -769,5 +789,12 @@ export default {
     totalRecords: '共 {count} 条记录',
     attemptCount: '重试次数',
     copyOutput: '复制输出',
+  },
+
+  // Copilot 悬浮窗
+  copilot: {
+    title: '智能助理 Copilot',
+    tooltip: '唤醒 Copilot 助理',
+    clearHistory: '清空聊天历史',
   },
 }

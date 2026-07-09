@@ -337,6 +337,75 @@ def infer():
     })
 
 
+@app.route("/route", methods=["POST"])
+def route_intent():
+    """意图路由接口：分析用户输入的提问类型"""
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "request body required"}), 400
+
+    question = data.get("question", "").strip()
+    if not question:
+        return jsonify({"error": "question required"}), 400
+
+    log.info("📩 收到分类意图请求: %s", question[:100])
+
+    if not DEEPSEEK_API_KEY:
+        log.warning("⚠️ API Key not set, fallback to simple keyword routing")
+        intent = "RAG"
+        q_lower = question.lower()
+        if any(w in q_lower for w in ["select", "show", "table", "查询", "统计", "余额", "账单", "交易", "账户"]):
+            intent = "CODE"
+        elif any(w in q_lower for w in ["会议室", "预订", "日程", "时间冲突", "发邮件", "安排"]):
+            intent = "TOOL"
+        return jsonify({"intent": intent, "method": "KEYWORD"})
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=DEEPSEEK_API_KEY,
+            base_url=DEEPSEEK_BASE_URL,
+        )
+
+        system_prompt = """你是一个意图分类器。请根据用户的输入，将其归类为以下三类之一：
+- CODE: 如果用户想要查询数据库、生成 SQL、统计或查看报表数据。
+- TOOL: 如果用户想要进行某些业务操作、日程安排、发邮件、订会议室、解决日程冲突、路径规划。
+- RAG: 如果用户在询问规章制度、文档内容、概念定义或政策规程。
+
+请只输出大写单词：CODE、TOOL 或 RAG。绝对不要包含任何其他解释、前导词或 markdown 标记。"""
+
+        response = client.chat.completions.create(
+            model=DEEPSEEK_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": question},
+            ],
+            max_tokens=10,
+            temperature=0.1,
+        )
+
+        intent = response.choices[0].message.content.strip().upper()
+        if "CODE" in intent:
+            intent = "CODE"
+        elif "TOOL" in intent:
+            intent = "TOOL"
+        else:
+            intent = "RAG"
+
+        log.info("✅ 意图分类结果: %s", intent)
+        return jsonify({"intent": intent, "method": "LLM"})
+
+    except Exception as e:
+        log.error("❌ 意图分类失败: %s", e)
+        intent = "RAG"
+        q_lower = question.lower()
+        if any(w in q_lower for w in ["select", "show", "table", "查询", "统计", "余额", "账单", "交易", "账户"]):
+            intent = "CODE"
+        elif any(w in q_lower for w in ["会议室", "预订", "日程", "时间冲突", "发邮件", "安排"]):
+            intent = "TOOL"
+        return jsonify({"intent": intent, "method": "FALLBACK", "error": str(e)})
+
+
 @app.route("/health")
 def health():
     """健康检查"""

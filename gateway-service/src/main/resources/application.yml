@@ -64,6 +64,14 @@ spring:
           filters:
             - StripPrefix=1
 
+        # Dashboard Intent Router 路由
+        - id: dashboard-route
+          uri: ${CODE_AGENT_PYTHON_BASE_URL:http://localhost:8090}
+          predicates:
+            - Path=/api/dashboard/route
+          filters:
+            - SetPath=/route
+
   redis:
     host: localhost
     port: 6379

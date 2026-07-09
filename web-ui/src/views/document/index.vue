@@ -454,7 +454,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -490,6 +491,8 @@ customRenderer.heading = function (arg1: any, arg2?: any) {
 marked.use({ renderer: customRenderer })
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 
 const documents = ref<any[]>([])
@@ -802,11 +805,23 @@ const handleDeleteDoc = (doc: any) => {
   }).catch(() => {})
 }
 
-onMounted(() => {
-  fetchDocuments()
+onMounted(async () => {
+  await fetchDocuments()
   fetchDeptMembers()
   fetchDepartments()
 })
+
+watch(
+  () => route.query.query,
+  (newQuery) => {
+    if (newQuery) {
+      searchQuery.value = newQuery as string
+      // Clear query parameter in browser address bar
+      router.replace({ query: {} })
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

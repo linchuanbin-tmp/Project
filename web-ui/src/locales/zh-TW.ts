@@ -121,6 +121,26 @@ export default {
     online: '線上',
     comingSoon: '即將上線',
     loadingSchedules: '載入日程中...',
+    viewMode: {
+      kanban: '數據看板',
+      chat: '智能對話',
+    },
+    chat: {
+      greetingTitle: '您好，今天有什麼可以幫您？',
+      greetingSub: '只需輸入您的問題，我將自動幫您解析意圖並分發給對應的 Agent 處理。',
+      inputPlaceholder: '請輸入您想執行的任務... (支持回車發送)',
+      router: {
+        auto: '智能路由',
+        code: 'SQL 生成',
+        tool: '業務工具',
+        rag: '知識問答',
+      },
+      sug: {
+        balance: '查詢我的帳號狀態，並按帳戶類別統計平均餘額',
+        bookRoom: '幫我預訂一間明天下午2點到4點、能容納10人以上的會議室',
+        policy: '查詢最新的個人住房貸款授信與額度控制政策',
+      }
+    },
   },
 
   // Code Agent (Text-to-SQL)
@@ -758,5 +778,12 @@ export default {
     totalRecords: '共 {count} 条記錄',
     attemptCount: '重試次數',
     copyOutput: '複製輸出',
+  },
+
+  // Copilot 懸浮窗
+  copilot: {
+    title: '智能助理 Copilot',
+    tooltip: '喚醒 Copilot 助理',
+    clearHistory: '清空聊天歷史',
   },
 }

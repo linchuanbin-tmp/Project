@@ -121,6 +121,26 @@ export default {
     online: 'Online',
     comingSoon: 'Coming Soon',
     loadingSchedules: 'Loading schedules...',
+    viewMode: {
+      kanban: 'Overview',
+      chat: 'Smart Chat',
+    },
+    chat: {
+      greetingTitle: 'Hello, how can I help you today?',
+      greetingSub: 'Type your request, and I will analyze the intent and route it to the proper Agent.',
+      inputPlaceholder: 'Type a task to execute... (Press Enter to send)',
+      router: {
+        auto: 'Auto Route',
+        code: 'SQL Gen',
+        tool: 'Business Tool',
+        rag: 'Policy Q&A',
+      },
+      sug: {
+        balance: 'Check my account status and get average balance by account type',
+        bookRoom: 'Help me book a meeting room for 10+ people tomorrow from 2:00 PM to 4:00 PM',
+        policy: 'Query the latest mortgage credit limits and loan policies',
+      }
+    },
   },
 
   // Code Agent (Text-to-SQL)
@@ -769,5 +789,12 @@ export default {
     totalRecords: '{count} records total',
     attemptCount: 'Attempts',
     copyOutput: 'Copy Output',
+  },
+
+  // Copilot Floating Widget
+  copilot: {
+    title: 'Copilot Assistant',
+    tooltip: 'Wake up Copilot',
+    clearHistory: 'Clear History',
   },
 }
