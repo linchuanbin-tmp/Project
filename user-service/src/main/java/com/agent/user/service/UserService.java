@@ -24,4 +24,5 @@ public interface UserService {
     List<UserResponse> listUsersWithoutDept();
     void addUsersToDept(List<Long> userIds, Long deptId);
     void removeUserFromDept(Long userId, Long deptId);
+    String resetPassword(Long userId);
 }

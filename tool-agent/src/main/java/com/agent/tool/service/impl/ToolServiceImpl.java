@@ -4,13 +4,15 @@ import com.agent.tool.dto.ToolRequest;
 import com.agent.tool.dto.ToolResponse;
 import com.agent.tool.service.AmapService;
 import com.agent.tool.service.DeepSeekService;
+import com.agent.tool.service.MeetingRoomService;
 import com.agent.tool.service.ToolService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -18,12 +20,19 @@ import java.util.Map;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ToolServiceImpl implements ToolService {
 
     private final ObjectMapper objectMapper;
     private final DeepSeekService deepSeekService;
     private final AmapService amapService;
+    private final MeetingRoomService meetingRoomService;
+
+    public ToolServiceImpl(ObjectMapper objectMapper, DeepSeekService deepSeekService, AmapService amapService, MeetingRoomService meetingRoomService) {
+        this.objectMapper = objectMapper;
+        this.deepSeekService = deepSeekService;
+        this.amapService = amapService;
+        this.meetingRoomService = meetingRoomService;
+    }
 
     @Override
     public ToolResponse execute(ToolRequest request) {
@@ -182,8 +191,8 @@ public class ToolServiceImpl implements ToolService {
             你是企业会议室查询助手。分析用户需求，提取以下信息并返回JSON：
             {
                 "intent": "query",
-                "date": "日期描述",
-                "timeRange": "时间段",
+                "date": "日期描述（如today/tomorrow/2026-07-11）",
+                "timeRange": "时间段（如09:00 to 11:00）",
                 "capacity": 人数,
                 "equipment": ["设备1", "设备2"],
                 "reasoning": "你的分析过程"
@@ -194,22 +203,47 @@ public class ToolServiceImpl implements ToolService {
         String aiJson = deepSeekService.chat(systemPrompt, naturalLanguage);
         JsonNode aiResult = parseJson(aiJson);
 
-        List<Map<String, Object>> rooms = List.of(
-                Map.of("id", "A-101", "name", "Conference Room A", "capacity", 20,
-                        "location", "Building 1, Floor 3", "equipment", List.of("Projector", "Whiteboard"),
-                        "available", true, "aiMatchScore", 95,
-                        "aiReasoning", aiResult.path("reasoning").asText("Meets requirements")),
-                Map.of("id", "A-102", "name", "Meeting Room B", "capacity", 10,
-                        "location", "Building 1, Floor 3", "equipment", List.of("Whiteboard"),
-                        "available", true, "aiMatchScore", 60,
-                        "aiReasoning", "Smaller capacity but available")
-        );
+        // Parse date: default to tomorrow
+        LocalDateTime startTime;
+        String dateStr = aiResult.path("date").asText("tomorrow");
+        if ("today".equalsIgnoreCase(dateStr)) {
+            startTime = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+        } else if ("tomorrow".equalsIgnoreCase(dateStr)) {
+            startTime = LocalDateTime.now().plusDays(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        } else {
+            try {
+                startTime = LocalDateTime.parse(dateStr + "T00:00:00");
+            } catch (Exception e) {
+                startTime = LocalDateTime.now().plusDays(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+            }
+        }
+
+        // Parse time range: default 09:00-11:00
+        String timeRangeStr = aiResult.path("timeRange").asText("09:00 to 11:00");
+        // Handle both "17:20 to 18:50" and "17:20-18:50" formats
+        String[] parts = timeRangeStr.contains(" to ") ? timeRangeStr.split(" to ") : timeRangeStr.split("-");
+        String startTimeStr = parts.length >= 1 ? parts[0].trim() : "09:00";
+        String endTimeStr = parts.length >= 2 ? parts[1].trim() : "11:00";
+        if (!startTimeStr.contains(":")) startTimeStr = "09:00";
+        if (!endTimeStr.contains(":")) endTimeStr = "11:00";
+
+        LocalDateTime queryStart = LocalDateTime.parse(
+            startTime.format(DateTimeFormatter.ISO_LOCAL_DATE) + "T" + startTimeStr + ":00");
+        LocalDateTime queryEnd = LocalDateTime.parse(
+            startTime.format(DateTimeFormatter.ISO_LOCAL_DATE) + "T" + endTimeStr + ":00");
+
+        int capacity = aiResult.path("capacity").asInt(5);
+
+        log.info("Meeting query: date={}, time={} to {}, capacity={}", startTime.toLocalDate(), startTimeStr, endTimeStr, capacity);
+
+        // Query real DB
+        List<Map<String, Object>> rooms = meetingRoomService.queryRoomsWithStatus(queryStart, queryEnd, capacity);
 
         Map<String, Object> data = new HashMap<>();
         data.put("rooms", rooms);
         data.put("total", rooms.size());
         data.put("aiParsed", aiResult);
-        data.put("source", "deepseek");
+        data.put("source", "database");
         return data;
     }
 

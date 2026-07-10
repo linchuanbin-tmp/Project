@@ -420,7 +420,7 @@ const scheduleForm = reactive<MeetingSchedule>({
 const fetchRooms = async () => {
   try {
     const res: any = await request.get('/tool/admin/meeting-rooms')
-    const payload = res?.data ?? res
+    const payload = res
     rooms.value = payload || []
   } catch (error: any) {
     console.error('Failed to load meeting rooms:', error)
@@ -430,7 +430,7 @@ const fetchRooms = async () => {
 const fetchSchedules = async () => {
   try {
     const res: any = await request.get('/tool/admin/schedules')
-    const payload = res?.data ?? res
+    const payload = res
     schedules.value = payload || []
   } catch (error: any) {
     console.error('Failed to load schedules:', error)

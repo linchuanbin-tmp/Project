@@ -342,23 +342,67 @@ def route_intent():
     """意图路由接口：分析用户输入的提问类型"""
     data = request.get_json(silent=True)
     if not data:
-        return jsonify({"error": "request body required"}), 400
+        return jsonify({"code": 400, "message": "request body required", "data": None}), 400
 
     question = data.get("question", "").strip()
     if not question:
-        return jsonify({"error": "question required"}), 400
+        return jsonify({"code": 400, "message": "question required", "data": None}), 400
 
     log.info("📩 收到分类意图请求: %s", question[:100])
+
+    q_lower = question.lower()
+    # Check greetings first for keyword fallback
+    if any(w in q_lower for w in ["你好", "您好", "hello", "hi", "hey", "who are you", "你是谁", "是谁", "助手", "小助手", "copilot"]):
+        return jsonify({
+            "code": 200,
+            "message": "success",
+            "data": {
+                "intent": "CHAT",
+                "reply": "你好！我是你的智能助理 Copilot，随时可以帮您处理 SQL 查询、会议室预订、日程冲突检测或知识库检索。请问今天有什么我可以帮您的？",
+                "method": "KEYWORD"
+            }
+        })
 
     if not DEEPSEEK_API_KEY:
         log.warning("⚠️ API Key not set, fallback to simple keyword routing")
         intent = "RAG"
-        q_lower = question.lower()
         if any(w in q_lower for w in ["select", "show", "table", "查询", "统计", "余额", "账单", "交易", "账户"]):
             intent = "CODE"
         elif any(w in q_lower for w in ["会议室", "预订", "日程", "时间冲突", "发邮件", "安排"]):
+            # Check if booking details are missing
+            has_date = any(w in q_lower for w in ["今", "明", "后", "下午", "上午", "点", "分", "time", "date", "today", "tomorrow", "pm", "am"])
+            has_capacity = any(w in q_lower for w in ["人", "个", "位", "pax", "capacity", "people"])
+            if not (has_date and has_capacity):
+                return jsonify({
+                    "code": 200,
+                    "message": "success",
+                    "data": {
+                        "intent": "CLARIFY",
+                        "reply": "好的，请问您需要预定哪一天的会议室？预计有多少人参加？",
+                        "method": "KEYWORD_CLARIFY"
+                    }
+                })
             intent = "TOOL"
-        return jsonify({"intent": intent, "method": "KEYWORD"})
+        elif any(w in q_lower for w in ["规划", "路线", "地图", "驾车"]):
+            # Check if start and end are missing
+            if "从" not in q_lower or "到" not in q_lower:
+                return jsonify({
+                    "code": 200,
+                    "message": "success",
+                    "data": {
+                        "intent": "CLARIFY",
+                        "reply": "请提供您的路线起点和终点（例如：从香港大学到香港国际机场）。",
+                        "method": "KEYWORD_CLARIFY"
+                    }
+                })
+            intent = "TOOL"
+        elif any(w in q_lower for w in ["设置", "settings", "个人中心", "密码", "password", "profile"]):
+            intent = "SETTINGS"
+        return jsonify({
+            "code": 200,
+            "message": "success",
+            "data": {"intent": intent, "method": "KEYWORD"}
+        })
 
     try:
         from openai import OpenAI
@@ -367,12 +411,15 @@ def route_intent():
             base_url=DEEPSEEK_BASE_URL,
         )
 
-        system_prompt = """你是一个意图分类器。请根据用户的输入，将其归类为以下三类之一：
+        system_prompt = """你是一个智能意图分类器。请根据用户的输入，将其归类为以下六类之一：
 - CODE: 如果用户想要查询数据库、生成 SQL、统计或查看报表数据。
-- TOOL: 如果用户想要进行某些业务操作、日程安排、发邮件、订会议室、解决日程冲突、路径规划。
+- TOOL: 如果用户想要进行业务操作，例如订会议室（需包含日期/时间/人数）、日程冲突检测（需包含人员/时间范围）、路径规划（需包含起点和终点）。
 - RAG: 如果用户在询问规章制度、文档内容、概念定义或政策规程。
+- SETTINGS: 如果用户想要修改密码、查看个人资料、更改系统设置或配置。
+- CLARIFY: 如果用户表达了想订会议室或规划路线的意图，但缺少核心关键参数（例如：订会议室没说日期/时间/人数；规划路线没有提供起点或终点）。
+- CHAT: 如果用户在说你好、打招呼、进行简单问候、问你是谁，或者进行与上述业务无关的日常闲聊对话。
 
-请只输出大写单词：CODE、TOOL 或 RAG。绝对不要包含任何其他解释、前导词或 markdown 标记。"""
+请只输出对应的大写单词：CODE、TOOL、RAG、SETTINGS、CLARIFY 或 CHAT。绝对不要包含任何其他解释、前导词或 markdown 标记。"""
 
         response = client.chat.completions.create(
             model=DEEPSEEK_MODEL,
@@ -389,21 +436,122 @@ def route_intent():
             intent = "CODE"
         elif "TOOL" in intent:
             intent = "TOOL"
+        elif "SETTINGS" in intent:
+            intent = "SETTINGS"
+        elif "CLARIFY" in intent:
+            intent = "CLARIFY"
+        elif "CHAT" in intent:
+            intent = "CHAT"
         else:
             intent = "RAG"
 
         log.info("✅ 意图分类结果: %s", intent)
-        return jsonify({"intent": intent, "method": "LLM"})
+
+        if intent == "CHAT":
+            try:
+                response_chat = client.chat.completions.create(
+                    model=DEEPSEEK_MODEL,
+                    messages=[
+                        {"role": "system", "content": "你是一个银行智能化办公助理 Copilot。请以友好、专业、简短的方式回复用户的打招呼或闲聊问候（通常不超过两句话）。"},
+                        {"role": "user", "content": question},
+                    ],
+                    max_tokens=150,
+                    temperature=0.7,
+                )
+                reply = response_chat.choices[0].message.content.strip()
+                log.info("💬 闲聊回复生成成功")
+                return jsonify({
+                    "code": 200,
+                    "message": "success",
+                    "data": {"intent": "CHAT", "reply": reply, "method": "LLM"}
+                })
+            except Exception as chat_err:
+                log.error("❌ 闲聊回复生成失败: %s", chat_err)
+                return jsonify({
+                    "code": 200,
+                    "message": "success",
+                    "data": {
+                        "intent": "CHAT",
+                        "reply": "你好！我是你的智能助理 Copilot，随时可以帮您处理 SQL 查询、会议室预订、日程冲突检测或知识库检索。请问今天有什么我可以帮您的？",
+                        "method": "LLM_FALLBACK"
+                    }
+                })
+
+        if intent == "CLARIFY":
+            try:
+                response_clarify = client.chat.completions.create(
+                    model=DEEPSEEK_MODEL,
+                    messages=[
+                        {"role": "system", "content": "你是一个会议室预订与地图服务助手。用户想使用服务但缺少核心参数。请用友好、专业、简短的一句话询问用户缺少的参数（例如询问具体时间、人数，或询问起点和终点）。"},
+                        {"role": "user", "content": question},
+                    ],
+                    max_tokens=150,
+                    temperature=0.7,
+                )
+                reply = response_clarify.choices[0].message.content.strip()
+                log.info("💬 澄清回复生成成功")
+                return jsonify({
+                    "code": 200,
+                    "message": "success",
+                    "data": {"intent": "CLARIFY", "reply": reply, "method": "LLM"}
+                })
+            except Exception as clarify_err:
+                log.error("❌ 澄清回复生成失败: %s", clarify_err)
+                return jsonify({
+                    "code": 200,
+                    "message": "success",
+                    "data": {
+                        "intent": "CLARIFY",
+                        "reply": "好的，请问您需要预定哪一天的会议室、大概多少人？或者您能提供路线规划的起点和终点吗？",
+                        "method": "LLM_FALLBACK"
+                    }
+                })
+
+        return jsonify({
+            "code": 200,
+            "message": "success",
+            "data": {"intent": intent, "method": "LLM"}
+        })
 
     except Exception as e:
         log.error("❌ 意图分类失败: %s", e)
         intent = "RAG"
-        q_lower = question.lower()
         if any(w in q_lower for w in ["select", "show", "table", "查询", "统计", "余额", "账单", "交易", "账户"]):
             intent = "CODE"
         elif any(w in q_lower for w in ["会议室", "预订", "日程", "时间冲突", "发邮件", "安排"]):
+            # Check if booking details are missing
+            has_date = any(w in q_lower for w in ["今", "明", "后", "下午", "上午", "点", "分", "time", "date", "today", "tomorrow", "pm", "am"])
+            has_capacity = any(w in q_lower for w in ["人", "个", "位", "pax", "capacity", "people"])
+            if not (has_date and has_capacity):
+                return jsonify({
+                    "code": 200,
+                    "message": "success",
+                    "data": {
+                        "intent": "CLARIFY",
+                        "reply": "好的，请问您需要预定哪一天的会议室？预计有多少人参加？",
+                        "method": "FALLBACK_CLARIFY"
+                    }
+                })
             intent = "TOOL"
-        return jsonify({"intent": intent, "method": "FALLBACK", "error": str(e)})
+        elif any(w in q_lower for w in ["规划", "路线", "地图", "驾车"]):
+            if "从" not in q_lower or "到" not in q_lower:
+                return jsonify({
+                    "code": 200,
+                    "message": "success",
+                    "data": {
+                        "intent": "CLARIFY",
+                        "reply": "请提供您的路线起点和终点（例如：从香港大学到香港国际机场）。",
+                        "method": "FALLBACK_CLARIFY"
+                    }
+                })
+            intent = "TOOL"
+        elif any(w in q_lower for w in ["设置", "settings", "个人中心", "密码", "password", "profile"]):
+            intent = "SETTINGS"
+        return jsonify({
+            "code": 200,
+            "message": "success",
+            "data": {"intent": intent, "method": "FALLBACK", "error": str(e)}
+        })
 
 
 @app.route("/health")

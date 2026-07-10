@@ -1,10 +1,8 @@
 import axios from 'axios'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@stores/modules/user'
 import router from '@router/index'
 import i18n from '@/i18n'
-
-let isSessionExpiredAlertActive = false
 
 const request = axios.create({
     baseURL: '/api',  // proxied via Vite config

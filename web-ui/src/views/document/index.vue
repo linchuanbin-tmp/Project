@@ -816,7 +816,7 @@ watch(
   (newQuery) => {
     if (newQuery) {
       searchQuery.value = newQuery as string
-      // Clear query parameter in browser address bar
+      activeTab.value = 'dept'
       router.replace({ query: {} })
     }
   },

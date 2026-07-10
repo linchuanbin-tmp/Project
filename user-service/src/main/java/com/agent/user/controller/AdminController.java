@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.List;
 
 @RestController
@@ -94,6 +95,20 @@ public class AdminController {
         try {
             sysDepartmentMapper.deleteById(id);
             return Result.success("Department deleted successfully");
+        } catch (RuntimeException e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
+    @PutMapping("/user/password/reset")
+    public Result<Map<String, String>> resetUserPassword(@RequestBody Map<String, Long> body) {
+        Long userId = body.get("userId");
+        if (userId == null) {
+            return Result.error(400, "userId is required");
+        }
+        try {
+            String tempPassword = userService.resetPassword(userId);
+            return Result.success(Map.of("tempPassword", tempPassword));
         } catch (RuntimeException e) {
             return Result.error(400, e.getMessage());
         }

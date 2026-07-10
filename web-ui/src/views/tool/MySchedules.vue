@@ -193,7 +193,7 @@ const fetchMySchedules = async () => {
   loading.value = true
   try {
     const res: any = await request.get('/tool/my-schedules')
-    const payload = res?.data ?? res
+    const payload = res
     allSchedules.value = payload || []
   } catch (error: any) {
     console.error('Failed to fetch schedules:', error)
