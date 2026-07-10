@@ -37,6 +37,7 @@ rag:
     milvus:
       host: ${MILVUS_HOST:localhost}
       port: ${MILVUS_PORT:19530}
+      token: ${MILVUS_TOKEN:}
       collection-name: ${RAG_MILVUS_COLLECTION:rag_document_chunks}
       dimension: ${RAG_EMBEDDING_DIM:768}
       metric-type: ${RAG_VECTOR_METRIC:COSINE}
@@ -46,6 +47,7 @@ rag:
     endpoint: ${RAG_EMBEDDING_ENDPOINT:http://localhost:8091/embed}
     dimension: ${RAG_EMBEDDING_DIM:768}
   llm:
+    provider: ${RAG_LLM_PROVIDER:http}
     api-key: ${RAG_LLM_API_KEY:${DEEPSEEK_API_KEY:}}
     base-url: ${RAG_LLM_BASE_URL:${DEEPSEEK_BASE_URL:https://maas-api.cn-huabei-1.xf-yun.com/v2}}
     model: ${RAG_LLM_MODEL:${DEEPSEEK_MODEL:xopdeepseekv32}}

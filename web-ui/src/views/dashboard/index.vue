@@ -329,7 +329,7 @@ const handleChatSubmit = async () => {
       console.log('Classified intent:', targetRouter)
     }
 
-    let targetPath = '/app/dept-docs' // redirect RAG to document library
+    let targetPath = '/app/rag'
     if (targetRouter === 'CODE') {
       targetPath = '/app/code'
     } else if (targetRouter === 'TOOL') {
@@ -344,7 +344,7 @@ const handleChatSubmit = async () => {
   } catch (e) {
     console.error('Failed to route intent', e)
     router.push({
-      path: '/app/dept-docs',
+      path: '/app/rag',
       query: { query }
     })
   } finally {
@@ -449,7 +449,7 @@ const services = computed(() => [
   { name: t('dashboard.user'),       status: 'online',  label: t('dashboard.online') },
   { name: t('dashboard.toolAgentService'), status: 'online',  label: t('dashboard.online') },
   { name: t('dashboard.sqlAgentService'),  status: 'online',  label: t('dashboard.online') },
-  { name: t('dashboard.ragAgentService'),  status: 'offline', label: t('dashboard.comingSoon') },
+  { name: t('dashboard.ragAgentService'),  status: 'online', label: t('dashboard.online') },
 ])
 
 onMounted(() => {

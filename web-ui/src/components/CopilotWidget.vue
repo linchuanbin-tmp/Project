@@ -476,14 +476,14 @@ const submitQuery = async () => {
       isExecuting.value = false
       messages.value.push({
         role: 'assistant',
-        content: 'Intent classified as Document Query. Filtering document library...',
+        content: 'Intent classified as Document Query. Opening RAG Workspace...',
         timestamp: Date.now()
       })
       saveHistory()
       scrollToBottom()
 
       await router.push({
-        path: '/app/dept-docs',
+        path: '/app/rag',
         query: { query }
       })
     }
@@ -492,14 +492,14 @@ const submitQuery = async () => {
     isExecuting.value = false
     messages.value.push({
       role: 'assistant',
-      content: 'Routing failed, redirecting to Document Library...',
+      content: 'Routing failed, opening RAG Workspace...',
       timestamp: Date.now()
     })
     saveHistory()
     scrollToBottom()
 
     await router.push({
-      path: '/app/dept-docs',
+      path: '/app/rag',
       query: { query }
     })
   }

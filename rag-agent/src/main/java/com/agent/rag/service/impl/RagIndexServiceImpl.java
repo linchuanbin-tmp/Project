@@ -2,6 +2,7 @@ package com.agent.rag.service.impl;
 
 import com.agent.rag.dto.DocumentChunk;
 import com.agent.rag.dto.RagIndexResponse;
+import com.agent.rag.dto.VectorRecord;
 import com.agent.rag.entity.RagDocumentChunk;
 import com.agent.rag.entity.RagIndexTask;
 import com.agent.rag.entity.SysDocument;
@@ -9,7 +10,9 @@ import com.agent.rag.mapper.RagDocumentChunkMapper;
 import com.agent.rag.mapper.RagIndexTaskMapper;
 import com.agent.rag.mapper.SysDocumentMapper;
 import com.agent.rag.service.DocumentChunker;
+import com.agent.rag.service.EmbeddingClient;
 import com.agent.rag.service.RagIndexService;
+import com.agent.rag.service.VectorStoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,6 +37,8 @@ public class RagIndexServiceImpl implements RagIndexService {
     private final RagDocumentChunkMapper ragDocumentChunkMapper;
     private final RagIndexTaskMapper ragIndexTaskMapper;
     private final DocumentChunker documentChunker;
+    private final EmbeddingClient embeddingClient;
+    private final VectorStoreService vectorStoreService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -77,6 +82,7 @@ public class RagIndexServiceImpl implements RagIndexService {
     public RagIndexResponse deleteDocumentIndex(Long documentId) {
         RagIndexTask task = createTask(documentId, TASK_DELETE_DOCUMENT);
         try {
+            vectorStoreService.deleteByDocumentId(documentId);
             int deleted = ragDocumentChunkMapper.hardDeleteByDocumentId(documentId);
             markTask(task, STATUS_SUCCESS, "Deleted " + deleted + " chunk(s).");
             return response(task, deleted);
@@ -97,8 +103,10 @@ public class RagIndexServiceImpl implements RagIndexService {
     }
 
     private int writeChunks(SysDocument document) {
+        vectorStoreService.deleteByDocumentId(document.getId());
         ragDocumentChunkMapper.hardDeleteByDocumentId(document.getId());
         List<DocumentChunk> chunks = documentChunker.split(document.getContent());
+        List<VectorRecord> vectorRecords = new java.util.ArrayList<>();
         for (DocumentChunk chunk : chunks) {
             RagDocumentChunk entity = new RagDocumentChunk();
             entity.setDocumentId(document.getId());
@@ -113,7 +121,20 @@ public class RagIndexServiceImpl implements RagIndexService {
             entity.setCreateTime(LocalDateTime.now());
             entity.setUpdateTime(LocalDateTime.now());
             ragDocumentChunkMapper.insert(entity);
+
+            vectorRecords.add(VectorRecord.builder()
+                    .vectorId(entity.getVectorId())
+                    .documentId(entity.getDocumentId())
+                    .chunkId(entity.getId())
+                    .chunkIndex(entity.getChunkIndex())
+                    .deptId(entity.getDeptId())
+                    .securityLevel(entity.getSecurityLevel())
+                    .contentHash(entity.getContentHash())
+                    .chunkText(entity.getChunkText())
+                    .embedding(embeddingClient.embed(entity.getChunkText()))
+                    .build());
         }
+        vectorStoreService.upsert(vectorRecords);
         return chunks.size();
     }
 

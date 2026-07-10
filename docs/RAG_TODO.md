@@ -36,28 +36,28 @@
 
 ## Milestone 5: Milvus and Embeddings
 
-- [ ] Add Milvus, etcd, and minio to Docker Compose.
-- [ ] Add Milvus collection initializer.
-- [ ] Add vector upsert/delete/search service.
-- [ ] Add configurable embedding client.
-- [ ] Generate embeddings for chunks and questions.
+- [x] Add Milvus, etcd, and minio to Docker Compose.
+- [x] Add Milvus collection initializer.
+- [x] Add vector upsert/delete/search service.
+- [x] Add configurable embedding client.
+- [x] Generate embeddings for chunks and questions.
 
 ## Milestone 6: Query and Generation
 
-- [ ] Implement `/rag/query`.
-- [ ] Retrieve top chunks with permission filtering.
-- [ ] Build grounded prompt.
-- [ ] Call configured LLM.
-- [ ] Return answer and citations.
-- [ ] Write query audit logs.
+- [x] Implement `/rag/query`.
+- [x] Retrieve top chunks with permission filtering.
+- [x] Build grounded prompt.
+- [x] Call configured LLM.
+- [x] Return answer and citations.
+- [x] Write query audit logs.
 
 ## Milestone 7: Platform Integration
 
-- [ ] Connect `task-service` `RAG` tasks to `rag-agent`.
-- [ ] Stream RAG task progress through WebSocket.
-- [ ] Replace RAG placeholder page with a real workspace.
-- [ ] Add `web-ui/src/api/rag.ts`.
-- [ ] Route Copilot RAG intent to `/app/rag?query=...`.
+- [x] Connect `task-service` `RAG` tasks to `rag-agent`.
+- [x] Stream RAG task progress through WebSocket.
+- [x] Replace RAG placeholder page with a real workspace.
+- [x] Add `web-ui/src/api/rag.ts`.
+- [x] Route Copilot RAG intent to `/app/rag?query=...`.
 
 ## Milestone 8: Validation
 

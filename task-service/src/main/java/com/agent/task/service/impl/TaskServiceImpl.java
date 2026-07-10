@@ -5,9 +5,11 @@ import com.agent.task.handler.TaskProgressWebSocketHandler;
 import com.agent.task.mapper.TaskRecordMapper;
 import com.agent.task.service.TaskService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -30,6 +32,7 @@ public class TaskServiceImpl implements TaskService {
 
     private final String codeAgentUrl;
     private final String toolAgentUrl;
+    private final String ragAgentUrl;
 
     public TaskServiceImpl(TaskRecordMapper taskRecordMapper, JdbcTemplate jdbcTemplate) {
         this.taskRecordMapper = taskRecordMapper;
@@ -40,10 +43,13 @@ public class TaskServiceImpl implements TaskService {
         
         String toolUri = System.getenv("TOOL_SERVICE_URI");
         this.toolAgentUrl = (toolUri != null ? toolUri : "http://localhost:8083") + "/tool/execute";
+
+        String ragUri = System.getenv("RAG_SERVICE_URI");
+        this.ragAgentUrl = (ragUri != null ? ragUri : "http://localhost:8085") + "/rag/query";
     }
 
     @Override
-    public TaskRecord submitTask(String username, String taskType, String input) {
+    public TaskRecord submitTask(String username, String rolesHeader, String taskType, String input) {
         Long userId = getUserIdByUsername(username);
 
         // 1. 创建数据库记录
@@ -62,7 +68,7 @@ public class TaskServiceImpl implements TaskService {
 
         // 2. 异步执行任务
         String wsTaskId = String.valueOf(record.getId());
-        executor.execute(() -> executeTaskAsync(record, wsTaskId));
+        executor.execute(() -> executeTaskAsync(record, wsTaskId, username, rolesHeader));
 
         return record;
     }
@@ -100,7 +106,7 @@ public class TaskServiceImpl implements TaskService {
         log.info("WebSocket triggered task submission: dbTaskId={}, wsTaskId={}", record.getId(), taskIdStr);
 
         // 异步执行
-        executor.execute(() -> executeTaskAsync(record, taskIdStr));
+        executor.execute(() -> executeTaskAsync(record, taskIdStr, "admin", "ROLE_ADMIN"));
     }
 
     @Override
@@ -127,7 +133,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
 
-    private void executeTaskAsync(TaskRecord record, String wsTaskId) {
+    private void executeTaskAsync(TaskRecord record, String wsTaskId, String username, String rolesHeader) {
         long startTime = System.currentTimeMillis();
         log.info("Starting execution of task: dbTaskId={}, type={}", record.getId(), record.getTaskType());
 
@@ -183,7 +189,36 @@ public class TaskServiceImpl implements TaskService {
                 }
 
             } else if ("RAG".equalsIgnoreCase(record.getTaskType())) {
-                throw new RuntimeException("RAG Agent is currently offline (Coming Soon).");
+                sendProgress(wsTaskId, 45, "running", "Retrieving permission-safe document chunks from RAG Agent...");
+
+                Map<String, Object> requestBody = Map.of(
+                        "question", record.getInput(),
+                        "topK", 5
+                );
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("X-User-Name", username != null ? username : "anonymousUser");
+                headers.set("X-User-Roles", rolesHeader != null ? rolesHeader : "");
+
+                sendProgress(wsTaskId, 70, "running", "Generating grounded answer with citations...");
+                Map<?, ?> response = restTemplate.postForObject(
+                        ragAgentUrl,
+                        new HttpEntity<>(requestBody, headers),
+                        Map.class
+                );
+
+                if (response == null) {
+                    throw new RuntimeException("Received empty response from RAG Agent");
+                }
+
+                String status = response.get("status") != null ? response.get("status").toString() : "SUCCESS";
+                resultOutput = objectMapper.writeValueAsString(response);
+                if ("FAIL".equalsIgnoreCase(status)) {
+                    Object message = response.get("message");
+                    throw new RuntimeException(message != null ? message.toString() : "RAG Agent query failed");
+                }
+                sendProgress(wsTaskId, 90, "running", "RAG answer generated and audit log recorded.");
             } else {
                 throw new RuntimeException("Unsupported task type: " + record.getTaskType());
             }

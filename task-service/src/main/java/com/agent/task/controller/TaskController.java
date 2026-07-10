@@ -26,10 +26,11 @@ public class TaskController {
     @PostMapping("/submit")
     public Result<TaskRecord> submitTask(
             @RequestHeader(value = "X-User-Name") String username,
+            @RequestHeader(value = "X-User-Roles", defaultValue = "") String roles,
             @Valid @RequestBody TaskSubmitDto submitDto) {
 
         log.info("📩 User '{}' submitted task: type={}, input='{}'", username, submitDto.getTaskType(), submitDto.getInput());
-        TaskRecord record = taskService.submitTask(username, submitDto.getTaskType(), submitDto.getInput());
+        TaskRecord record = taskService.submitTask(username, roles, submitDto.getTaskType(), submitDto.getInput());
         return Result.success(record);
     }
 
