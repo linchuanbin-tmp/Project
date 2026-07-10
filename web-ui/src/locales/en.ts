@@ -69,6 +69,8 @@ export default {
     createOne: 'Create one',
     emailRequired: 'Please enter your email',
     passwordRequired: 'Please enter your password',
+    forgotPassword: 'Forgot your password?',
+    forgotPasswordHint: 'For security reasons, password reset is not available online. Please contact your system administrator to have your password reset.',
   },
 
   // Register Page
@@ -623,6 +625,14 @@ export default {
     addSuccess: 'User created successfully!',
     editSuccess: 'User updated successfully!',
     deleteSuccess: 'User deleted successfully!',
+    resetPasswordTitle: 'Reset Password',
+    resetPasswordDesc: 'Generate a temporary password for {name}:',
+    confirmReset: 'Confirm Reset',
+    tempPassword: 'Temporary Password',
+    tempPasswordHint: 'Please copy this password and securely deliver it to the user. They will be prompted to change it upon login.',
+    copied: 'Copied!',
+    copy: 'Copy',
+    copyFailed: 'Copy failed. Please manually copy the password.',
     resetPasswordSuccess: 'Password reset successfully!',
     cannotDisableSelf: 'For safety reasons, you cannot disable your own administrator account.',
     cannotModifySelf: 'For safety reasons, you cannot modify your own details.',
@@ -793,8 +803,10 @@ export default {
 
   // Copilot Floating Widget
   copilot: {
-    title: 'Copilot Assistant',
-    tooltip: 'Wake up Copilot',
+    title: 'Smart Agent',
+    tooltip: 'Open Smart Agent',
     clearHistory: 'Clear History',
+    processingTool: 'Processing your request, please wait...',
+    processingCode: 'Generating SQL code, redirecting to code generation page...',
   },
 }

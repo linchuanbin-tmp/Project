@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -382,5 +383,19 @@ public class UserServiceImpl implements UserService {
             user.setUpdateTime(LocalDateTime.now());
             userMapper.updateById(user);
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String resetPassword(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+        String tempPassword = UUID.randomUUID().toString().substring(0, 8) + "@1";
+        user.setPassword(passwordEncoder.encode(tempPassword));
+        user.setUpdateTime(LocalDateTime.now());
+        userMapper.updateById(user);
+        return tempPassword;
     }
 }

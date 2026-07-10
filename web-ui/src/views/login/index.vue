@@ -54,7 +54,28 @@
         <router-link to="/register" class="link">{{ $t('login.createOne') }}</router-link>
       </p>
 
+      <p class="forgot-link-wrap">
+        <a class="forgot-link" @click.prevent="forgotDialogVisible = true">{{ $t('login.forgotPassword') }}</a>
+      </p>
+
     </div>
+
+    <!-- Forgot Password Help Dialog -->
+    <el-dialog
+      v-model="forgotDialogVisible"
+      :title="$t('login.forgotPassword')"
+      width="400px"
+      :close-on-click-modal="false"
+      class="forgot-dialog"
+      :align-center="false"
+    >
+      <p class="forgot-dialog-text">{{ $t('login.forgotPasswordHint') }}</p>
+      <template #footer>
+        <el-button type="primary" class="forgot-dialog-btn" @click="forgotDialogVisible = false">
+          {{ $t('common.confirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -72,6 +93,7 @@ const { t } = useI18n()
 const loading = ref(false)
 const formRef = ref()
 const showExpiredAlert = ref(route.query.expired === '1')
+const forgotDialogVisible = ref(false)
 
 const form = reactive({ username: '', password: '' })
 
@@ -182,7 +204,7 @@ const handleLogin = async () => {
 .submit-btn:active { transform: translateY(0); }
 
 .switch-link {
-  margin: 24px 0 0;
+  margin: 24px 0 12px;
   font-size: 13.5px;
   color: #9ca3af;
   text-align: center;
@@ -192,9 +214,68 @@ const handleLogin = async () => {
   font-weight: 500;
   text-decoration: none;
   margin-left: 4px;
+  cursor: pointer;
 }
 .link:hover { text-decoration: underline; }
+.forgot-link-wrap {
+  margin: 0;
+  text-align: center;
+}
+.forgot-link {
+  font-size: 12.5px;
+  color: #9ca3af;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.forgot-link:hover {
+  color: #6366f1;
+}
 
 :deep(.el-form-item) { margin-bottom: 18px; }
 :deep(.el-form-item__content) { flex-direction: column; align-items: flex-start; }
 </style>
+
+<style>
+.forgot-dialog .el-dialog {
+  border-radius: 14px !important;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.08), 0 32px 64px rgba(0,0,0,0.04) !important;
+}
+.forgot-dialog .el-dialog__header {
+  margin: 0;
+  padding: 24px 24px 0 !important;
+}
+.forgot-dialog .el-dialog__title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #111827 !important;
+}
+.forgot-dialog .el-dialog__body {
+  padding: 12px 24px !important;
+}
+.forgot-dialog .el-dialog__footer {
+  padding: 0 24px 24px !important;
+  text-align: left !important;
+}
+
+.forgot-dialog .forgot-dialog-text {
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.7;
+  margin: 0;
+  text-align: left;
+}
+.forgot-dialog .forgot-dialog-btn {
+  height: 36px;
+  padding: 0 20px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 500;
+  background: #111827 !important;
+  border-color: #111827 !important;
+}
+.forgot-dialog .forgot-dialog-btn:hover {
+  background: #1f2937 !important;
+  border-color: #1f2937 !important;
+}</style>

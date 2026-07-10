@@ -222,11 +222,7 @@ const fetchTasks = async () => {
   loading.value = true
   try {
     const res: any = await getMyTasks()
-    if (Array.isArray(res)) {
-      tasks.value = res
-    } else {
-      tasks.value = res?.data?.data ?? res?.data ?? []
-    }
+    tasks.value = Array.isArray(res) ? res : []
   } catch (e) {
     ElMessage.error('加载失败')
   } finally {

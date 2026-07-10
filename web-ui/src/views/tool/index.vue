@@ -108,6 +108,18 @@ const extractFromQuery = (query: string) => {
     date = `2026-${dateMatchCh[1].padStart(2,'0')}-${dateMatchCh[2].padStart(2,'0')}`
   } else if (standardDate) {
     date = standardDate
+  } else {
+    // Handle Chinese relative dates: 明天/今天/后天/大后天
+    const today = new Date()
+    if (/明[天早]/.test(query) || /tomorrow/i.test(query)) {
+      const d = new Date(today); d.setDate(d.getDate() + 1)
+      date = d.toISOString().split('T')[0]
+    } else if (/后[天早]/.test(query) || /后天/.test(query)) {
+      const d = new Date(today); d.setDate(d.getDate() + 2)
+      date = d.toISOString().split('T')[0]
+    } else if (/今天|今[早晚]/.test(query) || /today/i.test(query)) {
+      date = today.toISOString().split('T')[0]
+    }
   }
 
   let capacity = null
@@ -115,6 +127,15 @@ const extractFromQuery = (query: string) => {
     capacity = Number(capMatchCh[1])
   } else if (capMatchEn) {
     capacity = Number(capMatchEn[1])
+  } else {
+    // Look for any isolated number like " 10 " avoiding times (3:30) or dates (2026-07-09)
+    const looseNumMatch = query.match(/(?<![\d:-])\b(\d{1,2})\b(?![\d:-])/g)
+    if (looseNumMatch) {
+      const num = Number(looseNumMatch[looseNumMatch.length - 1])
+      if (num > 0 && num < 100) {
+        capacity = num
+      }
+    }
   }
 
   let timeRange = null
@@ -246,11 +267,14 @@ const handleCopilotToolResult = async (event: Event) => {
       let finalStartTime = '09:00'
       let finalEndTime = '11:00'
       const parsedTimeRangeStr = aiParams.timeRange || extracted.timeRange
-      if (parsedTimeRangeStr && parsedTimeRangeStr.includes(' to ')) {
-        const parts = parsedTimeRangeStr.split(' to ')
+      if (parsedTimeRangeStr) {
+        // Handle both "17:20 to 18:50" and "17:20-18:50" formats
+        const parts = parsedTimeRangeStr.includes(' to ') ? parsedTimeRangeStr.split(' to ') : parsedTimeRangeStr.split('-')
         if (parts.length === 2) {
-          finalStartTime = parts[0]
-          finalEndTime = parts[1]
+          const rawStart = parts[0].trim()
+          const rawEnd = parts[1].trim()
+          finalStartTime = rawStart.length === 5 && rawStart.includes(':') ? rawStart : '09:00'
+          finalEndTime = rawEnd.length === 5 && rawEnd.includes(':') ? rawEnd : '11:00'
         }
       }
       updateData.startTime = finalStartTime
@@ -266,6 +290,23 @@ const handleCopilotToolResult = async (event: Event) => {
 
 onMounted(() => {
   window.addEventListener('copilot-tool-result', handleCopilotToolResult)
+
+  // Consume cached pending tool result if it exists and is fresh (e.g. less than 10 seconds old)
+  const cached = localStorage.getItem('copilot_pending_tool_result')
+  if (cached) {
+    try {
+      const { payload, query, timestamp } = JSON.parse(cached)
+      if (Date.now() - timestamp < 10000) { // 10s expiration
+        handleCopilotToolResult(new CustomEvent('copilot-tool-result', {
+          detail: { payload, query }
+        }))
+      }
+    } catch (e) {
+      console.error('Failed to parse cached copilot tool result:', e)
+    } finally {
+      localStorage.removeItem('copilot_pending_tool_result')
+    }
+  }
 })
 
 onUnmounted(() => {
