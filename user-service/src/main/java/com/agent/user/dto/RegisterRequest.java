@@ -17,4 +17,7 @@ public class RegisterRequest {
     private String password;
 
     private String realName;
+
+    @NotBlank(message = "Verification code cannot be blank")
+    private String code;
 }

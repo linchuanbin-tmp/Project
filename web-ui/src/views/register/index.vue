@@ -20,6 +20,26 @@
           />
         </el-form-item>
 
+        <el-form-item prop="code">
+          <label class="field-label">{{ $t('register.code') }}</label>
+          <div class="code-row">
+            <el-input
+                v-model="form.code"
+                :placeholder="$t('register.codePlaceholder')"
+                maxlength="6"
+                class="soft-input code-input"
+            />
+            <el-button
+                :loading="sending"
+                :disabled="countdown > 0"
+                class="send-code-btn"
+                @click="sendCode"
+            >
+              {{ countdown > 0 ? $t('register.resendCode', { seconds: countdown }) : $t('register.sendCode') }}
+            </el-button>
+          </div>
+        </el-form-item>
+
         <el-form-item prop="password">
           <label class="field-label">{{ $t('register.password') }}</label>
           <el-input
@@ -62,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, h } from 'vue'
+import { reactive, ref, h, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -73,17 +93,54 @@ const router = useRouter()
 const { t } = useI18n()
 const formRef = ref()
 const loading = ref(false)
+const sending = ref(false)
+const countdown = ref(0)
+let timer: ReturnType<typeof setInterval> | null = null
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 
 const form = reactive({
   email: '',
   password: '',
-  confirmPassword: ''
+  confirmPassword: '',
+  code: ''
 })
+
+const sendCode = async () => {
+  // 校验邮箱格式
+  if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    ElMessage.warning(t('register.emailInvalid'))
+    return
+  }
+  try {
+    sending.value = true
+    await request.post('/user/send-code', { email: form.email })
+    ElMessage.success(t('register.codeSent'))
+    countdown.value = 60
+    timer = setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0) {
+        if (timer) clearInterval(timer)
+        timer = null
+      }
+    }, 1000)
+  } catch {
+    // error handled by axios interceptor
+  } finally {
+    sending.value = false
+  }
+}
 
 const rules = {
   email: [
     { required: true, message: t('register.emailRequired'), trigger: 'blur' },
     { type: 'email', message: t('register.emailInvalid'), trigger: 'blur' }
+  ],
+  code: [
+    { required: true, message: t('register.codeRequired'), trigger: 'blur' },
+    { pattern: /^\d{6}$/, message: t('register.codeRequired'), trigger: 'blur' }
   ],
   password: [
     { required: true, message: t('register.passwordRequired'), trigger: 'blur' },
@@ -110,7 +167,8 @@ const submit = () => {
       await request.post('/user/register', {
         username: form.email,
         password: form.password,
-        realName: form.email
+        realName: form.email,
+        code: form.code
       })
       ElMessage.success(t('register.registerSuccess'))
       router.push('/login')
@@ -225,4 +283,33 @@ const submit = () => {
 
 :deep(.el-form-item) { margin-bottom: 18px; }
 :deep(.el-form-item__content) { flex-direction: column; align-items: flex-start; }
+
+.code-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+.code-input {
+  flex: 1;
+}
+.send-code-btn {
+  width: 150px;
+  height: 44px;
+  background: #fff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 10px !important;
+  color: #374151 !important;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.send-code-btn:hover:not(:disabled) {
+  border-color: #111827 !important;
+  color: #111827 !important;
+}
+.send-code-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 </style>

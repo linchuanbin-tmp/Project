@@ -3,6 +3,7 @@ package com.agent.user.service.impl;
 import com.agent.user.dto.*;
 import com.agent.user.entity.*;
 import com.agent.user.mapper.*;
+import com.agent.user.service.EmailService;
 import com.agent.user.service.UserService;
 import com.agent.user.utils.JwtUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -32,10 +33,15 @@ public class UserServiceImpl implements UserService {
     private final SysDepartmentMapper sysDepartmentMapper;
     private final StringRedisTemplate redisTemplate;
     private final SysConfigMapper sysConfigMapper;
+    private final EmailService emailService;
 
     private static final String SESSION_KEY_PREFIX        = "session:active:";
     private static final String REDIS_KEY_SESSION_TIMEOUT = "sys:config:session_timeout";
+    private static final String EMAIL_CODE_PREFIX          = "email:code:";
+    private static final String EMAIL_CODE_LIMIT_PREFIX    = "email:code:limit:";
     private static final long   DEFAULT_SESSION_TIMEOUT   = 30L;
+    private static final long   CODE_TTL_MINUTES           = 5L;
+    private static final long   CODE_LIMIT_SECONDS         = 60L;
 
     @Override
     public LoginResponse login(LoginRequest request) {
@@ -53,12 +59,30 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("用户已被禁用");
         }
 
-        // 2. 验证密码（BCrypt匹配）
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("密码错误");
+        // 2. 校验至少提供密码或验证码
+        boolean hasCode = request.getCode() != null && !request.getCode().isEmpty();
+        boolean hasPassword = request.getPassword() != null && !request.getPassword().isEmpty();
+        if (!hasCode && !hasPassword) {
+            throw new RuntimeException("请提供密码或验证码");
         }
 
-        // 3. 查询角色与权限
+        // 3. 验证身份：验证码模式或密码模式
+        if (hasCode) {
+            // 验证码登录模式
+            String cachedCode = redisTemplate.opsForValue().get(EMAIL_CODE_PREFIX + request.getUsername());
+            if (cachedCode == null || !cachedCode.equals(request.getCode())) {
+                throw new RuntimeException("验证码错误或已过期");
+            }
+            // 验证成功后删除验证码
+            redisTemplate.delete(EMAIL_CODE_PREFIX + request.getUsername());
+        } else {
+            // 密码登录模式
+            if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                throw new RuntimeException("密码错误");
+            }
+        }
+
+        // 4. 查询角色与权限
         List<SysRole> roles = sysRoleMapper.selectRolesByUserId(user.getId());
         List<SysPermission> permissions = sysPermissionMapper.selectPermissionsByUserId(user.getId());
 
@@ -70,10 +94,10 @@ public class UserServiceImpl implements UserService {
                 .map(SysPermission::getPermCode)
                 .collect(Collectors.toList());
 
-        // 4. 生成JWT
+        // 5. 生成JWT
         String token = jwtUtil.generateToken(user.getUsername(), roleCodes, permCodes);
 
-        // 5. 写入 Redis session（滑动过期窗口）
+        // 6. 写入 Redis session（滑动过期窗口）
         long timeoutMinutes = resolveSessionTimeout();
         redisTemplate.opsForValue().set(
                 SESSION_KEY_PREFIX + user.getUsername(),
@@ -117,6 +141,38 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public void sendVerificationCode(String email) {
+        // 限流检查：60秒内不允许重复发送
+        String limitKey = EMAIL_CODE_LIMIT_PREFIX + email;
+        String existingLimit = redisTemplate.opsForValue().get(limitKey);
+        if (existingLimit != null) {
+            throw new RuntimeException("发送过于频繁，请60秒后再试");
+        }
+
+        // 生成6位随机验证码
+        String code = String.format("%06d", (int)(Math.random() * 1000000));
+
+        // 存入 Redis：有效期5分钟
+        redisTemplate.opsForValue().set(
+                EMAIL_CODE_PREFIX + email,
+                code,
+                CODE_TTL_MINUTES,
+                TimeUnit.MINUTES
+        );
+
+        // 设置发送频率限制：60秒
+        redisTemplate.opsForValue().set(
+                limitKey,
+                "1",
+                CODE_LIMIT_SECONDS,
+                TimeUnit.SECONDS
+        );
+
+        // 发送邮件
+        emailService.sendVerificationCode(email, code);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void register(RegisterRequest request) {
         // 1. 校验用户名是否重复
@@ -128,7 +184,15 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("该邮箱已被注册");
         }
 
-        // 2. 保存用户基本信息
+        // 2. 验证邮箱验证码
+        String cachedCode = redisTemplate.opsForValue().get(EMAIL_CODE_PREFIX + request.getUsername());
+        if (cachedCode == null || !cachedCode.equals(request.getCode())) {
+            throw new RuntimeException("验证码错误或已过期");
+        }
+        // 验证成功后删除验证码
+        redisTemplate.delete(EMAIL_CODE_PREFIX + request.getUsername());
+
+        // 3. 保存用户基本信息
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -140,7 +204,7 @@ public class UserServiceImpl implements UserService {
         user.setDeleted(0);
         userMapper.insert(user);
 
-        // 3. 关联默认普通员工角色 ROLE_USER
+        // 4. 关联默认普通员工角色 ROLE_USER
         SysRole userRole = sysRoleMapper.selectOne(
                 new LambdaQueryWrapper<SysRole>()
                         .eq(SysRole::getRoleCode, "ROLE_USER")

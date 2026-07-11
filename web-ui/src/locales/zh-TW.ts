@@ -71,6 +71,14 @@ export default {
     passwordRequired: '請輸入密碼',
     forgotPassword: '忘記密碼？',
     forgotPasswordHint: '出於安全考量，不支援線上自助重設密碼。請聯絡系統管理員為您重設密碼。',
+    codeLogin: '驗證碼登入',
+    passwordLogin: '密碼登入',
+    code: '驗證碼',
+    codePlaceholder: '請輸入6位驗證碼',
+    codeRequired: '請輸入驗證碼',
+    sendCode: '發送驗證碼',
+    codeSent: '驗證碼已發送',
+    resendCode: '重新發送 ({seconds}秒)',
   },
 
   // 註冊頁
@@ -94,6 +102,12 @@ export default {
     confirmPasswordRequired: '請確認密碼',
     passwordMismatch: '兩次輸入的密碼不一致',
     registerSuccess: '帳戶建立成功！請登入。',
+    code: '驗證碼',
+    codePlaceholder: '請輸入6位驗證碼',
+    codeRequired: '請輸入驗證碼',
+    sendCode: '發送驗證碼',
+    codeSent: '驗證碼已發送',
+    resendCode: '重新發送 ({seconds}秒)',
   },
 
   // 儀表板
