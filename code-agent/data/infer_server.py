@@ -263,6 +263,7 @@ def call_llm(question: str) -> dict:
         client = OpenAI(
             api_key=DEEPSEEK_API_KEY,
             base_url=DEEPSEEK_BASE_URL,
+            timeout=45.0,  # 45s timeout — client times out before Java's 60s
         )
 
         system_prompt = _build_system_prompt()
@@ -325,12 +326,14 @@ def infer():
     result = call_llm(question)
 
     if result.get("error"):
+        log.error("❌ LLM调用失败: %s", result["error"])
         return jsonify({
             "sql": "",
             "method": result["method"],
             "error": result["error"],
         }), 500
 
+    log.info("✅ 推理成功，返回SQL (%d chars)", len(result["sql"]))
     return jsonify({
         "sql": result["sql"],
         "method": result["method"],

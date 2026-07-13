@@ -14,6 +14,9 @@
         <div class="copilot-header" @click.stop>
           <span class="header-title">{{ t('copilot.title') }}</span>
           <div class="header-actions">
+            <button class="action-btn" @click="showHistory = true" :title="t('copilot.history')">
+              <Clock :size="14" />
+            </button>
             <button class="action-btn" @click="clearHistory" :title="t('copilot.clearHistory')">
               <Trash2 :size="14" />
             </button>
@@ -29,6 +32,9 @@
             <div class="welcome-icon"><Sparkles :size="28" /></div>
             <h2>{{ t('dashboard.chat.greetingTitle') }}</h2>
             <p>{{ t('dashboard.chat.greetingSub') }}</p>
+            <button v-if="savedSessions.length > 0" class="history-btn-inline" @click="showHistory = true">
+              <Clock :size="14" /> {{ t('copilot.viewHistory') }}
+            </button>
           </div>
 
           <div v-else class="message-list">
@@ -37,22 +43,19 @@
                 <div v-if="msg.role === 'user'" class="user-bubble">
                   <span class="message-text">{{ msg.content }}</span>
                 </div>
-                <div v-else class="message-text">{{ msg.content }}</div>
+                <div v-else class="message-text message-animate">{{ msg.content }}</div>
 
                 <div v-if="msg.role === 'assistant' && msg.metadata" class="metadata-card">
                   <div v-if="msg.metadata.rooms && msg.metadata.rooms.length > 0" class="rooms-recommendation">
                     <p class="section-subtitle">Recommended rooms</p>
-                    <div class="rooms-grid">
-                      <div v-for="room in msg.metadata.rooms" :key="room.id" class="room-item-card">
-                        <div class="room-header">
-                          <span class="room-name">{{ room.name }}</span>
-                          <span class="room-status" :class="room.available ? 'avail' : 'occ'">{{ room.available ? 'Available' : 'Occupied' }}</span>
+                    <div class="rooms-list">
+                      <div v-for="room in msg.metadata.rooms" :key="room.id" class="room-row">
+                        <span class="room-dot" :class="room.available ? 'free' : 'busy'"></span>
+                        <div class="room-info">
+                          <span class="room-row-name">{{ room.name }}</span>
+                          <span class="room-row-loc">{{ room.location }}</span>
                         </div>
-                        <div class="room-details-grid">
-                          <span>Capacity: {{ room.capacity }} pax</span>
-                          <span>Loc: {{ room.location }}</span>
-                        </div>
-                        <div class="room-ai" v-if="room.aiMatchScore">Match score: {{ room.aiMatchScore }}%</div>
+                        <span class="room-row-cap">{{ room.capacity }} pax</span>
                       </div>
                     </div>
                   </div>
@@ -73,16 +76,24 @@
           </div>
 
           <div v-if="isExecuting" class="thinking-row">
-            <span class="thinking-label">Thinking</span>
+            <span class="thinking-label">{{ progressMessage || 'Thinking' }}</span>
             <span class="thinking-elapsed">{{ thinkingElapsed }}s</span>
           </div>
         </div>
 
         <!-- Input Area -->
         <div class="copilot-input-area" @click.stop>
+          <template v-if="isExecuting">
+            <div class="copilot-processing-bar">
+              <span class="processing-dot"></span>
+              <span class="processing-text">{{ progressMessage || 'Processing your request...' }}</span>
+              <span class="processing-time">{{ thinkingElapsed }}s</span>
+            </div>
+          </template>
+          <template v-else>
           <div class="copilot-input-row">
-            <textarea v-model="inputQuery" rows="1" :placeholder="t('dashboard.chat.inputPlaceholder')" class="copilot-textarea" @keydown="handleKeydown" :disabled="isExecuting"></textarea>
-            <button class="copilot-send-btn" @click="submitQuery" :disabled="!inputQuery.trim() || isExecuting"><ArrowUp :size="20" /></button>
+            <textarea v-model="inputQuery" rows="1" :placeholder="t('dashboard.chat.inputPlaceholder')" class="copilot-textarea" @keydown="handleKeydown"></textarea>
+            <button class="copilot-send-btn" @click="submitQuery" :disabled="!inputQuery.trim()"><ArrowUp :size="20" /></button>
           </div>
           <div class="copilot-mode-selector">
             <span class="mode-pill mode-auto" :class="{ active: selectedRouter === 'AUTO' }" @click="selectedRouter = 'AUTO'">Auto</span>
@@ -91,8 +102,28 @@
             <span class="mode-pill mode-specific" :class="{ active: selectedRouter === 'TOOL' }" @click="selectedRouter = 'TOOL'">Tool</span>
             <span class="mode-pill mode-specific" :class="{ active: selectedRouter === 'RAG' }" @click="selectedRouter = 'RAG'">Docs</span>
           </div>
+          </template>
         </div>
       </template>
+
+      <!-- History overlay -->
+      <div v-if="showHistory" class="history-overlay" @click.self="showHistory = false">
+        <div class="history-panel">
+          <div class="history-header-panel">
+            <span class="history-title-panel">{{ t('copilot.history') }}</span>
+            <button class="history-close-btn" @click="showHistory = false">&times;</button>
+          </div>
+          <div class="history-list">
+            <div v-if="savedSessions.length === 0" class="history-empty">{{ t('copilot.noHistory') }}</div>
+            <div v-for="sess in savedSessions" :key="sess.key" class="history-item" @click="loadSession(sess.key)">
+              <span class="history-label">{{ sess.label }}</span>
+              <button class="history-delete-btn" @click.stop="deleteSession(sess.key)" :title="t('copilot.deleteSession')">
+                <Trash2 :size="12" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -106,7 +137,7 @@ import { submitTask, getTask } from '@api/task'
 import { wsClient } from '@utils/websocket'
 import {
   MessageSquare, Sparkles,
-  Trash2, ArrowUp, Minus
+  Trash2, ArrowUp, Minus, Clock
 } from 'lucide-vue-next'
 
 interface ChatMessage {
@@ -130,15 +161,104 @@ const chatBodyRef = ref<HTMLElement | null>(null)
 const isExecuting = ref(false)
 const thinkingElapsed = ref(0)
 let thinkingTimer: ReturnType<typeof setInterval> | null = null
+const progressMessage = ref('')
+
+const showHistory = ref(false)
+const savedSessions = ref<{ key: string; label: string; messages: ChatMessage[] }[]>([])
+
+// ── session storage helpers ──
+const SESSION_PREFIX = 'copilot_session_'
+const SESSION_INDEX_KEY = 'copilot_session_index'
+
+const loadSessionIndex = (): string[] => {
+  try { return JSON.parse(localStorage.getItem(SESSION_INDEX_KEY) || '[]') } catch { return [] }
+}
+
+const saveSessionIndex = (keys: string[]) => {
+  localStorage.setItem(SESSION_INDEX_KEY, JSON.stringify(keys))
+}
+
+const saveCurrentSession = () => {
+  if (messages.value.length === 0) return
+  const firstMsg = messages.value[0]
+  const label = firstMsg.content.slice(0, 40).replace(/\n/g, ' ')
+  const key = SESSION_PREFIX + Date.now()
+  localStorage.setItem(key, JSON.stringify(messages.value))
+  const keys = loadSessionIndex()
+  keys.unshift(key)
+  const trimmed = keys.slice(0, 20)
+  saveSessionIndex(trimmed)
+  keys.slice(20).forEach(k => localStorage.removeItem(k))
+}
+
+const loadSessions = () => {
+  const keys = loadSessionIndex()
+  savedSessions.value = keys.map(key => {
+    try {
+      const msgs: ChatMessage[] = JSON.parse(localStorage.getItem(key) || '[]')
+      const first = msgs[0]
+      return {
+        key,
+        label: first ? first.content.slice(0, 50).replace(/\n/g, ' ') : '(empty)',
+        messages: msgs,
+      }
+    } catch { return { key, label: '(corrupted)', messages: [] as ChatMessage[] } }
+  }).filter(s => s.messages.length > 0)
+}
+
+const loadSession = (key: string) => {
+  const found = savedSessions.value.find(s => s.key === key)
+  if (found) {
+    messages.value = found.messages
+    showHistory.value = false
+    scrollToBottom()
+  }
+}
+
+const deleteSession = (key: string) => {
+  localStorage.removeItem(key)
+  const keys = loadSessionIndex().filter(k => k !== key)
+  saveSessionIndex(keys)
+  loadSessions()
+}
+
+const startNewSession = () => {
+  if (messages.value.length > 0) {
+    saveCurrentSession()
+  }
+  messages.value = []
+  sessionContextQuery.value = ''
+  showHistory.value = false
+}
 
 const startThinkingTimer = () => {
+  if (thinkingTimer) return
   thinkingElapsed.value = 0
+  progressMessage.value = ''
   thinkingTimer = setInterval(() => { thinkingElapsed.value++ }, 1000)
 }
 
 const stopThinkingTimer = () => {
   if (thinkingTimer) { clearInterval(thinkingTimer); thinkingTimer = null }
+  progressMessage.value = ''
 }
+
+// Observe isOpen to reset unread badge when widget is opened
+watch(isOpen, (val) => {
+  if (val) {
+    hasUnread.value = false
+  }
+})
+
+// Show unread dot when an assistant message arrives while the widget is collapsed
+watch(messages, (newVal, oldVal) => {
+  if (!isOpen.value && newVal.length > oldVal.length) {
+    const latest = newVal[newVal.length - 1]
+    if (latest.role === 'assistant') {
+      hasUnread.value = true
+    }
+  }
+})
 
 const clearHistory = () => {
   messages.value = []
@@ -147,14 +267,8 @@ const clearHistory = () => {
 }
 
 const saveHistory = () => {
+  // Keep legacy key for backward compat, but sessions are the primary mechanism
   localStorage.setItem('copilot_chat_history', JSON.stringify(messages.value))
-}
-
-const loadHistory = () => {
-  const cached = localStorage.getItem('copilot_chat_history')
-  if (cached) {
-    try { messages.value = JSON.parse(cached) } catch { messages.value = [] }
-  }
 }
 
 const formatTime = (ts: number) => {
@@ -172,29 +286,38 @@ const scrollToBottom = () => {
   })
 }
 
-const handleToolCompleted = async (dbTaskId: number | null, queryText: string) => {
+const handleTaskCompleted = async (dbTaskId: number | null, queryText: string, taskType: string) => {
   let parsedOutput: any = null
+  let taskRecord: any = null
   if (dbTaskId) {
     try {
-      const taskRes: any = await getTask(dbTaskId)
-      const record = taskRes
-      if (record?.output) {
-        try { parsedOutput = JSON.parse(record.output) } catch { parsedOutput = { rawText: record.output } }
+      taskRecord = await getTask(dbTaskId)
+      const output = taskRecord?.output
+      if (output) {
+        try { parsedOutput = JSON.parse(output) } catch { parsedOutput = { rawText: output } }
       }
     } catch (e) { console.error(e) }
   }
 
-  let contentMessage: string = parsedOutput
-    ? (parsedOutput.distance
-        ? `已为您规划路线，全程 ${parsedOutput.distance || '未知距离'}，预计耗时 ${parsedOutput.duration || '未知时间'}。您可在左侧查看具体路线规划。`
-        : parsedOutput.rooms
-          ? (parsedOutput.rooms.filter((r: any) => r.available).length > 0
-              ? `已为您找到 ${parsedOutput.rooms.filter((r: any) => r.available).length} 间符合要求的空余会议室。您可以在左侧面板选择并预订。`
-              : `很抱歉，在指定时间段内未找到符合条件的会议室。您可以在左侧面板手动调整筛选。`)
-          : parsedOutput.hasConflict !== undefined
-            ? `日程冲突检测完成：${parsedOutput.message || (parsedOutput.hasConflict ? '发现冲突日程。' : '未发现时间冲突。')}。`
-            : t('tool.ai.complete'))
-    : t('tool.ai.complete')
+  let contentMessage: string
+  if (!parsedOutput) {
+    contentMessage = t('tool.ai.complete')
+  } else if (parsedOutput.sql !== undefined) {
+    const sql = parsedOutput.sql || ''
+    contentMessage = sql
+      ? `已为您生成 SQL：\n\`\`\`sql\n${sql}\n\`\`\`\n请在左侧代码生成页面查看详情。`
+      : `SQL生成失败：${parsedOutput.error || '未知错误'}`
+  } else if (parsedOutput.distance) {
+    contentMessage = `已为您规划路线，全程 ${parsedOutput.distance || '未知距离'}，预计耗时 ${parsedOutput.duration || '未知时间'}。您可在左侧查看具体路线规划。`
+  } else if (parsedOutput.rooms) {
+    contentMessage = parsedOutput.rooms.filter((r: any) => r.available).length > 0
+      ? `已为您找到 ${parsedOutput.rooms.filter((r: any) => r.available).length} 间符合要求的空余会议室。您可以在左侧面板选择并预订。`
+      : `很抱歉，在指定时间段内未找到符合条件的会议室。您可以在左侧面板手动调整筛选。`
+  } else if (parsedOutput.hasConflict !== undefined) {
+    contentMessage = `日程冲突检测完成：${parsedOutput.message || (parsedOutput.hasConflict ? '发现冲突日程。' : '未发现时间冲突。')}。`
+  } else {
+    contentMessage = t('tool.ai.complete')
+  }
 
   messages.value.push({ role: 'assistant', content: contentMessage, timestamp: Date.now(), metadata: parsedOutput })
   saveHistory()
@@ -207,13 +330,13 @@ const handleToolCompleted = async (dbTaskId: number | null, queryText: string) =
   scrollToBottom()
 }
 
-const runToolAgentWebSocket = async (queryText: string) => {
+const runAgentWebSocket = async (queryText: string, taskType: string = 'TOOL') => {
   isExecuting.value = true
   startThinkingTimer()
 
   let dbTaskId: number | null = null
   try {
-    const submitRes: any = await submitTask({ taskType: 'TOOL', input: queryText })
+    const submitRes: any = await submitTask({ taskType, input: queryText })
     dbTaskId = submitRes?.id ?? null
   } catch (err) {
     console.warn('task-service unavailable')
@@ -231,14 +354,16 @@ const runToolAgentWebSocket = async (queryText: string) => {
   const wsUrl = `${protocol}//${host}/ws/task/progress?taskId=${dbTaskId}`
   let hasCompleted = false
 
-  wsClient.connect(wsUrl)
+  wsClient.removeAllListeners('message')
+  wsClient.removeAllListeners('error')
+  wsClient.removeAllListeners('open')
 
   wsClient.on('message', async (rawData: any) => {
     if (hasCompleted) return
     const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
     if (data.status === 'completed') {
       hasCompleted = true
-      await handleToolCompleted(dbTaskId, queryText)
+      await handleTaskCompleted(dbTaskId, queryText, taskType)
       wsClient.close?.()
     } else if (data.status === 'error') {
       hasCompleted = true
@@ -248,6 +373,8 @@ const runToolAgentWebSocket = async (queryText: string) => {
       saveHistory()
       scrollToBottom()
       wsClient.close?.()
+    } else if (data.message) {
+      progressMessage.value = data.message
     }
   })
 
@@ -256,13 +383,12 @@ const runToolAgentWebSocket = async (queryText: string) => {
     hasCompleted = true
     isExecuting.value = false
     stopThinkingTimer()
+    wsClient.close?.()
     messages.value.push({ role: 'assistant', content: t('tool.ai.connectionError'), timestamp: Date.now() })
     saveHistory()
     scrollToBottom()
   })
 
-  // Fallback poll — the task may complete before the WS connects (race condition),
-  // so poll GET /api/task/{id} once per second until SUCCESS/FAIL.
   let pollTimer: ReturnType<typeof setInterval> | null = null
   wsClient.on('open', () => {
     if (!dbTaskId || hasCompleted) return
@@ -276,7 +402,7 @@ const runToolAgentWebSocket = async (queryText: string) => {
           if (hasCompleted) return
           hasCompleted = true
           if (record.status === 'SUCCESS') {
-            await handleToolCompleted(dbTaskId, queryText)
+            await handleTaskCompleted(dbTaskId, queryText, taskType)
           } else {
             isExecuting.value = false
             stopThinkingTimer()
@@ -289,6 +415,8 @@ const runToolAgentWebSocket = async (queryText: string) => {
       } catch { /* poll silently */ }
     }, 500)
   })
+
+  wsClient.connect(wsUrl)
 }
 
 const handleKeydown = (e: KeyboardEvent) => {
@@ -306,9 +434,9 @@ const submitQuery = async () => {
   scrollToBottom()
 
   isExecuting.value = true
+  startThinkingTimer()
   let targetRouter = selectedRouter.value
-  
-  // Construct the accumulated query context
+
   let queryToSend = query
   if (sessionContextQuery.value) {
     queryToSend = sessionContextQuery.value + ' ' + query
@@ -319,78 +447,70 @@ const submitQuery = async () => {
       const res: any = await request.post('/dashboard/route', { question: queryToSend })
       targetRouter = res?.intent || 'RAG'
 
-      // Check for casual chat / greetings
       if (targetRouter === 'CHAT') {
         isExecuting.value = false
-        sessionContextQuery.value = '' // Clear context on chat
-        const replyText = res?.reply || '你好！我是你的智能助理 Copilot，随时可以帮您处理 SQL 查询、会议室预订、日程检测或知识库检索。请问今天有什么我可以帮您的？'
-        messages.value.push({
-          role: 'assistant',
-          content: replyText,
-          timestamp: Date.now()
-        })
+        stopThinkingTimer()
+        sessionContextQuery.value = ''
+        const replyText = res?.reply || t('copilot.chatDefault')
+        messages.value.push({ role: 'assistant', content: replyText, timestamp: Date.now() })
         saveHistory()
         scrollToBottom()
         return
       }
 
-      // Check for settings navigation
       if (targetRouter === 'SETTINGS') {
         isExecuting.value = false
-        sessionContextQuery.value = '' // Clear context
-        messages.value.push({
-          role: 'assistant',
-          content: 'Intent classified as Settings Navigation. Redirecting you to the settings page...',
-          timestamp: Date.now()
-        })
+        stopThinkingTimer()
+        sessionContextQuery.value = ''
+        messages.value.push({ role: 'assistant', content: t('copilot.routingToSettings'), timestamp: Date.now() })
         saveHistory()
         scrollToBottom()
         await router.push('/app/settings')
         return
       }
 
-      // Check for slot-filling / clarification query
       if (targetRouter === 'CLARIFY') {
         isExecuting.value = false
-        // Update accumulated context query so subsequent inputs are merged
+        stopThinkingTimer()
         sessionContextQuery.value = queryToSend
-        
-        const replyText = res?.reply || '请问您需要预定哪一天的会议室、大概多少人？或者您能提供路线规划的起点和终点吗？'
-        messages.value.push({
-          role: 'assistant',
-          content: replyText,
-          timestamp: Date.now()
-        })
+        const replyText = res?.reply || t('copilot.clarifyDefault')
+        messages.value.push({ role: 'assistant', content: replyText, timestamp: Date.now() })
         saveHistory()
         scrollToBottom()
         return
       }
     }
-    
-    // Clear context when executing a terminal action
+
     sessionContextQuery.value = ''
 
     if (targetRouter === 'TOOL') {
       messages.value.push({ role: 'assistant', content: t('copilot.processingTool'), timestamp: Date.now() })
       saveHistory(); scrollToBottom()
       if (router.currentRoute.value.path !== '/app/tool') await router.push('/app/tool')
-      runToolAgentWebSocket(queryToSend)
+      runAgentWebSocket(queryToSend)
     } else if (targetRouter === 'CODE') {
+      isExecuting.value = false
+      stopThinkingTimer()
       messages.value.push({ role: 'assistant', content: t('copilot.processingCode'), timestamp: Date.now() })
       saveHistory(); scrollToBottom()
-      await router.push({ path: '/app/code', query: { query: queryToSend } })
-      isExecuting.value = false
+      window.dispatchEvent(new CustomEvent('copilot-code-query', { detail: { query: queryToSend } }))
+      localStorage.setItem('copilot_pending_code_query', JSON.stringify({ query: queryToSend, timestamp: Date.now() }))
+      if (router.currentRoute.value.path !== '/app/code') {
+        await router.push('/app/code')
+      }
     } else {
       isExecuting.value = false
-      messages.value.push({ role: 'assistant', content: 'Intent classified as Document Query. Filtering document library...', timestamp: Date.now() })
+      stopThinkingTimer()
+      messages.value.push({ role: 'assistant', content: t('copilot.routingToDocs'), timestamp: Date.now() })
       saveHistory(); scrollToBottom()
       await router.push({ path: '/app/dept-docs', query: { query: queryToSend } })
     }
   } catch (e) {
     console.error('Copilot classification error:', e)
     isExecuting.value = false
+    stopThinkingTimer()
     sessionContextQuery.value = ''
-    messages.value.push({ role: 'assistant', content: 'Routing failed, redirecting to Document Library...', timestamp: Date.now() })
+    messages.value.push({ role: 'assistant', content: t('copilot.routingFailedFallback'), timestamp: Date.now() })
     saveHistory(); scrollToBottom()
     await router.push({ path: '/app/dept-docs', query: { query } })
   }
@@ -404,8 +524,17 @@ watch(() => router.currentRoute.value.query.query, async (newQuery) => {
   }
 }, { immediate: true })
 
-onMounted(() => { loadHistory() })
-onUnmounted(() => { wsClient.close?.(); stopThinkingTimer(); if (thinkingTimer) clearInterval(thinkingTimer) })
+onMounted(() => {
+  loadSessions()
+  // Don't auto-load last session — user sees welcome screen by default
+})
+
+onUnmounted(() => {
+  if (messages.value.length > 0) saveCurrentSession()
+  wsClient.close?.()
+  stopThinkingTimer()
+  if (thinkingTimer) clearInterval(thinkingTimer)
+})
 </script>
 
 <style scoped>
@@ -597,6 +726,15 @@ onUnmounted(() => { wsClient.close?.(); stopThinkingTimer(); if (thinkingTimer) 
   white-space: pre-line;
 }
 
+.message-animate {
+  animation: message-fade-up 0.35s ease-out both;
+}
+
+@keyframes message-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .message-time {
   font-size: 10px;
   color: #94a3b8;
@@ -615,6 +753,12 @@ onUnmounted(() => { wsClient.close?.(); stopThinkingTimer(); if (thinkingTimer) 
   border-radius: 12px;
   background: #f8fafc;
   padding: 12px 14px;
+  animation: card-reveal 0.3s ease-out 0.1s both;
+}
+
+@keyframes card-reveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .section-subtitle {
@@ -622,17 +766,54 @@ onUnmounted(() => { wsClient.close?.(); stopThinkingTimer(); if (thinkingTimer) 
   font-weight: 600;
   color: #64748b;
   margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.rooms-grid { display: flex; flex-direction: column; gap: 8px; }
-.room-item-card { background: #ffffff; border: 1px solid #f1f5f9; border-radius: 8px; padding: 10px; }
-.room-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-.room-name { font-weight: 600; color: #1e293b; font-size: 12.5px; }
-.room-status { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
-.room-status.avail { background-color: #ecfdf5; color: #059669; }
-.room-status.occ { background-color: #fef2f2; color: #dc2626; }
-.room-details-grid { display: flex; gap: 12px; font-size: 11px; color: #64748b; }
-.room-ai { margin-top: 6px; font-size: 11px; font-weight: 600; color: #4f46e5; }
+.rooms-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.room-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.room-row:last-child { border-bottom: none; }
+
+.room-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.room-dot.free { background: #059669; }
+.room-dot.busy { background: #dc2626; }
+
+.room-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.room-row-name { font-size: 13px; font-weight: 600; color: #1e293b; }
+.room-row-loc { font-size: 11px; color: #94a3b8; }
+
+.room-row-cap {
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 3px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.rooms-grid, .room-item-card, .room-header,
+.room-name, .room-status, .room-details-grid, .room-ai { display: none; }
 .route-grid { display: flex; gap: 16px; }
 .route-stat-item { display: flex; flex-direction: column; gap: 2px; }
 .stat-lbl { font-size: 11px; color: #64748b; }
@@ -682,6 +863,46 @@ onUnmounted(() => { wsClient.close?.(); stopThinkingTimer(); if (thinkingTimer) 
 .copilot-input-area {
   padding: 12px 20px 20px;
   background: #ffffff;
+  flex-shrink: 0;
+}
+
+/* Processing bar (replaces input during execution) */
+.copilot-processing-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+}
+
+.processing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4f46e5;
+  animation: processing-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes processing-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%      { opacity: 1;   transform: scale(1.1); }
+}
+
+.processing-text {
+  flex: 1;
+  font-size: 13px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.processing-time {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
   flex-shrink: 0;
 }
 
@@ -774,4 +995,116 @@ onUnmounted(() => { wsClient.close?.(); stopThinkingTimer(); if (thinkingTimer) 
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* ── History Panel ──────────────────────────────── */
+.history-btn-inline {
+  margin-top: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.history-btn-inline:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.history-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.15);
+  border-radius: 20px;
+  z-index: 10;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 100px;
+}
+
+.history-panel {
+  width: 92%;
+  max-height: 60%;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-header-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px 10px;
+  flex-shrink: 0;
+}
+
+.history-title-panel {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.history-close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.history-list {
+  overflow-y: auto;
+  padding: 4px 10px 14px;
+  flex: 1;
+}
+
+.history-empty {
+  text-align: center;
+  padding: 20px 0;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.history-item:hover { background: #f8fafc; }
+
+.history-label {
+  flex: 1;
+  font-size: 13px;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-delete-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 4px;
+  border-radius: 4px;
+}
+.history-delete-btn:hover { color: #ef4444; background: #fef2f2; }
 </style>

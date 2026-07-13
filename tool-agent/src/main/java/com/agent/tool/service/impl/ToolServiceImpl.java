@@ -69,7 +69,7 @@ public class ToolServiceImpl implements ToolService {
             response.setMessage("执行成功");
 
         } catch (Exception e) {
-            log.error("Tool执行失败, 降级到Mock", e);
+            log.error("Tool执行失败, 降级到Mock; type={}", request.getToolType(), e);
             response.setData(fallbackMock(request.getToolType()));
             response.setSuccess(true);
             response.setMessage("AI服务异常，返回演示数据");
@@ -206,14 +206,16 @@ public class ToolServiceImpl implements ToolService {
         // Parse date: default to tomorrow
         LocalDateTime startTime;
         String dateStr = aiResult.path("date").asText("tomorrow");
-        if ("today".equalsIgnoreCase(dateStr)) {
+        String dateLower = dateStr.trim().toLowerCase();
+        if ("today".equalsIgnoreCase(dateStr) || "今天".equals(dateStr)) {
             startTime = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
-        } else if ("tomorrow".equalsIgnoreCase(dateStr)) {
+        } else if ("tomorrow".equalsIgnoreCase(dateStr) || "明天".equals(dateStr)) {
             startTime = LocalDateTime.now().plusDays(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
         } else {
             try {
                 startTime = LocalDateTime.parse(dateStr + "T00:00:00");
             } catch (Exception e) {
+                log.warn("Failed to parse date '{}', defaulting to tomorrow", dateStr);
                 startTime = LocalDateTime.now().plusDays(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
             }
         }

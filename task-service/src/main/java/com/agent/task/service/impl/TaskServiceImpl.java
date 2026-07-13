@@ -137,20 +137,21 @@ public class TaskServiceImpl implements TaskService {
         taskRecordMapper.updateById(record);
 
         // 2. 发送 WebSocket 进度 - 开始阶段
-        sendProgress(wsTaskId, 20, "running", "Analyzing query and routing to downstream Agent...");
+        sendProgress(wsTaskId, 10, "running", "Analyzing...");
 
         try {
             String resultOutput = "";
             if ("CODE".equalsIgnoreCase(record.getTaskType())) {
-                sendProgress(wsTaskId, 50, "running", "Generating SQL and executing query on database...");
-                
+                sendProgress(wsTaskId, 30, "running", "Connecting to Code Agent...");
+
                 // 调用 Code Agent
                 Map<String, String> requestBody = Map.of("question", record.getInput());
+                sendProgress(wsTaskId, 50, "running", "Generating SQL, please wait...");
                 Map<?, ?> response = restTemplate.postForObject(codeAgentUrl, requestBody, Map.class);
-                
+
                 if (response != null) {
                     resultOutput = objectMapper.writeValueAsString(response);
-                    
+
                     // 检查响应中是否有错误字段
                     if (response.containsKey("error") && response.get("error") != null && !response.get("error").toString().isEmpty()) {
                         throw new RuntimeException("Code Agent Execution Error: " + response.get("error"));
@@ -160,15 +161,16 @@ public class TaskServiceImpl implements TaskService {
                 }
 
             } else if ("TOOL".equalsIgnoreCase(record.getTaskType()) || "AI".equalsIgnoreCase(record.getTaskType())) {
-                sendProgress(wsTaskId, 50, "running", "Invoking Tool Agent for intent matching and tool execution...");
-                
+                sendProgress(wsTaskId, 25, "running", "Routing to Tool Agent...");
+
                 // 调用 Tool Agent
                 Map<String, Object> requestBody = Map.of(
                         "toolType", "AI",
                         "naturalLanguage", record.getInput(),
                         "parameters", Map.of()
                 );
-                
+
+                sendProgress(wsTaskId, 50, "running", "AI analyzing your request...");
                 Map<?, ?> response = restTemplate.postForObject(toolAgentUrl, requestBody, Map.class);
                 if (response != null) {
                     Integer code = (Integer) response.get("code");
@@ -187,6 +189,8 @@ public class TaskServiceImpl implements TaskService {
             } else {
                 throw new RuntimeException("Unsupported task type: " + record.getTaskType());
             }
+
+            sendProgress(wsTaskId, 80, "running", "Processing result...");
 
             // 3. 执行成功后更新状态
             long endTime = System.currentTimeMillis();

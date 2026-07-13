@@ -252,7 +252,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -355,6 +355,7 @@ const handleGenerate = async (silent = false) => {
       if (!silent) ElMessage.success(t('code.generateSuccess'))
     } else {
       generateError.value = res?.errorMessage || t('code.generateFailed')
+      if (!silent) ElMessage.error(generateError.value)
     }
   } catch (e: any) {
     generateError.value = e.message || t('code.generateFailed')
@@ -438,20 +439,36 @@ const exportCSV = () => {
 
 onMounted(async () => {
   await fetchMetadata()
-})
 
-watch(
-  () => route.query.query,
-  async (newQuery) => {
-    if (newQuery) {
-      question.value = newQuery as string
-      router.replace({ query: {} })
+  // Handle copilot code request that arrived before mount
+  const cached = localStorage.getItem('copilot_pending_code_query')
+  if (cached) {
+    try {
+      const { query, timestamp } = JSON.parse(cached)
+      if (Date.now() - timestamp < 30_000) {
+        question.value = query
+        localStorage.removeItem('copilot_pending_code_query')
+        await nextTick()
+        handleGenerate(true)
+      } else {
+        localStorage.removeItem('copilot_pending_code_query')
+      }
+    } catch { localStorage.removeItem('copilot_pending_code_query') }
+  }
+
+  // Listen for copilot code requests sent while page is already open
+  const onCopilotCodeQuery = async (event: Event) => {
+    const { query } = (event as CustomEvent).detail || {}
+    if (query) {
+      localStorage.removeItem('copilot_pending_code_query')
+      question.value = query
       await nextTick()
-      await handleGenerate(true)
+      handleGenerate(true)
     }
-  },
-  { immediate: true }
-)
+  }
+  window.addEventListener('copilot-code-query', onCopilotCodeQuery)
+  onBeforeUnmount(() => window.removeEventListener('copilot-code-query', onCopilotCodeQuery))
+})
 </script>
 
 <style scoped>
