@@ -21,6 +21,20 @@
         <p class="page-sub">{{ $t('login.subheading') }}</p>
       </div>
 
+      <!-- Login mode toggle -->
+      <div class="mode-toggle">
+        <button
+            :class="['mode-btn', { active: loginMode === 'password' }]"
+            @click="switchMode('password')"
+            type="button"
+        >{{ $t('login.passwordLogin') }}</button>
+        <button
+            :class="['mode-btn', { active: loginMode === 'code' }]"
+            @click="switchMode('code')"
+            type="button"
+        >{{ $t('login.codeLogin') }}</button>
+      </div>
+
       <el-form :model="form" :rules="rules" ref="formRef">
         <el-form-item prop="username">
           <label class="field-label">{{ $t('login.email') }}</label>
@@ -31,7 +45,9 @@
               class="soft-input"
           />
         </el-form-item>
-        <el-form-item prop="password">
+
+        <!-- Password mode -->
+        <el-form-item v-if="loginMode === 'password'" prop="password">
           <label class="field-label">{{ $t('login.password') }}</label>
           <el-input
               v-model="form.password"
@@ -42,6 +58,30 @@
               class="soft-input"
           />
         </el-form-item>
+
+        <!-- Code mode -->
+        <el-form-item v-if="loginMode === 'code'" prop="code">
+          <label class="field-label">{{ $t('login.code') }}</label>
+          <div class="code-row">
+            <el-input
+                v-model="form.code"
+                :placeholder="$t('login.codePlaceholder')"
+                :prefix-icon="() => h(ShieldCheck, { size: 15, strokeWidth: 1.6 })"
+                maxlength="6"
+                @keyup.enter="handleLogin"
+                class="soft-input code-input"
+            />
+            <el-button
+                :loading="sending"
+                :disabled="countdown > 0"
+                class="send-code-btn"
+                @click="sendCode"
+            >
+              {{ countdown > 0 ? $t('login.resendCode', { seconds: countdown }) : $t('login.sendCode') }}
+            </el-button>
+          </div>
+        </el-form-item>
+
         <el-form-item>
           <el-button :loading="loading" class="submit-btn" @click="handleLogin">
             {{ $t('login.loginBtn') }}
@@ -80,11 +120,13 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, h } from 'vue'
+import { reactive, ref, h, computed, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
-import { Mail, Lock } from 'lucide-vue-next'
+import { Mail, Lock, ShieldCheck } from 'lucide-vue-next'
+import { ElMessage } from 'element-plus'
+import request from '@utils/request'
 
 const router = useRouter()
 const route = useRoute()
@@ -94,21 +136,76 @@ const loading = ref(false)
 const formRef = ref()
 const showExpiredAlert = ref(route.query.expired === '1')
 const forgotDialogVisible = ref(false)
+const loginMode = ref<'password' | 'code'>('password')
+const sending = ref(false)
+const countdown = ref(0)
+let timer: ReturnType<typeof setInterval> | null = null
 
-const form = reactive({ username: '', password: '' })
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 
-const rules = {
-  username: [
-    { required: true, message: t('login.emailRequired'), trigger: 'blur' }
-  ],
-  password: [{ required: true, message: t('login.passwordRequired'), trigger: 'blur' }]
+const form = reactive({ username: '', password: '', code: '' })
+
+const rules = computed(() => {
+  const base: any = {
+    username: [
+      { required: true, message: t('login.emailRequired'), trigger: 'blur' }
+    ]
+  }
+  if (loginMode.value === 'code') {
+    base.code = [
+      { required: true, message: t('login.codeRequired'), trigger: 'blur' },
+      { pattern: /^\d{6}$/, message: t('login.codeRequired'), trigger: 'blur' }
+    ]
+  } else {
+    base.password = [
+      { required: true, message: t('login.passwordRequired'), trigger: 'blur' }
+    ]
+  }
+  return base
+})
+
+const switchMode = (mode: 'password' | 'code') => {
+  loginMode.value = mode
+  form.password = ''
+  form.code = ''
+  formRef.value?.clearValidate()
+}
+
+const sendCode = async () => {
+  if (!form.username || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.username)) {
+    ElMessage.warning(t('login.emailRequired'))
+    return
+  }
+  try {
+    sending.value = true
+    await request.post('/user/send-code', { email: form.username })
+    ElMessage.success(t('login.codeSent'))
+    countdown.value = 60
+    timer = setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0) {
+        if (timer) clearInterval(timer)
+        timer = null
+      }
+    }, 1000)
+  } catch {
+    // error handled by axios interceptor
+  } finally {
+    sending.value = false
+  }
 }
 
 const handleLogin = async () => {
   try {
     await formRef.value.validate()
     loading.value = true
-    await userStore.login(form.username, form.password)
+    if (loginMode.value === 'code') {
+      await userStore.login(form.username, '', form.code)
+    } else {
+      await userStore.login(form.username, form.password)
+    }
     router.push('/app/dashboard')
   } catch {
     // errors handled by Axios interceptor
@@ -140,7 +237,7 @@ const handleLogin = async () => {
   margin: 0 0 28px 0;
 }
 
-.heading-block { margin-bottom: 32px; }
+.heading-block { margin-bottom: 24px; }
 
 .page-heading {
   font-size: 28px;
@@ -234,6 +331,60 @@ const handleLogin = async () => {
 
 :deep(.el-form-item) { margin-bottom: 18px; }
 :deep(.el-form-item__content) { flex-direction: column; align-items: flex-start; }
+
+.mode-toggle {
+  display: flex;
+  background: #f3f4f6;
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 1px;
+}
+.mode-btn {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.mode-btn.active {
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.code-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+.code-input {
+  flex: 1;
+}
+.send-code-btn {
+  width: 150px;
+  height: 44px;
+  background: #fff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 10px !important;
+  color: #374151 !important;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.send-code-btn:hover:not(:disabled) {
+  border-color: #111827 !important;
+  color: #111827 !important;
+}
+.send-code-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 </style>
 
 <style>

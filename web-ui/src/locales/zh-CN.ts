@@ -71,6 +71,14 @@ export default {
     passwordRequired: '请输入密码',
     forgotPassword: '忘记密码？',
     forgotPasswordHint: '出于安全考虑，不支持在线自助重置密码。请联系系统管理员为您重置密码。',
+    codeLogin: '验证码登录',
+    passwordLogin: '密码登录',
+    code: '验证码',
+    codePlaceholder: '请输入6位验证码',
+    codeRequired: '请输入验证码',
+    sendCode: '发送验证码',
+    codeSent: '验证码已发送',
+    resendCode: '重新发送 ({seconds}秒)',
   },
 
   // 注册页
@@ -94,6 +102,12 @@ export default {
     confirmPasswordRequired: '请确认密码',
     passwordMismatch: '两次输入的密码不一致',
     registerSuccess: '账户创建成功！请登录。',
+    code: '验证码',
+    codePlaceholder: '请输入6位验证码',
+    codeRequired: '请输入验证码',
+    sendCode: '发送验证码',
+    codeSent: '验证码已发送',
+    resendCode: '重新发送 ({seconds}秒)',
   },
 
   // 仪表盘

@@ -71,6 +71,14 @@ export default {
     passwordRequired: 'Please enter your password',
     forgotPassword: 'Forgot your password?',
     forgotPasswordHint: 'For security reasons, password reset is not available online. Please contact your system administrator to have your password reset.',
+    codeLogin: 'Verification Code',
+    passwordLogin: 'Password',
+    code: 'Verification Code',
+    codePlaceholder: 'Enter 6-digit code',
+    codeRequired: 'Please enter verification code',
+    sendCode: 'Send Code',
+    codeSent: 'Code sent',
+    resendCode: 'Resend ({seconds}s)',
   },
 
   // Register Page
@@ -94,6 +102,12 @@ export default {
     confirmPasswordRequired: 'Please confirm your password',
     passwordMismatch: 'Passwords do not match',
     registerSuccess: 'Account created! Please sign in.',
+    code: 'Verification Code',
+    codePlaceholder: 'Enter 6-digit code',
+    codeRequired: 'Please enter verification code',
+    sendCode: 'Send Code',
+    codeSent: 'Code sent',
+    resendCode: 'Resend ({seconds}s)',
   },
 
   // Dashboard

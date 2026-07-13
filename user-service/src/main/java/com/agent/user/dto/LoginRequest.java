@@ -9,6 +9,7 @@ public class LoginRequest {
     @NotBlank(message = "用户名不能为空")
     private String username;
 
-    @NotBlank(message = "密码不能为空")
     private String password;
+
+    private String code;  // 验证码登录（可选，有值则走验证码登录）
 }
