@@ -74,6 +74,33 @@ export interface RagIndexResponse {
   message?: string
 }
 
+export interface RagDocumentIndexStatus {
+  documentId: number
+  title: string
+  deptId?: number
+  securityLevel?: number
+  indexed: boolean
+  chunkCount: number
+  documentCreateTime?: string
+  lastIndexedAt?: string
+  firstVectorId?: string
+  latestContentHash?: string
+}
+
+export interface RagDocumentChunkDetail {
+  chunkId: number
+  documentId: number
+  chunkIndex: number
+  chunkText: string
+  tokenCount?: number
+  vectorId?: string
+  securityLevel?: number
+  deptId?: number
+  contentHash?: string
+  createTime?: string
+  updateTime?: string
+}
+
 export const queryRag = (data: RagQueryRequest) =>
   request.post<any, RagQueryResponse>('/rag/query', data)
 
@@ -91,3 +118,9 @@ export const indexRagDocument = (documentId: number) =>
 
 export const deleteRagDocumentIndex = (documentId: number) =>
   request.delete<any, RagIndexResponse>(`/rag/index/document/${documentId}`)
+
+export const getRagDocumentIndexStatus = () =>
+  request.get<any, RagDocumentIndexStatus[]>('/rag/index/documents/status')
+
+export const getRagDocumentChunks = (documentId: number) =>
+  request.get<any, RagDocumentChunkDetail[]>(`/rag/index/document/${documentId}/chunks`)

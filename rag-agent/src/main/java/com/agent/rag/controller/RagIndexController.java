@@ -1,5 +1,7 @@
 package com.agent.rag.controller;
 
+import com.agent.rag.dto.RagDocumentChunkDto;
+import com.agent.rag.dto.RagDocumentIndexStatus;
 import com.agent.rag.dto.RagIndexResponse;
 import com.agent.rag.entity.RagIndexTask;
 import com.agent.rag.service.RagIndexService;
@@ -39,5 +41,15 @@ public class RagIndexController {
     @GetMapping("/tasks")
     public List<RagIndexTask> listTasks(@RequestParam(required = false) Integer limit) {
         return ragIndexService.listTasks(limit);
+    }
+
+    @GetMapping("/documents/status")
+    public List<RagDocumentIndexStatus> listDocumentIndexStatus() {
+        return ragIndexService.listDocumentIndexStatus();
+    }
+
+    @GetMapping("/document/{documentId}/chunks")
+    public List<RagDocumentChunkDto> listDocumentChunks(@PathVariable Long documentId) {
+        return ragIndexService.listDocumentChunks(documentId);
     }
 }

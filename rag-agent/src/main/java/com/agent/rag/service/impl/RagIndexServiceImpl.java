@@ -1,6 +1,8 @@
 package com.agent.rag.service.impl;
 
 import com.agent.rag.dto.DocumentChunk;
+import com.agent.rag.dto.RagDocumentChunkDto;
+import com.agent.rag.dto.RagDocumentIndexStatus;
 import com.agent.rag.dto.RagIndexResponse;
 import com.agent.rag.dto.VectorRecord;
 import com.agent.rag.entity.RagDocumentChunk;
@@ -19,7 +21,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -102,6 +109,62 @@ public class RagIndexServiceImpl implements RagIndexService {
         );
     }
 
+    @Override
+    public List<RagDocumentIndexStatus> listDocumentIndexStatus() {
+        List<SysDocument> documents = sysDocumentMapper.selectList(
+                new LambdaQueryWrapper<SysDocument>()
+                        .orderByAsc(SysDocument::getId)
+        );
+        List<RagDocumentChunk> chunks = ragDocumentChunkMapper.selectList(
+                new LambdaQueryWrapper<RagDocumentChunk>()
+                        .orderByAsc(RagDocumentChunk::getDocumentId)
+                        .orderByAsc(RagDocumentChunk::getChunkIndex)
+        );
+        Map<Long, List<RagDocumentChunk>> chunksByDocumentId = chunks.stream()
+                .collect(Collectors.groupingBy(
+                        RagDocumentChunk::getDocumentId,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        List<RagDocumentIndexStatus> result = new ArrayList<>();
+        for (SysDocument document : documents) {
+            List<RagDocumentChunk> documentChunks = chunksByDocumentId.getOrDefault(document.getId(), List.of());
+            RagDocumentChunk latestChunk = documentChunks.stream()
+                    .max(Comparator.comparing(RagDocumentChunk::getUpdateTime, Comparator.nullsFirst(Comparator.naturalOrder())))
+                    .orElse(null);
+            RagDocumentChunk firstChunk = documentChunks.stream()
+                    .min(Comparator.comparing(RagDocumentChunk::getChunkIndex, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .orElse(null);
+
+            result.add(RagDocumentIndexStatus.builder()
+                    .documentId(document.getId())
+                    .title(document.getTitle())
+                    .deptId(document.getDeptId())
+                    .securityLevel(document.getSecurityLevel())
+                    .indexed(!documentChunks.isEmpty())
+                    .chunkCount(documentChunks.size())
+                    .documentCreateTime(document.getCreateTime())
+                    .lastIndexedAt(latestChunk != null ? latestChunk.getUpdateTime() : null)
+                    .firstVectorId(firstChunk != null ? firstChunk.getVectorId() : null)
+                    .latestContentHash(latestChunk != null ? latestChunk.getContentHash() : null)
+                    .build());
+        }
+        return result;
+    }
+
+    @Override
+    public List<RagDocumentChunkDto> listDocumentChunks(Long documentId) {
+        return ragDocumentChunkMapper.selectList(
+                        new LambdaQueryWrapper<RagDocumentChunk>()
+                                .eq(RagDocumentChunk::getDocumentId, documentId)
+                                .orderByAsc(RagDocumentChunk::getChunkIndex)
+                )
+                .stream()
+                .map(this::toChunkDto)
+                .toList();
+    }
+
     private int writeChunks(SysDocument document) {
         vectorStoreService.deleteByDocumentId(document.getId());
         ragDocumentChunkMapper.hardDeleteByDocumentId(document.getId());
@@ -172,6 +235,22 @@ public class RagIndexServiceImpl implements RagIndexService {
                 .status(task.getStatus())
                 .chunkCount(chunkCount)
                 .message(task.getMessage())
+                .build();
+    }
+
+    private RagDocumentChunkDto toChunkDto(RagDocumentChunk chunk) {
+        return RagDocumentChunkDto.builder()
+                .chunkId(chunk.getId())
+                .documentId(chunk.getDocumentId())
+                .chunkIndex(chunk.getChunkIndex())
+                .chunkText(chunk.getChunkText())
+                .tokenCount(chunk.getTokenCount())
+                .vectorId(chunk.getVectorId())
+                .securityLevel(chunk.getSecurityLevel())
+                .deptId(chunk.getDeptId())
+                .contentHash(chunk.getContentHash())
+                .createTime(chunk.getCreateTime())
+                .updateTime(chunk.getUpdateTime())
                 .build();
     }
 }
