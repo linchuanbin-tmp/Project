@@ -252,7 +252,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -307,8 +307,7 @@ const fetchMetadata = async () => {
   metadataLoading.value = true
   try {
     const res = await getCodeMetadata()
-    const payload = res?.data ?? res
-    tables.value = payload.tableNames || []
+    tables.value = res.tableNames || []
   } catch (e: any) {
     console.error('Failed to load metadata:', e)
   } finally {
@@ -321,8 +320,7 @@ const refreshMetadata = async () => {
   metadataLoading.value = true
   try {
     const res = await refreshCodeMetadata()
-    const payload = res?.data ?? res
-    tables.value = payload.tableNames || []
+    tables.value = res.tableNames || []
     ElMessage.success(t('code.refreshSuccess'))
   } catch (e: any) {
     ElMessage.error(t('code.refreshFailed'))
@@ -337,31 +335,30 @@ const useTemplate = (tmpl: string) => {
 }
 
 // Step 1: Generate SQL from natural language prompt
-const handleGenerate = async () => {
+const handleGenerate = async (silent = false) => {
   if (!question.value.trim()) {
-    ElMessage.warning(t('code.enterPrompt'))
+    if (!silent) ElMessage.warning(t('code.enterPrompt'))
     return
   }
   queryLoading.value = true
-  
+
   generatedSql.value = ''
   generateError.value = ''
   executionResult.value = null
   executeError.value = ''
   try {
     const res = await generateSQLOnly({ question: question.value })
-    const payload = res?.data ?? res
-    
-    if (payload && payload.success) {
-      generatedSql.value = payload.sql || ''
-      inferenceMethod.value = payload.inferenceMethod || 'LLM'
-      ElMessage.success(t('code.generateSuccess'))
+
+    if (res && res.success) {
+      generatedSql.value = res.sql || ''
+      inferenceMethod.value = res.inferenceMethod || 'LLM'
+      if (!silent) ElMessage.success(t('code.generateSuccess'))
     } else {
-      generateError.value = payload?.errorMessage || t('code.generateFailed')
+      generateError.value = res?.errorMessage || t('code.generateFailed')
     }
   } catch (e: any) {
     generateError.value = e.message || t('code.generateFailed')
-    ElMessage.error(t('code.generateFailed'))
+    if (!silent) ElMessage.error(t('code.generateFailed'))
   } finally {
     // Provide a small delay so the progress bar reaches 100% smoothly before overlay fades out
     setTimeout(() => {
@@ -381,13 +378,12 @@ const handleExecute = async () => {
   executeError.value = ''
   try {
     const res = await executeSQLDirectly({ sql: generatedSql.value })
-    const payload = res?.data ?? res
-    
-    if (payload && payload.success) {
-      executionResult.value = payload
+
+    if (res && res.success) {
+      executionResult.value = res
       ElMessage.success(t('code.executeSuccess'))
     } else {
-      executeError.value = payload?.errorMessage || t('code.executeFailed')
+      executeError.value = res?.errorMessage || t('code.executeFailed')
     }
   } catch (e: any) {
     executeError.value = e.message || t('code.executeFailed')
@@ -446,12 +442,12 @@ onMounted(async () => {
 
 watch(
   () => route.query.query,
-  (newQuery) => {
+  async (newQuery) => {
     if (newQuery) {
       question.value = newQuery as string
-      handleGenerate()
-      // Clear route query parameters
       router.replace({ query: {} })
+      await nextTick()
+      await handleGenerate(true)
     }
   },
   { immediate: true }

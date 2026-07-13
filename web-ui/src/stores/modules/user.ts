@@ -13,8 +13,13 @@ export const useUserStore = defineStore('user', () => {
     const isLoggedIn = computed(() => !!token.value)
 
     // Actions
-    const login = async (username: string, password: string) => {
-        const res: any = await request.post('/user/login', { username, password })
+    const login = async (username: string, password: string, code?: string) => {
+        const payload: any = { username, password }
+        if (code) {
+            payload.code = code
+            payload.password = ''  // 验证码模式下密码可空
+        }
+        const res: any = await request.post('/user/login', payload)
         token.value = res.token
         localStorage.setItem('token', res.token)
         await getUserInfo()

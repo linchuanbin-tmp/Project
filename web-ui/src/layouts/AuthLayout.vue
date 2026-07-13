@@ -37,8 +37,9 @@ watch(
 .auth-bg {
   height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: 10vh;
   background: #f0f2f5;
   overflow: hidden;
   position: relative;

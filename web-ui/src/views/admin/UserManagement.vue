@@ -137,8 +137,16 @@
         </el-table-column>
 
         <!-- Actions -->
-        <el-table-column :label="$t('adminUsers.actions')" min-width="110" align="right">
+        <el-table-column :label="$t('adminUsers.actions')" min-width="190" align="right">
           <template #default="{ row }">
+            <el-button
+              size="small"
+              class="action-btn reset-btn"
+              :disabled="row.username === userStore.userInfo?.username"
+              @click="openResetPasswordDialog(row)"
+            >
+              {{ $t('adminUsers.resetPassword') }}
+            </el-button>
             <el-button
               size="small"
               class="action-btn"
@@ -212,6 +220,41 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- Reset Password Dialog -->
+    <el-dialog
+      v-model="resetPasswordDialogVisible"
+      :title="$t('adminUsers.resetPasswordTitle')"
+      width="460px"
+      class="custom-dialog"
+      :before-close="closeResetPasswordDialog"
+    >
+      <div class="dialog-body">
+        <p class="dialog-desc">{{ $t('adminUsers.resetPasswordDesc', { name: resetTargetUser?.realName || resetTargetUser?.username }) }}</p>
+
+        <div v-if="tempPassword" class="temp-password-box">
+          <p class="temp-password-label">{{ $t('adminUsers.tempPassword') }}</p>
+          <div class="temp-password-row">
+            <code class="temp-password-value">{{ tempPassword }}</code>
+            <el-button size="small" class="copy-btn" @click="copyTempPassword">
+              {{ tempPasswordCopied ? $t('adminUsers.copied') : $t('adminUsers.copy') }}
+            </el-button>
+          </div>
+          <p class="temp-password-hint">{{ $t('adminUsers.tempPasswordHint') }}</p>
+        </div>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button v-if="!tempPassword" @click="closeResetPasswordDialog" class="dialog-btn-cancel">{{ $t('common.cancel') }}</el-button>
+          <el-button v-if="!tempPassword" type="primary" @click="handleResetPassword" :loading="resetPasswordLoading" class="dialog-btn-confirm">
+            {{ $t('adminUsers.confirmReset') }}
+          </el-button>
+          <el-button v-else type="primary" @click="closeResetPasswordDialog" class="dialog-btn-confirm">
+            {{ $t('common.close') }}
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -238,6 +281,13 @@ const targetUser = ref<any>(null)
 const selectedRoleId = ref<number | null>(null)
 const selectedDeptId = ref<number | null>(null)
 const selectedClearanceLevel = ref<number>(1)
+
+// Reset password state
+const resetPasswordDialogVisible = ref(false)
+const resetPasswordLoading = ref(false)
+const resetTargetUser = ref<any>(null)
+const tempPassword = ref('')
+const tempPasswordCopied = ref(false)
 
 const departments = ref<any[]>([])
 
@@ -430,6 +480,47 @@ const handleUserUpdate = async () => {
     ElMessage.error(error.message || t('request.failed'))
   } finally {
     submitLoading.value = false
+  }
+}
+
+// Reset password actions
+const openResetPasswordDialog = (row: any) => {
+  resetTargetUser.value = row
+  tempPassword.value = ''
+  tempPasswordCopied.value = false
+  resetPasswordDialogVisible.value = true
+}
+
+const closeResetPasswordDialog = () => {
+  resetPasswordDialogVisible.value = false
+  resetTargetUser.value = null
+  tempPassword.value = ''
+  tempPasswordCopied.value = false
+}
+
+const handleResetPassword = async () => {
+  if (!resetTargetUser.value) return
+  resetPasswordLoading.value = true
+  try {
+    const res: any = await request.put('/admin/user/password/reset', {
+      userId: resetTargetUser.value.id
+    })
+    tempPassword.value = res.tempPassword || res
+    ElMessage.success(t('adminUsers.resetPasswordSuccess'))
+  } catch (error: any) {
+    ElMessage.error(error.message || t('request.failed'))
+  } finally {
+    resetPasswordLoading.value = false
+  }
+}
+
+const copyTempPassword = async () => {
+  try {
+    await navigator.clipboard.writeText(tempPassword.value)
+    tempPasswordCopied.value = true
+    setTimeout(() => { tempPasswordCopied.value = false }, 2000)
+  } catch {
+    ElMessage.warning(t('adminUsers.copyFailed'))
   }
 }
 
@@ -644,6 +735,16 @@ onMounted(() => {
   color: #111827 !important;
 }
 
+.reset-btn {
+  color: #6366f1 !important;
+  border-color: #e0e7ff !important;
+}
+.reset-btn:hover {
+  background: #f5f3ff !important;
+  border-color: #c4b5fd !important;
+  color: #4f46e5 !important;
+}
+
 /* ── Dialog styles ── */
 .custom-dialog :deep(.el-dialog) {
   border-radius: 16px;
@@ -801,5 +902,64 @@ onMounted(() => {
 .filter-select :deep(.el-input__wrapper.is-focus) {
   border-color: #111827;
   background: #ffffff;
+}
+
+.temp-password-box {
+  background: #f8faff;
+  border: 1px solid #e0e7ff;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 8px;
+}
+
+.temp-password-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6366f1;
+  margin: 0 0 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.temp-password-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.temp-password-value {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #e0e7ff;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: 2px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+.copy-btn {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid #6366f1;
+  background: #6366f1 !important;
+  color: #fff !important;
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+
+.copy-btn:hover {
+  background: #4f46e5 !important;
+  border-color: #4f46e5 !important;
+}
+
+.temp-password-hint {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 10px 0 0 0;
+  line-height: 1.5;
 }
 </style>

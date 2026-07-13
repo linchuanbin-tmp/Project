@@ -69,6 +69,16 @@ export default {
     createOne: '建立一個',
     emailRequired: '請輸入電子郵件地址',
     passwordRequired: '請輸入密碼',
+    forgotPassword: '忘記密碼？',
+    forgotPasswordHint: '出於安全考量，不支援線上自助重設密碼。請聯絡系統管理員為您重設密碼。',
+    codeLogin: '驗證碼登入',
+    passwordLogin: '密碼登入',
+    code: '驗證碼',
+    codePlaceholder: '請輸入6位驗證碼',
+    codeRequired: '請輸入驗證碼',
+    sendCode: '發送驗證碼',
+    codeSent: '驗證碼已發送',
+    resendCode: '重新發送 ({seconds}秒)',
   },
 
   // 註冊頁
@@ -92,6 +102,12 @@ export default {
     confirmPasswordRequired: '請確認密碼',
     passwordMismatch: '兩次輸入的密碼不一致',
     registerSuccess: '帳戶建立成功！請登入。',
+    code: '驗證碼',
+    codePlaceholder: '請輸入6位驗證碼',
+    codeRequired: '請輸入驗證碼',
+    sendCode: '發送驗證碼',
+    codeSent: '驗證碼已發送',
+    resendCode: '重新發送 ({seconds}秒)',
   },
 
   // 儀表板
@@ -616,6 +632,14 @@ export default {
     addSuccess: '使用者建立成功！',
     editSuccess: '使用者編輯成功！',
     deleteSuccess: '使用者刪除成功！',
+    resetPasswordTitle: '重設密碼',
+    resetPasswordDesc: '為 {name} 生成臨時密碼：',
+    confirmReset: '確認重設',
+    tempPassword: '臨時密碼',
+    tempPasswordHint: '請複製此密碼並安全地告知使用者。使用者登入後將被提示修改密碼。',
+    copied: '已複製！',
+    copy: '複製',
+    copyFailed: '複製失敗，請手動複製密碼。',
     resetPasswordSuccess: '密碼重設成功！',
     cannotDisableSelf: '出於安全原因，您無法停用您自己的管理員帳戶。',
     cannotModifySelf: '出於安全原因，您無法修改您自己的資訊。',
@@ -782,8 +806,10 @@ export default {
 
   // Copilot 懸浮窗
   copilot: {
-    title: '智能助理 Copilot',
-    tooltip: '喚醒 Copilot 助理',
+    title: '智能助手',
+    tooltip: '開啟智能助手',
     clearHistory: '清空聊天歷史',
+    processingTool: '正在為您處理任務，請稍候...',
+    processingCode: '正在為您生成 SQL 程式碼，即將跳轉到程式碼生成頁面...',
   },
 }

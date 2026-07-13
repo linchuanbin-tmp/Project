@@ -37,6 +37,16 @@ public class UserController {
         return Result.success("Logged out successfully");
     }
 
+    @PostMapping("/send-code")
+    public Result<String> sendVerificationCode(@Valid @RequestBody SendCodeRequest request) {
+        try {
+            userService.sendVerificationCode(request.getEmail());
+            return Result.success("Verification code sent");
+        } catch (RuntimeException e) {
+            return Result.error(400, e.getMessage());
+        }
+    }
+
     @PostMapping("/register")
     public Result<String> register(@Valid @RequestBody RegisterRequest request) {
         try {

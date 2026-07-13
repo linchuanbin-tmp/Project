@@ -1,233 +1,112 @@
 <template>
-  <div class="copilot-container">
-    <!-- Floating Trigger Button -->
-    <button 
-      class="copilot-btn" 
-      :class="{ active: isOpen }"
-      @click="toggleOpen"
-      :title="t('copilot.tooltip')"
-    >
-      <MessageSquare v-if="!isOpen" :size="24" />
-      <X v-else :size="24" />
-      <span v-if="hasUnread && !isOpen" class="unread-dot"></span>
-    </button>
+  <div class="copilot-container" :class="{ open: isOpen }">
+    <!-- Single morphing element -->
+    <div class="copilot-shell" @click="!isOpen && (isOpen = true)">
+      <!-- Collapsed state: just the icon -->
+      <div v-if="!isOpen" class="shell-collapsed">
+        <MessageSquare :size="22" />
+        <span v-if="hasUnread" class="unread-dot"></span>
+      </div>
 
-    <!-- Chat Overlay Window (Unified Single Card) -->
-    <transition name="slide-up">
-      <div v-if="isOpen" class="copilot-window">
-        <!-- Header (Unified with Card Background) -->
-        <div class="copilot-header">
-          <div class="header-info">
-            <div class="header-icon-badge">
-              <Sparkles :size="15" />
-            </div>
-            <div class="header-text-block">
-              <span class="header-title">{{ t('copilot.title') }}</span>
-              <span class="header-status">
-                <span class="status-dot online"></span>
-                {{ t('dashboard.online') }}
-              </span>
-            </div>
-          </div>
+      <!-- Expanded content -->
+      <template v-else>
+        <!-- Header -->
+        <div class="copilot-header" @click.stop>
+          <span class="header-title">{{ t('copilot.title') }}</span>
           <div class="header-actions">
             <button class="action-btn" @click="clearHistory" :title="t('copilot.clearHistory')">
               <Trash2 :size="14" />
             </button>
             <button class="action-btn" @click="isOpen = false">
-              <ChevronDown :size="16" />
+              <Minus :size="16" />
             </button>
           </div>
         </div>
 
-        <!-- Chat Area (Unified Content Flow) -->
-        <div class="copilot-chat-body" ref="chatBodyRef">
-          <!-- Welcome message if history is empty -->
+        <!-- Chat Body -->
+        <div class="copilot-chat-body" ref="chatBodyRef" @click.stop>
           <div v-if="messages.length === 0" class="welcome-box">
-            <div class="welcome-icon">
-              <Sparkles :size="28" />
-            </div>
+            <div class="welcome-icon"><Sparkles :size="28" /></div>
             <h2>{{ t('dashboard.chat.greetingTitle') }}</h2>
             <p>{{ t('dashboard.chat.greetingSub') }}</p>
-
-            <!-- Suggestions in a modern grid -->
-            <div class="copilot-suggestions">
-              <div 
-                v-for="sug in suggestions" 
-                :key="sug.text"
-                class="sug-pill"
-                @click="useSuggestion(sug.text, sug.router)"
-              >
-                <div class="sug-icon-wrap">
-                  <component :is="sug.icon" :size="13" />
-                </div>
-                <span>{{ sug.text }}</span>
-              </div>
-            </div>
           </div>
 
-          <!-- Message list -->
           <div v-else class="message-list">
-            <div 
-              v-for="(msg, index) in messages" 
-              :key="index"
-              class="message-row"
-              :class="msg.role"
-            >
-              <!-- Avatar -->
-              <div class="message-avatar">
-                <div v-if="msg.role === 'user'" class="avatar-wrap user">
-                  <User :size="14" />
-                </div>
-                <div v-else class="avatar-wrap assistant">
-                  <Sparkles :size="14" />
-                </div>
-              </div>
-
-              <!-- Message Contents -->
+            <div v-for="(msg, index) in messages" :key="index" class="message-row" :class="msg.role">
               <div class="message-content-area">
-                <div class="message-sender-name">
-                  {{ msg.role === 'user' ? 'You' : 'Copilot' }}
+                <div v-if="msg.role === 'user'" class="user-bubble">
+                  <span class="message-text">{{ msg.content }}</span>
                 </div>
-                <div class="message-text">{{ msg.content }}</div>
+                <div v-else class="message-text">{{ msg.content }}</div>
 
-                <!-- Structured Tool results -->
                 <div v-if="msg.role === 'assistant' && msg.metadata" class="metadata-card">
-                  <!-- Meeting Room Recommendation -->
                   <div v-if="msg.metadata.rooms && msg.metadata.rooms.length > 0" class="rooms-recommendation">
                     <p class="section-subtitle">Recommended rooms</p>
                     <div class="rooms-grid">
-                      <div 
-                        v-for="room in msg.metadata.rooms" 
-                        :key="room.id" 
-                        class="room-item-card"
-                      >
+                      <div v-for="room in msg.metadata.rooms" :key="room.id" class="room-item-card">
                         <div class="room-header">
-                          <span class="room-name">🚪 {{ room.name }}</span>
-                          <span class="room-status" :class="room.available ? 'avail' : 'occ'">
-                            {{ room.available ? 'Available' : 'Occupied' }}
-                          </span>
+                          <span class="room-name">{{ room.name }}</span>
+                          <span class="room-status" :class="room.available ? 'avail' : 'occ'">{{ room.available ? 'Available' : 'Occupied' }}</span>
                         </div>
                         <div class="room-details-grid">
-                          <span>👥 Capacity: {{ room.capacity }} pax</span>
-                          <span>📍 Loc: {{ room.location }}</span>
+                          <span>Capacity: {{ room.capacity }} pax</span>
+                          <span>Loc: {{ room.location }}</span>
                         </div>
-                        <div class="room-ai" v-if="room.aiMatchScore">
-                          ✨ Match score: {{ room.aiMatchScore }}%
-                        </div>
+                        <div class="room-ai" v-if="room.aiMatchScore">Match score: {{ room.aiMatchScore }}%</div>
                       </div>
                     </div>
                   </div>
-
-                  <!-- Route results -->
                   <div v-if="msg.metadata.distance" class="route-result">
                     <div class="route-grid">
-                      <div class="route-stat-item">
-                        <span class="stat-lbl">🚗 Distance</span>
-                        <span class="stat-val">{{ msg.metadata.distance }}</span>
-                      </div>
-                      <div class="route-stat-item">
-                        <span class="stat-lbl">⏱️ Duration</span>
-                        <span class="stat-val">{{ msg.metadata.duration }}</span>
-                      </div>
+                      <div class="route-stat-item"><span class="stat-lbl">Distance</span><span class="stat-val">{{ msg.metadata.distance }}</span></div>
+                      <div class="route-stat-item"><span class="stat-lbl">Duration</span><span class="stat-val">{{ msg.metadata.duration }}</span></div>
                     </div>
                   </div>
-
-                  <!-- Conflict check results -->
                   <div v-if="msg.metadata.hasConflict !== undefined" class="conflict-result">
-                    <div class="conflict-alert" :class="msg.metadata.hasConflict ? 'warning' : 'success'">
-                      {{ msg.metadata.message }}
-                    </div>
+                    <div class="conflict-alert" :class="msg.metadata.hasConflict ? 'warning' : 'success'">{{ msg.metadata.message }}</div>
                   </div>
                 </div>
-                
-                <div class="message-time">{{ formatTime(msg.timestamp) }}</div>
+
+                <div class="message-time" :class="msg.role">{{ formatTime(msg.timestamp) }}</div>
               </div>
             </div>
           </div>
 
-          <!-- Websocket Streaming progress indicator -->
-          <div v-if="isExecuting" class="copilot-thinking-card">
-            <div class="thinking-header">
-              <RefreshCw :size="14" class="spin thinking-icon" />
-              <span>{{ taskMessage }}</span>
-            </div>
-            <div class="thinking-progress-bar">
-              <div class="progress-fill" :style="{ width: taskProgress + '%' }"></div>
-            </div>
-            <span class="progress-percent-text">{{ taskProgress }}%</span>
+          <div v-if="isExecuting" class="thinking-row">
+            <span class="thinking-label">Thinking</span>
+            <span class="thinking-elapsed">{{ thinkingElapsed }}s</span>
           </div>
         </div>
 
-        <!-- Input Section (Seamless Floating Card inside Body) -->
-        <div class="copilot-input-area-wrap">
-          <div class="copilot-input-box">
-            <textarea
-              v-model="inputQuery"
-              rows="2"
-              :placeholder="t('dashboard.chat.inputPlaceholder')"
-              class="copilot-textarea"
-              @keydown.enter.prevent="submitQuery"
-              :disabled="isExecuting"
-            ></textarea>
-
-            <div class="copilot-input-footer">
-              <!-- Router Selector (CamelCase/Capitalized, No All-Caps) -->
-              <div class="copilot-mode-selector">
-                <span 
-                  class="mode-pill" 
-                  :class="{ active: selectedRouter === 'AUTO' }"
-                  @click="selectedRouter = 'AUTO'"
-                >
-                  🔮 Auto
-                </span>
-                <span 
-                  class="mode-pill" 
-                  :class="{ active: selectedRouter === 'CODE' }"
-                  @click="selectedRouter = 'CODE'"
-                >
-                  💻 Code
-                </span>
-                <span 
-                  class="mode-pill" 
-                  :class="{ active: selectedRouter === 'TOOL' }"
-                  @click="selectedRouter = 'TOOL'"
-                >
-                  🔧 Tool
-                </span>
-                <span 
-                  class="mode-pill" 
-                  :class="{ active: selectedRouter === 'RAG' }"
-                  @click="selectedRouter = 'RAG'"
-                >
-                  📚 Docs
-                </span>
-              </div>
-
-              <button 
-                class="copilot-send-btn" 
-                @click="submitQuery"
-                :disabled="!inputQuery.trim() || isExecuting"
-              >
-                <ArrowRight :size="15" />
-              </button>
-            </div>
+        <!-- Input Area -->
+        <div class="copilot-input-area" @click.stop>
+          <div class="copilot-input-row">
+            <textarea v-model="inputQuery" rows="1" :placeholder="t('dashboard.chat.inputPlaceholder')" class="copilot-textarea" @keydown="handleKeydown" :disabled="isExecuting"></textarea>
+            <button class="copilot-send-btn" @click="submitQuery" :disabled="!inputQuery.trim() || isExecuting"><ArrowUp :size="20" /></button>
+          </div>
+          <div class="copilot-mode-selector">
+            <span class="mode-pill mode-auto" :class="{ active: selectedRouter === 'AUTO' }" @click="selectedRouter = 'AUTO'">Auto</span>
+            <span class="mode-divider"></span>
+            <span class="mode-pill mode-specific" :class="{ active: selectedRouter === 'CODE' }" @click="selectedRouter = 'CODE'">Code</span>
+            <span class="mode-pill mode-specific" :class="{ active: selectedRouter === 'TOOL' }" @click="selectedRouter = 'TOOL'">Tool</span>
+            <span class="mode-pill mode-specific" :class="{ active: selectedRouter === 'RAG' }" @click="selectedRouter = 'RAG'">Docs</span>
           </div>
         </div>
-      </div>
-    </transition>
+      </template>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import request from '@utils/request'
 import { submitTask, getTask } from '@api/task'
 import { wsClient } from '@utils/websocket'
-import { 
-  MessageSquare, X, Sparkles, ChevronDown, 
-  Trash2, ArrowRight, RefreshCw, FileText, Wrench, BookOpen, User 
+import {
+  MessageSquare, Sparkles,
+  Trash2, ArrowUp, Minus
 } from 'lucide-vue-next'
 
 interface ChatMessage {
@@ -238,36 +117,35 @@ interface ChatMessage {
 }
 
 const { t } = useI18n()
-const route = useRoute()
 const router = useRouter()
 
 const isOpen = ref(false)
 const hasUnread = ref(false)
 const inputQuery = ref('')
 const selectedRouter = ref('AUTO')
+const sessionContextQuery = ref('')
 const messages = ref<ChatMessage[]>([])
 const chatBodyRef = ref<HTMLElement | null>(null)
 
-// WebSocket loading state
 const isExecuting = ref(false)
-const taskProgress = ref(0)
-const taskMessage = ref('')
+const thinkingElapsed = ref(0)
+let thinkingTimer: ReturnType<typeof setInterval> | null = null
 
-const toggleOpen = () => {
-  isOpen.value = !isOpen.value
-  if (isOpen.value) {
-    hasUnread.value = false
-    scrollToBottom()
-  }
+const startThinkingTimer = () => {
+  thinkingElapsed.value = 0
+  thinkingTimer = setInterval(() => { thinkingElapsed.value++ }, 1000)
 }
 
-// Clear History
+const stopThinkingTimer = () => {
+  if (thinkingTimer) { clearInterval(thinkingTimer); thinkingTimer = null }
+}
+
 const clearHistory = () => {
   messages.value = []
+  sessionContextQuery.value = ''
   localStorage.removeItem('copilot_chat_history')
 }
 
-// Save to LocalStorage
 const saveHistory = () => {
   localStorage.setItem('copilot_chat_history', JSON.stringify(messages.value))
 }
@@ -275,11 +153,7 @@ const saveHistory = () => {
 const loadHistory = () => {
   const cached = localStorage.getItem('copilot_chat_history')
   if (cached) {
-    try {
-      messages.value = JSON.parse(cached)
-    } catch {
-      messages.value = []
-    }
+    try { messages.value = JSON.parse(cached) } catch { messages.value = [] }
   }
 }
 
@@ -298,109 +172,79 @@ const scrollToBottom = () => {
   })
 }
 
-// Suggestions block
-const suggestions = computed(() => [
-  {
-    text: t('dashboard.chat.sug.balance'),
-    icon: FileText,
-    router: 'CODE'
-  },
-  {
-    text: t('dashboard.chat.sug.bookRoom'),
-    icon: Wrench,
-    router: 'TOOL'
-  },
-  {
-    text: t('dashboard.chat.sug.policy'),
-    icon: BookOpen,
-    router: 'RAG'
+const handleToolCompleted = async (dbTaskId: number | null, queryText: string) => {
+  let parsedOutput: any = null
+  if (dbTaskId) {
+    try {
+      const taskRes: any = await getTask(dbTaskId)
+      const record = taskRes
+      if (record?.output) {
+        try { parsedOutput = JSON.parse(record.output) } catch { parsedOutput = { rawText: record.output } }
+      }
+    } catch (e) { console.error(e) }
   }
-])
 
-const useSuggestion = (text: string, routerVal: string) => {
-  inputQuery.value = text
-  selectedRouter.value = routerVal
+  let contentMessage: string = parsedOutput
+    ? (parsedOutput.distance
+        ? `已为您规划路线，全程 ${parsedOutput.distance || '未知距离'}，预计耗时 ${parsedOutput.duration || '未知时间'}。您可在左侧查看具体路线规划。`
+        : parsedOutput.rooms
+          ? (parsedOutput.rooms.filter((r: any) => r.available).length > 0
+              ? `已为您找到 ${parsedOutput.rooms.filter((r: any) => r.available).length} 间符合要求的空余会议室。您可以在左侧面板选择并预订。`
+              : `很抱歉，在指定时间段内未找到符合条件的会议室。您可以在左侧面板手动调整筛选。`)
+          : parsedOutput.hasConflict !== undefined
+            ? `日程冲突检测完成：${parsedOutput.message || (parsedOutput.hasConflict ? '发现冲突日程。' : '未发现时间冲突。')}。`
+            : t('tool.ai.complete'))
+    : t('tool.ai.complete')
+
+  messages.value.push({ role: 'assistant', content: contentMessage, timestamp: Date.now(), metadata: parsedOutput })
+  saveHistory()
+  if (parsedOutput) {
+    window.dispatchEvent(new CustomEvent('copilot-tool-result', { detail: { payload: parsedOutput, query: queryText } }))
+    localStorage.setItem('copilot_pending_tool_result', JSON.stringify({ payload: parsedOutput, query: queryText, timestamp: Date.now() }))
+  }
+  isExecuting.value = false
+  stopThinkingTimer()
+  scrollToBottom()
 }
 
-// Connect and stream tasks via WebSocket inside Copilot
 const runToolAgentWebSocket = async (queryText: string) => {
-  isExecuting.value = ref(true).value
-  taskProgress.value = 0
-  taskMessage.value = t('tool.ai.connecting')
+  isExecuting.value = true
+  startThinkingTimer()
 
   let dbTaskId: number | null = null
   try {
     const submitRes: any = await submitTask({ taskType: 'TOOL', input: queryText })
-    dbTaskId = submitRes?.data?.data?.id ?? submitRes?.data?.id ?? null
+    dbTaskId = submitRes?.id ?? null
   } catch (err) {
-    console.warn('task-service unavailable, falling back to mock WS flow')
+    console.warn('task-service unavailable')
+  }
+
+  if (!dbTaskId) {
+    isExecuting.value = false
+    stopThinkingTimer()
+    messages.value.push({ role: 'assistant', content: t('tool.ai.error'), timestamp: Date.now() })
+    return
   }
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
-  const wsUrl = dbTaskId
-    ? `${protocol}//${host}/ws/task/progress?taskId=${dbTaskId}`
-    : `${protocol}//${host}/ws/?taskId=fallback_${Date.now()}`
+  const wsUrl = `${protocol}//${host}/ws/task/progress?taskId=${dbTaskId}`
+  let hasCompleted = false
 
   wsClient.connect(wsUrl)
 
-  let hasFetchedResult = false
-
   wsClient.on('message', async (rawData: any) => {
+    if (hasCompleted) return
     const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
-    taskProgress.value = data.progress ?? 0
-    taskMessage.value = data.message ?? ''
-
-    if (data.status === 'completed' && !hasFetchedResult) {
-      hasFetchedResult = true
-      taskMessage.value = t('tool.ai.fetchingResult')
-      
-      let parsedOutput: any = null
-      if (dbTaskId) {
-        try {
-          const taskRes: any = await getTask(dbTaskId)
-          const record = taskRes?.data?.data ?? taskRes?.data
-          if (record?.output) {
-            try {
-              parsedOutput = JSON.parse(record.output)
-            } catch {
-              parsedOutput = { rawText: record.output }
-            }
-          }
-        } catch (e) {
-          console.error(e)
-        }
-      }
-
-      // Add system response message
-      messages.value.push({
-        role: 'assistant',
-        content: data.message || t('tool.ai.intentMatched', { intent: 'Tool' }),
-        timestamp: Date.now(),
-        metadata: parsedOutput
-      })
-      saveHistory()
-
-      // Dispatch event to active Tool page if it exists
-      if (parsedOutput) {
-        window.dispatchEvent(new CustomEvent('copilot-tool-result', { 
-          detail: {
-            payload: parsedOutput,
-            query: queryText
-          }
-        }))
-      }
-
-      isExecuting.value = false
-      scrollToBottom()
+    if (data.status === 'completed') {
+      hasCompleted = true
+      await handleToolCompleted(dbTaskId, queryText)
       wsClient.close?.()
     } else if (data.status === 'error') {
+      hasCompleted = true
       isExecuting.value = false
-      messages.value.push({
-        role: 'assistant',
-        content: data.message || t('tool.ai.error'),
-        timestamp: Date.now()
-      })
+      stopThinkingTimer()
+      messages.value.push({ role: 'assistant', content: data.message || t('tool.ai.error'), timestamp: Date.now() })
       saveHistory()
       scrollToBottom()
       wsClient.close?.()
@@ -408,70 +252,134 @@ const runToolAgentWebSocket = async (queryText: string) => {
   })
 
   wsClient.on('error', () => {
+    if (hasCompleted) return
+    hasCompleted = true
     isExecuting.value = false
-    taskMessage.value = t('tool.ai.connectionError')
-    messages.value.push({
-      role: 'assistant',
-      content: t('tool.ai.connectionError'),
-      timestamp: Date.now()
-    })
+    stopThinkingTimer()
+    messages.value.push({ role: 'assistant', content: t('tool.ai.connectionError'), timestamp: Date.now() })
     saveHistory()
     scrollToBottom()
   })
 
+  // Fallback poll — the task may complete before the WS connects (race condition),
+  // so poll GET /api/task/{id} once per second until SUCCESS/FAIL.
+  let pollTimer: ReturnType<typeof setInterval> | null = null
   wsClient.on('open', () => {
-    taskMessage.value = t('tool.ai.connected')
-    wsClient.send(JSON.stringify({
-      taskType: 'TOOL',
-      query: queryText,
-      parameters: {}
-    }))
+    if (!dbTaskId || hasCompleted) return
+    pollTimer = setInterval(async () => {
+      if (hasCompleted) { clearInterval(pollTimer!); return }
+      try {
+        const taskRes: any = await getTask(dbTaskId!)
+        const record = taskRes
+        if (record?.status === 'SUCCESS' || record?.status === 'FAIL') {
+          clearInterval(pollTimer!)
+          if (hasCompleted) return
+          hasCompleted = true
+          if (record.status === 'SUCCESS') {
+            await handleToolCompleted(dbTaskId, queryText)
+          } else {
+            isExecuting.value = false
+            stopThinkingTimer()
+            messages.value.push({ role: 'assistant', content: record.errorMsg || t('tool.ai.error'), timestamp: Date.now() })
+            saveHistory()
+            scrollToBottom()
+          }
+          wsClient.close?.()
+        }
+      } catch { /* poll silently */ }
+    }, 500)
   })
 }
 
-// Submit prompt query
+const handleKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+    e.preventDefault()
+    submitQuery()
+  }
+}
+
 const submitQuery = async () => {
   const query = inputQuery.value.trim()
   if (!query) return
-
-  // 1. Add user message to log
-  messages.value.push({
-    role: 'user',
-    content: query,
-    timestamp: Date.now()
-  })
+  messages.value.push({ role: 'user', content: query, timestamp: Date.now() })
   inputQuery.value = ''
   scrollToBottom()
 
-  // 2. Classify intent
   isExecuting.value = true
   let targetRouter = selectedRouter.value
+  
+  // Construct the accumulated query context
+  let queryToSend = query
+  if (sessionContextQuery.value) {
+    queryToSend = sessionContextQuery.value + ' ' + query
+  }
+
   try {
     if (targetRouter === 'AUTO') {
-      const res: any = await request.post('/dashboard/route', { question: query })
-      targetRouter = res?.data?.intent || res?.intent || 'RAG'
-      console.log('Classified intent in Copilot:', targetRouter)
+      const res: any = await request.post('/dashboard/route', { question: queryToSend })
+      targetRouter = res?.intent || 'RAG'
+
+      // Check for casual chat / greetings
+      if (targetRouter === 'CHAT') {
+        isExecuting.value = false
+        sessionContextQuery.value = '' // Clear context on chat
+        const replyText = res?.reply || '你好！我是你的智能助理 Copilot，随时可以帮您处理 SQL 查询、会议室预订、日程检测或知识库检索。请问今天有什么我可以帮您的？'
+        messages.value.push({
+          role: 'assistant',
+          content: replyText,
+          timestamp: Date.now()
+        })
+        saveHistory()
+        scrollToBottom()
+        return
+      }
+
+      // Check for settings navigation
+      if (targetRouter === 'SETTINGS') {
+        isExecuting.value = false
+        sessionContextQuery.value = '' // Clear context
+        messages.value.push({
+          role: 'assistant',
+          content: 'Intent classified as Settings Navigation. Redirecting you to the settings page...',
+          timestamp: Date.now()
+        })
+        saveHistory()
+        scrollToBottom()
+        await router.push('/app/settings')
+        return
+      }
+
+      // Check for slot-filling / clarification query
+      if (targetRouter === 'CLARIFY') {
+        isExecuting.value = false
+        // Update accumulated context query so subsequent inputs are merged
+        sessionContextQuery.value = queryToSend
+        
+        const replyText = res?.reply || '请问您需要预定哪一天的会议室、大概多少人？或者您能提供路线规划的起点和终点吗？'
+        messages.value.push({
+          role: 'assistant',
+          content: replyText,
+          timestamp: Date.now()
+        })
+        saveHistory()
+        scrollToBottom()
+        return
+      }
     }
+    
+    // Clear context when executing a terminal action
+    sessionContextQuery.value = ''
 
     if (targetRouter === 'TOOL') {
-      if (route.path !== '/app/tool') {
-        await router.push('/app/tool')
-      }
-      runToolAgentWebSocket(query)
+      messages.value.push({ role: 'assistant', content: t('copilot.processingTool'), timestamp: Date.now() })
+      saveHistory(); scrollToBottom()
+      if (router.currentRoute.value.path !== '/app/tool') await router.push('/app/tool')
+      runToolAgentWebSocket(queryToSend)
     } else if (targetRouter === 'CODE') {
+      messages.value.push({ role: 'assistant', content: t('copilot.processingCode'), timestamp: Date.now() })
+      saveHistory(); scrollToBottom()
+      await router.push({ path: '/app/code', query: { query: queryToSend } })
       isExecuting.value = false
-      messages.value.push({
-        role: 'assistant',
-        content: 'Intent classified as SQL generation. Redirecting to SQL Agent Workspace...',
-        timestamp: Date.now()
-      })
-      saveHistory()
-      scrollToBottom()
-
-      await router.push({
-        path: '/app/code',
-        query: { query }
-      })
     } else {
       isExecuting.value = false
       messages.value.push({
@@ -505,28 +413,16 @@ const submitQuery = async () => {
   }
 }
 
-// Watch global query redirects from the Dashboard center input
-watch(
-  () => route.query.query,
-  async (newQuery) => {
-    if (newQuery) {
-      if (route.path === '/app/tool') {
-        isOpen.value = true
-        inputQuery.value = newQuery as string
-        submitQuery()
-      }
-    }
-  },
-  { immediate: true }
-)
+watch(() => router.currentRoute.value.query.query, async (newQuery) => {
+  if (newQuery && router.currentRoute.value.path === '/app/tool') {
+    isOpen.value = true
+    inputQuery.value = newQuery as string
+    submitQuery()
+  }
+}, { immediate: true })
 
-onMounted(() => {
-  loadHistory()
-})
-
-onUnmounted(() => {
-  wsClient.close?.()
-})
+onMounted(() => { loadHistory() })
+onUnmounted(() => { wsClient.close?.(); stopThinkingTimer(); if (thinkingTimer) clearInterval(thinkingTimer) })
 </script>
 
 <style scoped>
@@ -538,31 +434,47 @@ onUnmounted(() => {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Floating Action Button */
-.copilot-btn {
-  width: 56px;
-  height: 56px;
+/* ── Morphing shell ──────────────────────────── */
+.copilot-shell {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: #111827;
-  color: #ffffff;
-  border: none;
   box-shadow: 0 4px 24px rgba(17, 24, 39, 0.2);
-  cursor: pointer;
+  transition:
+    width 0.45s cubic-bezier(0.32, 0.72, 0, 1),
+    height 0.45s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.45s cubic-bezier(0.32, 0.72, 0, 1),
+    background 0.35s ease,
+    box-shadow 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.copilot-container.open .copilot-shell {
+  width: 440px;
+  height: 620px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.02);
+}
+
+/* Collapsed state */
+.shell-collapsed {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #ffffff;
+  cursor: pointer;
   position: relative;
-}
-
-.copilot-btn:hover {
-  transform: scale(1.05) translateY(-2px);
-  background: #1f2937;
-  box-shadow: 0 8px 30px rgba(17, 24, 39, 0.3);
-}
-
-.copilot-btn.active {
-  background: #374151;
+  transition: opacity 0.15s ease;
 }
 
 .unread-dot {
@@ -573,82 +485,23 @@ onUnmounted(() => {
   height: 10px;
   background-color: #ef4444;
   border-radius: 50%;
-  border: 2px solid #ffffff;
+  border: 2px solid #111827;
 }
 
-/* Unified Card Container - Pure White Sheet */
-.copilot-window {
-  position: absolute;
-  bottom: 72px;
-  right: 0;
-  width: 440px;
-  height: 640px;
-  background: #ffffff;
-  border: 1px solid #f1f5f9;
-  border-radius: 24px;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.02);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transition: all 0.3s;
-}
-
-/* Seamless Header (Merged with Card BG) */
+/* ── Header ───────────────────────────────────── */
 .copilot-header {
   background: #ffffff;
   padding: 18px 24px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  z-index: 10;
-}
-
-.header-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.header-icon-badge {
-  width: 30px;
-  height: 30px;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  color: #ffffff;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 3px 8px rgba(99, 102, 241, 0.15);
-}
-
-.header-text-block {
-  display: flex;
-  flex-direction: column;
+  flex-shrink: 0;
 }
 
 .header-title {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 700;
   color: #0f172a;
-}
-
-.header-status {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10.5px;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.status-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-}
-
-.status-dot.online {
-  background-color: #10b981;
 }
 
 .header-actions {
@@ -674,7 +527,7 @@ onUnmounted(() => {
   color: #0f172a;
 }
 
-/* Chat Body (Seamless White Background, divider lines removed) */
+/* ── Chat Body ────────────────────────────────── */
 .copilot-chat-body {
   flex: 1;
   padding: 12px 24px;
@@ -682,10 +535,10 @@ onUnmounted(() => {
   background-color: #ffffff;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
-/* Welcome Box */
+/* Welcome */
 .welcome-box {
   text-align: center;
   padding: 24px 10px;
@@ -718,94 +571,40 @@ onUnmounted(() => {
 .welcome-box p {
   font-size: 13px;
   color: #64748b;
-  margin: 0 0 20px;
+  margin: 0;
   line-height: 1.5;
   max-width: 300px;
 }
 
-.copilot-suggestions {
+/* Messages */
+.message-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: 100%;
+  gap: 18px;
 }
 
-.sug-pill {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid #f1f5f9;
-  background: #f8fafc;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: #334155;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-}
-
-.sug-pill:hover {
-  background: #f1f5f9;
-  border-color: #e2e8f0;
-  color: #0f172a;
-}
-
-.sug-icon-wrap {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border: 1px solid #e2e8f0;
-}
-
-/* Chat Message Rows (Dividers removed, uses clean spacing) */
 .message-row {
   display: flex;
-  gap: 14px;
+  flex-direction: column;
   width: 100%;
-}
-
-.avatar-wrap {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.avatar-wrap.user {
-  background: #f8fafc;
-  color: #475569;
-  border: 1px solid #e2e8f0;
-}
-
-.avatar-wrap.assistant {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  color: #ffffff;
 }
 
 .message-content-area {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 0;
+  max-width: 100%;
 }
 
-/* Sender Name - Standard Title Case (No global uppercase styling) */
-.message-sender-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: #64748b;
+.user-bubble {
+  align-self: flex-end;
+  background: #f3f4f6;
+  border-radius: 14px 14px 4px 14px;
+  padding: 10px 14px;
+  max-width: 85%;
 }
+
+.user-bubble .message-text { color: #1f2937; }
 
 .message-text {
   font-size: 13.5px;
@@ -818,7 +617,12 @@ onUnmounted(() => {
 .message-time {
   font-size: 10px;
   color: #94a3b8;
-  margin-top: 6px;
+  margin-top: 4px;
+}
+
+.message-time.user {
+  text-align: right;
+  padding-right: 4px;
 }
 
 /* Metadata Cards */
@@ -837,227 +641,100 @@ onUnmounted(() => {
   margin-bottom: 8px;
 }
 
-.rooms-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+.rooms-grid { display: flex; flex-direction: column; gap: 8px; }
+.room-item-card { background: #ffffff; border: 1px solid #f1f5f9; border-radius: 8px; padding: 10px; }
+.room-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.room-name { font-weight: 600; color: #1e293b; font-size: 12.5px; }
+.room-status { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+.room-status.avail { background-color: #ecfdf5; color: #059669; }
+.room-status.occ { background-color: #fef2f2; color: #dc2626; }
+.room-details-grid { display: flex; gap: 12px; font-size: 11px; color: #64748b; }
+.room-ai { margin-top: 6px; font-size: 11px; font-weight: 600; color: #4f46e5; }
+.route-grid { display: flex; gap: 16px; }
+.route-stat-item { display: flex; flex-direction: column; gap: 2px; }
+.stat-lbl { font-size: 11px; color: #64748b; }
+.stat-val { font-size: 13.5px; font-weight: 700; color: #0f172a; }
+.conflict-alert { padding: 10px; border-radius: 8px; font-size: 12.5px; font-weight: 500; }
+.conflict-alert.warning { background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.conflict-alert.success { background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
 
-.room-item-card {
-  background: #ffffff;
-  border: 1px solid #f1f5f9;
-  border-radius: 8px;
-  padding: 10px;
-}
-
-.room-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.room-name {
-  font-weight: 600;
-  color: #1e293b;
-  font-size: 12.5px;
-}
-
-.room-status {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.room-status.avail {
-  background-color: #ecfdf5;
-  color: #059669;
-}
-
-.room-status.occ {
-  background-color: #fef2f2;
-  color: #dc2626;
-}
-
-.room-details-grid {
-  display: flex;
-  gap: 12px;
-  font-size: 11px;
-  color: #64748b;
-}
-
-.room-ai {
-  margin-top: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #4f46e5;
-}
-
-.route-grid {
-  display: flex;
-  gap: 16px;
-}
-
-.route-stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.stat-lbl {
-  font-size: 11px;
-  color: #64748b;
-}
-
-.stat-val {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.conflict-alert {
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 12.5px;
-  font-weight: 500;
-}
-
-.conflict-alert.warning {
-  background-color: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fde68a;
-}
-
-.conflict-alert.success {
-  background-color: #f0fdf4;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
-}
-
-/* Thinking Indicator Card */
-.copilot-thinking-card {
-  background: #f8fafc;
-  border: 1px solid #f1f5f9;
-  border-radius: 14px;
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.thinking-header {
+/* Thinking indicator — shimmer typewriter text + elapsed time */
+.thinking-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 4px 0;
+}
+
+.thinking-label {
   font-size: 13px;
-  font-weight: 600;
-  color: #334155;
+  font-weight: 500;
+  background: linear-gradient(
+    90deg,
+    #94a3b8 0%,
+    #64748b 45%,
+    #94a3b8 55%,
+    #64748b 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: thinking-shimmer 2s ease-in-out infinite;
 }
 
-.thinking-icon {
-  color: #4f46e5;
+@keyframes thinking-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
-.thinking-progress-bar {
-  width: 100%;
-  height: 4px;
-  background: #e2e8f0;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
-  border-radius: 2px;
-  transition: width 0.2s ease;
-}
-
-.progress-percent-text {
+.thinking-elapsed {
   font-size: 11px;
-  font-weight: 700;
-  color: #4f46e5;
-  align-self: flex-end;
+  color: #94a3b8;
+  font-weight: 500;
+  margin-left: auto;
 }
 
-/* Seamless Floating Input (No top border, transparent wrapper) */
-.copilot-input-area-wrap {
-  padding: 12px 24px 24px;
+/* ── Input Area ───────────────────────────────── */
+.copilot-input-area {
+  padding: 12px 20px 20px;
   background: #ffffff;
+  flex-shrink: 0;
 }
 
-.copilot-input-box {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 12px 14px 10px;
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.04);
+.copilot-input-row {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  align-items: flex-end;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 10px 8px 10px 16px;
+  transition: border-color 0.2s;
 }
 
-.copilot-input-box:focus-within {
-  border-color: #4f46e5;
-  box-shadow: 0 4px 24px rgba(99, 102, 241, 0.08);
-}
+.copilot-input-row:focus-within { border-color: #111827; }
 
 .copilot-textarea {
-  width: 100%;
+  flex: 1;
   border: none;
   resize: none;
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.5;
   color: #0f172a;
   outline: none;
   padding: 0;
+  background: transparent;
+  align-self: center;
 }
 
-.copilot-textarea::placeholder {
-  color: #94a3b8;
-}
+.copilot-textarea::placeholder { color: #94a3b8; }
 
-.copilot-input-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.copilot-mode-selector {
-  display: flex;
-  gap: 3px;
-}
-
-/* Mode pill styling (No global uppercase) */
-.mode-pill {
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 10.5px;
-  font-weight: 600;
-  background-color: #f1f5f9;
-  color: #475569;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-  text-transform: none;
-}
-
-.mode-pill:hover {
-  background-color: #e2e8f0;
-  color: #0f172a;
-}
-
-.mode-pill.active {
-  background-color: #111827;
-  color: #ffffff;
-}
-
+/* Send button — same round shape as collapsed FAB */
 .copilot-send-btn {
-  width: 28px;
-  height: 28px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background-color: #111827;
   color: #ffffff;
@@ -1067,35 +744,48 @@ onUnmounted(() => {
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
-.copilot-send-btn:hover {
-  background-color: #1f2937;
-  transform: scale(1.05);
+.copilot-send-btn:hover { background-color: #1f2937; transform: scale(1.06); }
+.copilot-send-btn:disabled { background-color: #e2e8f0; color: #94a3b8; cursor: not-allowed; transform: none; }
+
+.copilot-mode-selector {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 10px;
 }
 
-.copilot-send-btn:disabled {
-  background-color: #f1f5f9;
-  color: #94a3b8;
-  cursor: not-allowed;
-  transform: none;
+/* Mode pills */
+.mode-pill {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
 }
 
-/* Drawer open transition animations */
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+.mode-auto { background-color: #f1f5f9; color: #475569; }
+.mode-auto:hover { background-color: #e2e8f0; color: #0f172a; }
+.mode-auto.active { background-color: #111827; color: #ffffff; }
+
+.mode-divider {
+  width: 1px;
+  height: 20px;
+  background: #e2e8f0;
+  margin: 0 4px;
+  flex-shrink: 0;
 }
 
-.slide-up-enter-from,
-.slide-up-leave-to {
-  opacity: 0;
-  transform: translateY(24px) scale(0.96);
-}
+.mode-specific { background-color: transparent; color: #94a3b8; }
+.mode-specific:hover { color: #475569; }
+.mode-specific.active { color: #111827; }
 
-.spin {
-  animation: loading-spin 1.2s linear infinite;
-}
+/* Animations */
+.spin { animation: loading-spin 1.2s linear infinite; }
 
 @keyframes loading-spin {
   0% { transform: rotate(0deg); }

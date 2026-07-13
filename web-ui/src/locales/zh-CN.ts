@@ -69,6 +69,16 @@ export default {
     createOne: '创建一个',
     emailRequired: '请输入邮箱地址',
     passwordRequired: '请输入密码',
+    forgotPassword: '忘记密码？',
+    forgotPasswordHint: '出于安全考虑，不支持在线自助重置密码。请联系系统管理员为您重置密码。',
+    codeLogin: '验证码登录',
+    passwordLogin: '密码登录',
+    code: '验证码',
+    codePlaceholder: '请输入6位验证码',
+    codeRequired: '请输入验证码',
+    sendCode: '发送验证码',
+    codeSent: '验证码已发送',
+    resendCode: '重新发送 ({seconds}秒)',
   },
 
   // 注册页
@@ -92,6 +102,12 @@ export default {
     confirmPasswordRequired: '请确认密码',
     passwordMismatch: '两次输入的密码不一致',
     registerSuccess: '账户创建成功！请登录。',
+    code: '验证码',
+    codePlaceholder: '请输入6位验证码',
+    codeRequired: '请输入验证码',
+    sendCode: '发送验证码',
+    codeSent: '验证码已发送',
+    resendCode: '重新发送 ({seconds}秒)',
   },
 
   // 仪表盘
@@ -623,6 +639,14 @@ export default {
     addSuccess: '用户创建成功！',
     editSuccess: '用户编辑成功！',
     deleteSuccess: '用户删除成功！',
+    resetPasswordTitle: '重置密码',
+    resetPasswordDesc: '为 {name} 生成临时密码：',
+    confirmReset: '确认重置',
+    tempPassword: '临时密码',
+    tempPasswordHint: '请复制此密码并安全地告知用户。用户登录后将被提示修改密码。',
+    copied: '已复制！',
+    copy: '复制',
+    copyFailed: '复制失败，请手动复制密码。',
     resetPasswordSuccess: '密码重置成功！',
     cannotDisableSelf: '出于安全原因，您无法禁用您自己的管理员账户。',
     cannotModifySelf: '出于安全原因，您无法修改您自己的信息。',
@@ -793,8 +817,10 @@ export default {
 
   // Copilot 悬浮窗
   copilot: {
-    title: '智能助理 Copilot',
-    tooltip: '唤醒 Copilot 助理',
+    title: '智能助手',
+    tooltip: '打开智能助手',
     clearHistory: '清空聊天历史',
+    processingTool: '正在为您处理任务，请稍候...',
+    processingCode: '正在为您生成 SQL 代码，即将跳转到代码生成页面...',
   },
 }

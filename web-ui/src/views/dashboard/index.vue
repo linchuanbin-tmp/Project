@@ -1,36 +1,15 @@
 <template>
   <div class="dashboard">
 
-    <!-- Page header container with layout switcher -->
+    <!-- Page header -->
     <div class="page-header-container">
       <div class="page-header">
         <h1 class="page-title">{{ $t('dashboard.title') }}</h1>
         <p class="page-sub">{{ $t('dashboard.welcome', { user: userStore.userInfo?.username || 'User' }) }}</p>
       </div>
-
-      <!-- Layout Mode Switcher -->
-      <div class="layout-switcher">
-        <div 
-          class="switch-btn" 
-          :class="{ active: viewMode === 'kanban' }" 
-          @click="setViewMode('kanban')"
-        >
-          <LayoutGrid :size="15" />
-          <span>{{ $t('dashboard.viewMode.kanban') }}</span>
-        </div>
-        <div 
-          class="switch-btn" 
-          :class="{ active: viewMode === 'chat' }" 
-          @click="setViewMode('chat')"
-        >
-          <MessageSquare :size="15" />
-          <span>{{ $t('dashboard.viewMode.chat') }}</span>
-        </div>
-      </div>
     </div>
 
-    <!-- Kanban View Mode -->
-    <template v-if="viewMode === 'kanban'">
+    <!-- Kanban View -->
       <!-- Admin Pending Approvals Alert -->
       <div v-if="isAdminOrDeptAdmin && pendingCount > 0" class="admin-alert-banner">
         <div class="banner-left">
@@ -171,98 +150,6 @@
           </div>
         </div>
       </el-dialog>
-    </template>
-
-    <!-- Chat Console View Mode -->
-    <template v-else>
-      <div class="chat-console-wrapper">
-        <div class="chat-console-card">
-          <!-- Main Chat Panel -->
-          <div class="chat-greeting">
-            <div class="sparkles-icon-wrap">
-              <Sparkles :size="28" class="sparkles-icon-main" />
-            </div>
-            <h2>{{ $t('dashboard.chat.greetingTitle') }}</h2>
-            <p>{{ $t('dashboard.chat.greetingSub') }}</p>
-          </div>
-          
-          <div class="chat-input-container">
-            <textarea
-              v-model="chatQuery"
-              rows="3"
-              :placeholder="$t('dashboard.chat.inputPlaceholder')"
-              class="chat-textarea"
-              @keydown.enter.prevent="handleChatSubmit"
-              :disabled="routingLoading"
-            ></textarea>
-            
-            <div class="chat-input-footer">
-              <!-- Router Selector Pills inside searchbar -->
-              <div class="router-selector">
-                <span 
-                  class="router-pill" 
-                  :class="{ active: activeRouter === 'AUTO' }"
-                  @click="activeRouter = 'AUTO'"
-                >
-                  <Sparkles :size="12" class="pill-icon" />
-                  <span>{{ $t('dashboard.chat.router.auto') }}</span>
-                </span>
-                <span 
-                  class="router-pill" 
-                  :class="{ active: activeRouter === 'CODE' }"
-                  @click="activeRouter = 'CODE'"
-                >
-                  <FileText :size="12" class="pill-icon" />
-                  <span>{{ $t('dashboard.chat.router.code') }}</span>
-                </span>
-                <span 
-                  class="router-pill" 
-                  :class="{ active: activeRouter === 'TOOL' }"
-                  @click="activeRouter = 'TOOL'"
-                >
-                  <Wrench :size="12" class="pill-icon" />
-                  <span>{{ $t('dashboard.chat.router.tool') }}</span>
-                </span>
-                <span 
-                  class="router-pill" 
-                  :class="{ active: activeRouter === 'RAG' }"
-                  @click="activeRouter = 'RAG'"
-                >
-                  <BookOpen :size="12" class="pill-icon" />
-                  <span>{{ $t('dashboard.chat.router.rag') }}</span>
-                </span>
-              </div>
-              
-              <button 
-                class="chat-send-btn" 
-                @click="handleChatSubmit" 
-                :disabled="!chatQuery.trim() || routingLoading"
-              >
-                <span v-if="routingLoading">
-                  <RefreshCw :size="14" class="spin" />
-                </span>
-                <span v-else>
-                  <ArrowRight :size="16" />
-                </span>
-              </button>
-            </div>
-          </div>
-          
-          <!-- Suggestion Prompts -->
-          <div class="suggestions-container">
-            <div 
-              v-for="sug in suggestions" 
-              :key="sug.text"
-              class="suggestion-pill"
-              @click="useSuggestion(sug.text, sug.router)"
-            >
-              <component :is="sug.icon" :size="12" class="sug-icon" />
-              <span>{{ sug.text }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </template>
 
   </div>
 </template>
@@ -273,84 +160,15 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import request from '@utils/request'
-import { 
-  Wrench, FileText, BookOpen, ArrowRight, 
-  AlertTriangle, Calendar, RefreshCw, MapPin, User, Clock,
-  LayoutGrid, MessageSquare, Sparkles
+import {
+  Wrench, FileText, BookOpen, ArrowRight,
+  AlertTriangle, Calendar, RefreshCw, MapPin, User, Clock
 } from 'lucide-vue-next'
 
 const userStore = useUserStore()
 const router = useRouter()
 const { t } = useI18n()
-const viewMode = ref(localStorage.getItem('dashboard_view_mode') || 'kanban')
-const chatQuery = ref('')
-const activeRouter = ref('AUTO')
-const routingLoading = ref(false)
 
-const setViewMode = (mode: 'kanban' | 'chat') => {
-  viewMode.value = mode
-  localStorage.setItem('dashboard_view_mode', mode)
-}
-
-const suggestions = computed(() => [
-  {
-    text: t('dashboard.chat.sug.balance'),
-    icon: FileText,
-    router: 'CODE'
-  },
-  {
-    text: t('dashboard.chat.sug.bookRoom'),
-    icon: Wrench,
-    router: 'TOOL'
-  },
-  {
-    text: t('dashboard.chat.sug.policy'),
-    icon: BookOpen,
-    router: 'RAG'
-  }
-])
-
-const useSuggestion = (text: string, routerVal: string) => {
-  chatQuery.value = text
-  activeRouter.value = routerVal
-}
-
-const handleChatSubmit = async () => {
-  const query = chatQuery.value.trim()
-  if (!query) return
-
-  routingLoading.value = true
-  try {
-    let targetRouter = activeRouter.value
-
-    if (targetRouter === 'AUTO') {
-      const res: any = await request.post('/dashboard/route', { question: query })
-      targetRouter = res?.data?.intent || res?.intent || 'RAG'
-      console.log('Classified intent:', targetRouter)
-    }
-
-    let targetPath = '/app/rag'
-    if (targetRouter === 'CODE') {
-      targetPath = '/app/code'
-    } else if (targetRouter === 'TOOL') {
-      targetPath = '/app/tool'
-    }
-
-    router.push({
-      path: targetPath,
-      query: { query }
-    })
-
-  } catch (e) {
-    console.error('Failed to route intent', e)
-    router.push({
-      path: '/app/rag',
-      query: { query }
-    })
-  } finally {
-    routingLoading.value = false
-  }
-}
 const pendingCount = ref(0)
 const loadingSchedules = ref(false)
 const allSchedules = ref<any[]>([])
@@ -371,7 +189,7 @@ const fetchPendingCount = async () => {
   if (isAdminOrDeptAdmin.value) {
     try {
       const res: any = await request.get('/user/notification/list', { params: { status: 2 } })
-      const list = res?.data ?? res
+      const list = res
       pendingCount.value = Array.isArray(list) ? list.length : 0
     } catch (e) {
       console.error('Failed to fetch pending approvals count', e)
@@ -383,7 +201,7 @@ const fetchSchedules = async () => {
   loadingSchedules.value = true
   try {
     const res: any = await request.get('/tool/my-schedules')
-    const payload = res?.data ?? res
+    const payload = res
     allSchedules.value = payload || []
   } catch (e) {
     console.error('Failed to fetch schedules', e)
@@ -449,7 +267,7 @@ const services = computed(() => [
   { name: t('dashboard.user'),       status: 'online',  label: t('dashboard.online') },
   { name: t('dashboard.toolAgentService'), status: 'online',  label: t('dashboard.online') },
   { name: t('dashboard.sqlAgentService'),  status: 'online',  label: t('dashboard.online') },
-  { name: t('dashboard.ragAgentService'),  status: 'online', label: t('dashboard.online') },
+  { name: t('dashboard.ragAgentService'),  status: 'offline', label: t('dashboard.comingSoon') },
 ])
 
 onMounted(() => {
@@ -961,7 +779,7 @@ onMounted(() => {
     gap: 16px;
   }
 }
-/* ── Page Header Container & Switcher ─────────── */
+/* ── Page Header Container ─────────── */
 .page-header-container {
   display: flex;
   justify-content: space-between;
@@ -974,219 +792,5 @@ onMounted(() => {
 .page-header-container .page-header {
   margin-bottom: 0;
   padding-top: 0;
-}
-
-.layout-switcher {
-  display: flex;
-  background-color: #f3f4f6;
-  padding: 3px;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
-}
-
-.switch-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 7px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #4b5563;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.switch-btn:hover {
-  color: #111827;
-}
-
-.switch-btn.active {
-  background-color: #ffffff;
-  color: #111827;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-/* ── Chat Console Mode ───────────────────────── */
-.chat-console-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 40px 0 80px;
-}
-
-.chat-console-card {
-  width: 100%;
-  max-width: 720px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.chat-greeting {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.sparkles-icon-wrap {
-  width: 56px;
-  height: 56px;
-  background: #f3f4f6;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  color: #111827;
-}
-
-.chat-greeting h2 {
-  font-size: 24px;
-  font-weight: 700;
-  color: #111827;
-  margin: 0 0 6px;
-  letter-spacing: -0.5px;
-}
-
-.chat-greeting p {
-  font-size: 14.5px;
-  color: #6b7280;
-  margin: 0;
-}
-
-.chat-input-container {
-  width: 100%;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  box-shadow: 0 4px 30px rgba(0,0,0,0.03);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.chat-input-container:focus-within {
-  border-color: #111827;
-  box-shadow: 0 4px 30px rgba(17,24,39,0.06);
-}
-
-.chat-textarea {
-  width: 100%;
-  border: none;
-  resize: none;
-  font-family: inherit;
-  font-size: 14.5px;
-  line-height: 1.6;
-  color: #111827;
-  outline: none;
-  padding: 0;
-  margin-bottom: 12px;
-}
-
-.chat-textarea::placeholder {
-  color: #9ca3af;
-}
-
-.chat-input-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: auto;
-}
-
-.router-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.router-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  background-color: #f3f4f6;
-  color: #4b5563;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  user-select: none;
-}
-
-.pill-icon {
-  flex-shrink: 0;
-}
-
-.router-pill:hover {
-  background-color: #e5e7eb;
-  color: #111827;
-}
-
-.router-pill.active {
-  background-color: #111827;
-  color: #ffffff;
-}
-
-.chat-send-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: #111827;
-  color: #ffffff;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: opacity 0.15s, transform 0.15s;
-}
-
-.chat-send-btn:hover {
-  opacity: 0.9;
-  transform: scale(1.05);
-}
-
-.chat-send-btn:disabled {
-  background-color: #f3f4f6;
-  color: #9ca3af;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Suggestions pills */
-.suggestions-container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 24px;
-  width: 100%;
-}
-
-.suggestion-pill {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 20px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  font-size: 13px;
-  color: #4b5563;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.suggestion-pill:hover {
-  background: #f9fafb;
-  border-color: #cbd5e1;
-  color: #111827;
-}
-
-.sug-icon {
-  color: #6b7280;
 }
 </style>

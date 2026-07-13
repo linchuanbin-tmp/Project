@@ -9,6 +9,7 @@ public interface UserService {
     LoginResponse login(LoginRequest request);
     void logout(String username);
     void register(RegisterRequest request);
+    void sendVerificationCode(String email);
     User getUserByUsername(String username);
     List<UserResponse> listUsers();
     void assignRole(Long userId, Long roleId);
@@ -24,4 +25,5 @@ public interface UserService {
     List<UserResponse> listUsersWithoutDept();
     void addUsersToDept(List<Long> userIds, Long deptId);
     void removeUserFromDept(Long userId, Long deptId);
+    String resetPassword(Long userId);
 }

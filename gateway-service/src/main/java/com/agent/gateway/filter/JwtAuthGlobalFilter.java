@@ -38,6 +38,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private static final List<String> WHITELIST = Arrays.asList(
             "/api/user/login",
             "/api/user/register",
+            "/api/user/send-code",
             "/ws"
     );
 
