@@ -350,4 +350,44 @@ public class SystemConfigController {
         }
         return defaultApiKey;
     }
+
+    /**
+     * GET /user/config/ai-provider/internal
+     * Internal-only: returns full AI provider config WITH decrypted API key.
+     * Called by other agents (Tool Agent, Code Agent Python, RAG Agent) on startup.
+     * Not exposed through Gateway — only accessible within Docker internal network.
+     */
+    @GetMapping("/ai-provider/internal")
+    public Result<Map<String, Object>> getAiProviderInternal() {
+        Map<String, Object> result = buildAiProviderMap();
+        // Inject the decrypted API key
+        String decryptedKey = resolveApiKey();
+        if (decryptedKey != null && !decryptedKey.isBlank()) {
+            result.put("apiKey", decryptedKey);
+        }
+        return Result.success(result);
+    }
+
+    private Map<String, Object> buildAiProviderMap() {
+        String cached = stringRedisTemplate.opsForValue().get(REDIS_KEY_AI_PROVIDER);
+        Map<String, Object> map = new HashMap<>();
+        if (cached != null) {
+            try { map.putAll(objectMapper.readValue(cached, Map.class)); } catch (JsonProcessingException ignored) {}
+        }
+        if (map.isEmpty()) {
+            SysConfig config = sysConfigMapper.selectOne(
+                    new LambdaQueryWrapper<SysConfig>()
+                            .eq(SysConfig::getParamKey, CONFIG_KEY_AI_PROVIDER)
+            );
+            if (config != null) {
+                try { map.putAll(objectMapper.readValue(config.getParamValue(), Map.class)); } catch (JsonProcessingException ignored) {}
+            }
+        }
+        if (map.isEmpty()) {
+            map.put("provider", "xunfei");
+            map.put("baseUrl", "https://maas-api.cn-huabei-1.xf-yun.com/v2");
+            map.put("model", "xopdeepseekv32");
+        }
+        return map;
+    }
 }

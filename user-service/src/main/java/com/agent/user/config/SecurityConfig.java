@@ -40,6 +40,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/user/login", "/user/register", "/user/logout", "/user/send-code", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/user/config/ai-provider").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/user/config/ai-provider/internal").permitAll()
                         .requestMatchers(HttpMethod.POST, "/user/config/ai-provider/test").permitAll()
                         .anyRequest().authenticated()
                 )
