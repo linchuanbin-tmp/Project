@@ -30,6 +30,22 @@ MILVUS_HOST=localhost
 MILVUS_PORT=19530
 ```
 
+Health output should show the active model wiring:
+
+```text
+embeddingProvider
+embeddingDim
+embeddingEndpointConfigured
+embeddingApiKeyConfigured
+embeddingModel
+embeddingTimeoutMs
+llmProvider
+llmApiKeyConfigured
+milvusCollection
+vectorMetric
+vectorIndex
+```
+
 ## 2. Frontend Demo Flow
 
 Login:
@@ -184,4 +200,69 @@ No blocked documents:
 
 ```text
 Use a low-clearance account such as credit_staff and ask about confidential credit rules.
+```
+
+## 8. Switching To Real Embedding
+
+The default local setup uses mock embedding so every developer can run the RAG pipeline without model credentials. To switch to a real embedding service, update `.env`:
+
+```text
+RAG_EMBEDDING_PROVIDER=http
+RAG_EMBEDDING_ENDPOINT=http://localhost:8091/embed
+RAG_EMBEDDING_API_KEY=
+RAG_EMBEDDING_MODEL=
+RAG_EMBEDDING_DIM=768
+RAG_EMBEDDING_TIMEOUT_MS=10000
+```
+
+If the embedding provider requires authentication, set `RAG_EMBEDDING_API_KEY`. If it expects a model field in the request body, set `RAG_EMBEDDING_MODEL`.
+
+The embedding endpoint can return either a direct embedding:
+
+```json
+{
+  "embedding": [0.1, 0.2, 0.3]
+}
+```
+
+or an OpenAI-like response:
+
+```json
+{
+  "data": [
+    {
+      "embedding": [0.1, 0.2, 0.3]
+    }
+  ]
+}
+```
+
+RAG Agent sends a JSON body containing:
+
+```json
+{
+  "input": "text to embed",
+  "text": "text to embed",
+  "model": "optional model from RAG_EMBEDDING_MODEL"
+}
+```
+
+If `RAG_EMBEDDING_API_KEY` is set, RAG Agent sends it as a Bearer token.
+
+After changing embedding provider or dimension, rebuild the index:
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8085/rag/index/rebuild" -Method Post
+```
+
+If the service returns the wrong vector length, RAG Agent will fail clearly:
+
+```text
+Embedding dimension mismatch: expected 768, got 1024
+```
+
+If `RAG_EMBEDDING_PROVIDER=http` but no endpoint is configured, RAG Agent will fail clearly:
+
+```text
+RAG embedding endpoint is not configured.
 ```

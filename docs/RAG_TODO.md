@@ -73,3 +73,13 @@
 - [x] Add a local RAG Agent runbook.
 - [x] Add a PowerShell verification script for health, rebuild, index status, chunks, permission queries, and optional access requests.
 - [x] Document the frontend demo flow for Documents, RAG Workspace, blocked documents, and RAG_APPLY approval.
+
+## Milestone 10: Embedding Provider Hardening
+
+- [x] Default local embedding and LLM providers to mock.
+- [x] Add embedding timeout configuration.
+- [x] Add optional embedding API key and model configuration for real providers.
+- [x] Support direct and OpenAI-like embedding response shapes.
+- [x] Add clear embedding errors for missing endpoint, empty vector, non-numeric values, HTTP failures, timeouts, and dimension mismatch.
+- [x] Expose embedding, LLM, vector store, chunking, and Milvus configuration in `/rag/health`.
+- [x] Document how to switch from mock embedding to a real embedding service.

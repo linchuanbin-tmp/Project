@@ -19,7 +19,7 @@ public class HttpRagLlmClient implements RagLlmClient {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${rag.llm.provider:http}")
+    @Value("${rag.llm.provider:mock}")
     private String provider;
 
     @Value("${rag.llm.api-key:}")

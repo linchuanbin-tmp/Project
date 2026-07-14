@@ -79,6 +79,13 @@ try {
     $health = Invoke-RagGet "/rag/health"
     $health | Format-List
     Assert-Condition ($health.status -eq "UP") "rag-agent health is UP." "rag-agent health is not UP."
+    Assert-Condition ($health.embeddingProvider -in @("mock", "http")) "Embedding provider is recognized: $($health.embeddingProvider)." "Embedding provider is unsupported: $($health.embeddingProvider)."
+    Assert-Condition ($health.embeddingDim -gt 0) "Embedding dimension is configured: $($health.embeddingDim)." "Embedding dimension is not configured."
+    if ($health.embeddingProvider -eq "http") {
+        Assert-Condition ($health.embeddingEndpointConfigured -eq $true) "HTTP embedding endpoint is configured." "HTTP embedding provider requires RAG_EMBEDDING_ENDPOINT."
+    } else {
+        Write-WarnLine "Embedding provider is mock; retrieval flow is verified, semantic quality is not final."
+    }
 } catch {
     Write-Fail "Health check failed: $($_.Exception.Message)"
 }
