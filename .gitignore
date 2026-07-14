@@ -54,3 +54,4 @@ docker-compose.override.yml
 docs/*
 !docs/RAG_DESIGN.md
 !docs/RAG_TODO.md
+!docs/RAG_AGENT_RUNBOOK.md

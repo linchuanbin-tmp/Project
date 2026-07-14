@@ -67,3 +67,9 @@
 - [ ] Approved `RAG_APPLY` grants access to a specific document.
 - [ ] Updated documents can be re-indexed.
 - [ ] Missing Milvus or LLM dependencies return clear errors.
+
+## Milestone 9: Runbook and Verification
+
+- [x] Add a local RAG Agent runbook.
+- [x] Add a PowerShell verification script for health, rebuild, index status, chunks, permission queries, and optional access requests.
+- [x] Document the frontend demo flow for Documents, RAG Workspace, blocked documents, and RAG_APPLY approval.
