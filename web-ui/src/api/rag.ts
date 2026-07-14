@@ -101,6 +101,19 @@ export interface RagDocumentChunkDetail {
   updateTime?: string
 }
 
+export interface RagAccessRequest {
+  documentId: number
+  reason?: string
+}
+
+export interface RagAccessRequestResponse {
+  documentId: number
+  notificationId?: number
+  receiverId?: number
+  status: string
+  message?: string
+}
+
 export const queryRag = (data: RagQueryRequest) =>
   request.post<any, RagQueryResponse>('/rag/query', data)
 
@@ -124,3 +137,6 @@ export const getRagDocumentIndexStatus = () =>
 
 export const getRagDocumentChunks = (documentId: number) =>
   request.get<any, RagDocumentChunkDetail[]>(`/rag/index/document/${documentId}/chunks`)
+
+export const requestRagDocumentAccess = (data: RagAccessRequest) =>
+  request.post<any, RagAccessRequestResponse>('/rag/access-request', data)

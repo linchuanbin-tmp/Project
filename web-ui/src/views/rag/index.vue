@@ -137,6 +137,36 @@
             </el-collapse-item>
           </el-collapse>
         </section>
+
+        <section v-if="blockedDocumentIds.length" class="blocked-panel">
+          <div class="panel-toolbar">
+            <div class="toolbar-title">
+              <ShieldAlert :size="17" />
+              <span>Blocked Documents</span>
+            </div>
+            <el-tag size="small" type="warning">{{ blockedDocumentIds.length }}</el-tag>
+          </div>
+
+          <div class="blocked-list">
+            <article v-for="documentId in blockedDocumentIds" :key="documentId" class="blocked-item">
+              <div>
+                <h3>{{ documentTitle(documentId) }}</h3>
+                <p>
+                  Doc {{ documentId }}
+                  <span v-if="documentSecurityLevel(documentId)">路 Level {{ documentSecurityLevel(documentId) }}</span>
+                </p>
+              </div>
+              <el-button
+                type="warning"
+                size="small"
+                :loading="accessRequestingDocId === documentId"
+                @click="handleRequestAccess(documentId)"
+              >
+                Request Access
+              </el-button>
+            </article>
+          </div>
+        </section>
       </main>
 
       <aside class="side-workspace">
@@ -207,7 +237,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   BookOpen,
   Clock3,
@@ -219,16 +249,20 @@ import {
   RefreshCw,
   RotateCcw,
   SendHorizontal,
+  ShieldAlert,
   ShieldCheck
 } from 'lucide-vue-next'
 import { getTask, submitTask } from '@api/task'
 import {
   getAccessibleDocuments,
+  getRagDocumentIndexStatus,
   getRagIndexTasks,
   indexRagDocument,
   queryRag,
   rebuildRagIndex,
+  requestRagDocumentAccess,
   type AccessibleDocument,
+  type RagDocumentIndexStatus,
   type RagCitation,
   type RagChunk,
   type RagIndexTask,
@@ -246,6 +280,7 @@ const rebuilding = ref(false)
 const documentsLoading = ref(false)
 const tasksLoading = ref(false)
 const indexingDocId = ref<number | null>(null)
+const accessRequestingDocId = ref<number | null>(null)
 const taskRunning = ref(false)
 const taskProgress = ref(0)
 const taskMessage = ref('')
@@ -253,10 +288,12 @@ const taskPollTimer = ref<number | null>(null)
 
 const response = ref<RagQueryResponse | null>(null)
 const accessibleDocuments = ref<AccessibleDocument[]>([])
+const documentStatusMap = ref<Record<number, RagDocumentIndexStatus>>({})
 const indexTasks = ref<RagIndexTask[]>([])
 
 const citations = computed<RagCitation[]>(() => response.value?.citations || [])
 const chunks = computed<RagChunk[]>(() => response.value?.chunks || [])
+const blockedDocumentIds = computed<number[]>(() => response.value?.blockedDocumentIds || [])
 const answer = computed(() => response.value?.answer || '')
 
 const handleQuery = async () => {
@@ -407,6 +444,18 @@ const loadAccessibleDocuments = async () => {
   }
 }
 
+const loadDocumentIndexStatus = async () => {
+  try {
+    const statuses = await getRagDocumentIndexStatus()
+    documentStatusMap.value = (statuses || []).reduce((acc: Record<number, RagDocumentIndexStatus>, item) => {
+      acc[item.documentId] = item
+      return acc
+    }, {})
+  } catch {
+    documentStatusMap.value = {}
+  }
+}
+
 const loadTasks = async () => {
   tasksLoading.value = true
   try {
@@ -419,7 +468,7 @@ const loadTasks = async () => {
 const refreshWorkspace = async () => {
   refreshing.value = true
   try {
-    await Promise.all([loadAccessibleDocuments(), loadTasks()])
+    await Promise.all([loadAccessibleDocuments(), loadDocumentIndexStatus(), loadTasks()])
   } finally {
     refreshing.value = false
   }
@@ -445,6 +494,48 @@ const handleIndexDocument = async (documentId: number) => {
   } finally {
     indexingDocId.value = null
   }
+}
+
+const handleRequestAccess = async (documentId: number) => {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      'Please explain why you need temporary access to this document.',
+      'Request RAG Document Access',
+      {
+        confirmButtonText: 'Submit',
+        cancelButtonText: 'Cancel',
+        inputType: 'textarea',
+        inputPlaceholder: 'Required for business analysis, audit review, or policy verification...',
+        inputValidator: (value: string) => {
+          if (!value || !value.trim()) return 'Reason is required.'
+          if (value.trim().length < 8) return 'Please provide a more specific reason.'
+          return true
+        }
+      }
+    )
+
+    accessRequestingDocId.value = documentId
+    const result = await requestRagDocumentAccess({ documentId, reason: value })
+    if (result.status === 'ALREADY_ACCESSIBLE') {
+      ElMessage.info(result.message || 'You can already access this document.')
+      await loadAccessibleDocuments()
+    } else {
+      ElMessage.success(result.message || 'Access request submitted.')
+    }
+  } catch (error: any) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error.message || 'Failed to submit access request.')
+  } finally {
+    accessRequestingDocId.value = null
+  }
+}
+
+const documentTitle = (documentId: number) => {
+  return documentStatusMap.value[documentId]?.title || `Document ${documentId}`
+}
+
+const documentSecurityLevel = (documentId: number) => {
+  return documentStatusMap.value[documentId]?.securityLevel
 }
 
 const statusTagType = (status?: string) => {
@@ -550,6 +641,7 @@ onUnmounted(() => {
 .answer-panel,
 .citations-panel,
 .chunks-panel,
+.blocked-panel,
 .side-panel {
   background: #ffffff;
   border: 1px solid #e6e8ef;
@@ -649,6 +741,7 @@ onUnmounted(() => {
 }
 
 .citation-list,
+.blocked-list,
 .document-list {
   display: flex;
   flex-direction: column;
@@ -656,11 +749,34 @@ onUnmounted(() => {
 }
 
 .citation-item,
+.blocked-item,
 .document-item {
   border: 1px solid #edf0f6;
   border-radius: 8px;
   background: #fbfcff;
   padding: 12px;
+}
+
+.blocked-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.blocked-item h3 {
+  margin: 0;
+  color: #9a3412;
+  font-size: 13.5px;
+  font-weight: 750;
+}
+
+.blocked-item p {
+  margin: 4px 0 0;
+  color: #c2410c;
+  font-size: 12px;
 }
 
 .citation-head,
