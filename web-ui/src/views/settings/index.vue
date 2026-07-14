@@ -362,10 +362,6 @@
             <span class="meta-val">v1.2.0-stable</span>
           </div>
           <div class="meta-row">
-            <span class="meta-label">{{ $t('settings.aboutDeveloper') }}:</span>
-            <span class="meta-val">Google DeepMind - Antigravity Team</span>
-          </div>
-          <div class="meta-row">
             <span class="meta-label">{{ $t('settings.aboutCoreTech') }}:</span>
             <span class="meta-val">Spring Cloud / Milvus RAG / Vue 3 / Element Plus</span>
           </div>

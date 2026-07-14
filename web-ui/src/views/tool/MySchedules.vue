@@ -7,6 +7,14 @@
         <p class="page-sub">{{ $t('mySchedules.subtitle') }}</p>
       </div>
       <div class="header-actions">
+        <el-select
+            v-model="timeFilter"
+            class="time-filter-select"
+        >
+          <el-option :label="$t('mySchedules.filterAll')" value="all" />
+          <el-option :label="$t('mySchedules.filterUpcoming')" value="upcoming" />
+          <el-option :label="$t('mySchedules.filterPast')" value="past" />
+        </el-select>
         <el-button class="refresh-btn" :loading="loading" @click="fetchMySchedules">
           <RefreshCw :size="14" style="margin-right: 6px;" /> {{ $t('common.refresh') }}
         </el-button>
@@ -66,9 +74,17 @@
               </template>
             </el-table-column>
 
-            <el-table-column :label="$t('mySchedules.actions')" width="120" fixed="right" align="center">
+            <el-table-column :label="$t('mySchedules.actions')" width="140" fixed="right" align="center">
               <template #default="{ row }">
+                <el-tooltip
+                    v-if="isPast(row)"
+                    :content="$t('mySchedules.cannotCancelPast')"
+                    placement="top"
+                >
+                  <span class="past-badge">{{ $t('mySchedules.pastSchedule') }}</span>
+                </el-tooltip>
                 <el-button
+                    v-else
                     type="danger"
                     link
                     class="cancel-btn"
@@ -127,9 +143,17 @@
               </template>
             </el-table-column>
 
-            <el-table-column :label="$t('mySchedules.actions')" width="120" fixed="right" align="center">
+            <el-table-column :label="$t('mySchedules.actions')" width="140" fixed="right" align="center">
               <template #default="{ row }">
+                <el-tooltip
+                    v-if="isPast(row)"
+                    :content="$t('mySchedules.cannotCancelPast')"
+                    placement="top"
+                >
+                  <span class="past-badge">{{ $t('mySchedules.pastSchedule') }}</span>
+                </el-tooltip>
                 <el-button
+                    v-else
                     type="danger"
                     link
                     class="cancel-btn"
@@ -177,15 +201,38 @@ const { t } = useI18n()
 const router = useRouter()
 const loading = ref(false)
 const activeTab = ref('bookings')
+const timeFilter = ref<'all' | 'upcoming' | 'past'>('all')
 const allSchedules = ref<any[]>([])
+
+// Check if a schedule is in the past (endTime is before now)
+const isPast = (schedule: any): boolean => {
+  if (!schedule.endTime) return false
+  return new Date(schedule.endTime).getTime() < Date.now()
+}
+
+// Check if a schedule is upcoming (endTime is in the future)
+const isUpcoming = (schedule: any): boolean => {
+  if (!schedule.endTime) return true
+  return new Date(schedule.endTime).getTime() >= Date.now()
+}
+
+// Filter schedules by time
+const filteredSchedules = computed(() => {
+  if (timeFilter.value === 'upcoming') {
+    return allSchedules.value.filter(isUpcoming)
+  } else if (timeFilter.value === 'past') {
+    return allSchedules.value.filter(isPast)
+  }
+  return allSchedules.value
+})
 
 // Filter schedules into bookings (roomId > 0) and personal schedules (roomId === 0)
 const bookings = computed(() => {
-  return allSchedules.value.filter(s => s.roomId !== null && s.roomId > 0)
+  return filteredSchedules.value.filter(s => s.roomId !== null && s.roomId > 0)
 })
 
 const personalSchedules = computed(() => {
-  return allSchedules.value.filter(s => s.roomId === null || s.roomId === 0)
+  return filteredSchedules.value.filter(s => s.roomId === null || s.roomId === 0)
 })
 
 // Fetch my schedules
@@ -317,6 +364,12 @@ export default {
   margin: 0;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .refresh-btn {
   background: #fff !important;
   border: 1px solid #e5e7eb !important;
@@ -335,7 +388,36 @@ export default {
   color: #111827 !important;
 }
 
-/* Tabs */
+.time-filter-select {
+  width: 140px;
+}
+
+:deep(.time-filter-select .el-input__wrapper) {
+  height: 38px;
+  min-height: 38px;
+  border-radius: 9px;
+  font-size: 13px;
+  border: 1px solid #e5e7eb;
+  box-shadow: none;
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+:deep(.time-filter-select .el-input__wrapper:hover) {
+  border-color: #cbd5e1;
+}
+
+.past-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: #9ca3af;
+  background: #f3f4f6;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: default;
+  white-space: nowrap;
+}
 :deep(.el-tabs--border-card) {
   background: #ffffff;
   border: 1px solid #f0f0f0;

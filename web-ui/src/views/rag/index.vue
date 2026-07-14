@@ -221,20 +221,15 @@
             </el-button>
           </div>
 
-          <el-table v-if="indexTasks.length" :data="indexTasks" size="small" class="task-table">
-            <el-table-column prop="id" label="ID" width="68" />
-            <el-table-column prop="taskType" label="Type" min-width="126" show-overflow-tooltip />
-            <el-table-column label="Status" width="96">
-              <template #default="{ row }">
-                <el-tag size="small" :type="statusTagType(row.status)">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="Updated" width="94">
-              <template #default="{ row }">
-                {{ formatTime(row.updateTime || row.createTime) }}
-              </template>
-            </el-table-column>
-          </el-table>
+          <div class="index-task-cards" v-if="indexTasks.length">
+            <div v-for="task in indexTasks" :key="task.id" class="task-card-item">
+              <div class="task-card-row">
+                <div class="task-card-type">{{ task.taskType }}</div>
+                <el-tag size="small" :type="statusTagType(task.status)">{{ task.status }}</el-tag>
+              </div>
+              <div class="task-card-time">Updated {{ formatTime(task.updateTime || task.createTime) }}</div>
+            </div>
+          </div>
           <el-empty v-else description="No index tasks" />
         </div>
       </aside>
@@ -890,6 +885,44 @@ onUnmounted(() => {
 @keyframes loading-spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+.index-task-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-card-item {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background 0.12s;
+}
+
+.task-card-item:hover {
+  background: #f3f4f6;
+}
+
+.task-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-card-type {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.task-card-time {
+  font-size: 11px;
+  color: #9ca3af;
 }
 
 @media (max-width: 960px) {

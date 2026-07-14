@@ -104,6 +104,188 @@ public class AmapService {
         }
     }
 
+    public Map<String, Object> planWalkingRoute(String from, String to) {
+        log.info("步行路线规划: {} -> {}", from, to);
+
+        String origin = geocodeWithFallback(from);
+        String destination = geocodeWithFallback(to);
+
+        if (origin == null || origin.isEmpty()) {
+            throw new RuntimeException("无法识别出发地: " + from);
+        }
+        if (destination == null || destination.isEmpty()) {
+            throw new RuntimeException("无法识别目的地: " + to);
+        }
+
+        String url = "https://restapi.amap.com/v3/direction/walking"
+                + "?key=" + amapKey
+                + "&origin=" + origin
+                + "&destination=" + destination;
+
+        try {
+            String response = restTemplate.getForObject(URI.create(url), String.class);
+            log.info("高德步行规划响应: {}", response);
+            JsonNode root = objectMapper.readTree(response);
+
+            if (!"1".equals(root.path("status").asText())) {
+                throw new RuntimeException("高德步行规划失败: " + root.path("info").asText());
+            }
+
+            JsonNode pathNode = root.path("route").path("paths").get(0);
+            if (pathNode == null) {
+                throw new RuntimeException("高德未返回步行路径数据");
+            }
+
+            List<List<Double>> pathCoords = parsePolylineFromPath(pathNode);
+            if (pathCoords.isEmpty()) {
+                throw new RuntimeException("步行 polyline 解析为空");
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("distance", formatDistance(pathNode.path("distance").asText("0")));
+            result.put("duration", formatDuration(pathNode.path("duration").asText("0")));
+            result.put("trafficStatus", "步行");
+            result.put("steps", parseSteps(pathNode.path("steps")));
+
+            String[] originParts = origin.split(",");
+            String[] destParts = destination.split(",");
+            result.put("startPoint", List.of(Double.parseDouble(originParts[0]), Double.parseDouble(originParts[1])));
+            result.put("endPoint", List.of(Double.parseDouble(destParts[0]), Double.parseDouble(destParts[1])));
+            result.put("path", pathCoords);
+            result.put("from", from);
+            result.put("to", to);
+            result.put("source", "amap");
+
+            try {
+                translateRouteResultToEnglish(result);
+            } catch (Exception e) {
+                log.warn("Failed to translate walking route instructions using AI", e);
+            }
+
+            return result;
+
+        } catch (Exception e) {
+            log.error("高德步行规划异常", e);
+            throw new RuntimeException("步行路径规划失败: " + e.getMessage());
+        }
+    }
+
+    public Map<String, Object> planTransitRoute(String from, String to) {
+        log.info("公交路线规划: {} -> {}", from, to);
+
+        String origin = geocodeWithFallback(from);
+        String destination = geocodeWithFallback(to);
+
+        if (origin == null || origin.isEmpty()) {
+            throw new RuntimeException("无法识别出发地: " + from);
+        }
+        if (destination == null || destination.isEmpty()) {
+            throw new RuntimeException("无法识别目的地: " + to);
+        }
+
+        String city = "北京";
+        String cityd = "北京";
+
+        String url = "https://restapi.amap.com/v3/direction/transit/integrated"
+                + "?key=" + amapKey
+                + "&origin=" + origin
+                + "&destination=" + destination
+                + "&city=" + city
+                + "&cityd=" + cityd;
+
+        try {
+            String response = restTemplate.getForObject(URI.create(url), String.class);
+            log.info("高德公交规划响应: {}", response);
+            JsonNode root = objectMapper.readTree(response);
+
+            if (!"1".equals(root.path("status").asText())) {
+                throw new RuntimeException("高德公交规划失败: " + root.path("info").asText());
+            }
+
+            JsonNode routeRoot = root.path("route");
+
+            // Transit uses "transits" instead of "paths"
+            JsonNode transitNode = routeRoot.path("transits").get(0);
+            if (transitNode == null) {
+                throw new RuntimeException("高德未返回公交路径数据");
+            }
+
+            // Build flat steps from transit segments
+            List<Map<String, String>> steps = new ArrayList<>();
+            List<List<Double>> allCoords = new ArrayList<>();
+
+            JsonNode segments = transitNode.path("segments");
+            if (segments.isArray()) {
+                for (JsonNode seg : segments) {
+                    if (seg.has("walking")) {
+                        JsonNode walkingSteps = seg.path("walking").path("steps");
+                        if (walkingSteps.isArray()) {
+                            for (JsonNode ws : walkingSteps) {
+                                Map<String, String> step = new HashMap<>();
+                                step.put("instruction", ws.path("instruction").asText(""));
+                                step.put("distance", formatDistance(ws.path("distance").asText("0")));
+                                step.put("duration", formatDuration(ws.path("duration").asText("0")));
+                                step.put("polyline", ws.path("polyline").asText(""));
+                                steps.add(step);
+                                allCoords.addAll(parsePolylineString(ws.path("polyline").asText("")));
+                            }
+                        }
+                    }
+                    if (seg.has("bus")) {
+                        JsonNode buslines = seg.path("bus").path("buslines");
+                        if (buslines.isArray()) {
+                            for (JsonNode bl : buslines) {
+                                Map<String, String> step = new HashMap<>();
+                                String busName = bl.path("name").asText("");
+                                String dep = bl.path("departure_stop").path("name").asText("");
+                                String arr = bl.path("arrival_stop").path("name").asText("");
+                                String viaCount = String.valueOf(bl.path("via_stops").size());
+                                step.put("instruction", "乘" + busName + "（" + dep + " → " + arr + "，经" + viaCount + "站）");
+                                step.put("distance", formatDistance(bl.path("distance").asText("0")));
+                                step.put("duration", formatDuration(bl.path("duration").asText("0")));
+                                step.put("polyline", bl.path("polyline").asText(""));
+                                steps.add(step);
+                                allCoords.addAll(parsePolylineString(bl.path("polyline").asText("")));
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (allCoords.isEmpty()) {
+                throw new RuntimeException("公交 polyline 解析为空");
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("distance", formatDistance(transitNode.path("distance").asText("0")));
+            result.put("duration", formatDuration(transitNode.path("duration").asText("0")));
+            result.put("trafficStatus", "公交/地铁");
+            result.put("cost", transitNode.path("cost").asText("0") + "元");
+            result.put("steps", steps);
+
+            String[] originParts = origin.split(",");
+            String[] destParts = destination.split(",");
+            result.put("startPoint", List.of(Double.parseDouble(originParts[0]), Double.parseDouble(originParts[1])));
+            result.put("endPoint", List.of(Double.parseDouble(destParts[0]), Double.parseDouble(destParts[1])));
+            result.put("path", allCoords);
+            result.put("from", from);
+            result.put("to", to);
+            result.put("source", "amap");
+
+            try {
+                translateRouteResultToEnglish(result);
+            } catch (Exception e) {
+                log.warn("Failed to translate transit route instructions using AI", e);
+            }
+
+            return result;
+
+        } catch (Exception e) {
+            log.error("高德公交规划异常", e);
+            throw new RuntimeException("公交路径规划失败: " + e.getMessage());
+        }
+    }
+
     // ==================== 地理编码多级降级 ====================
 
     private String geocodeWithFallback(String address) {

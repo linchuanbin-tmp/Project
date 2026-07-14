@@ -21,17 +21,16 @@
           </el-form-item>
 
           <div class="mode-select-row">
-            <el-select v-model="routeForm.mode" class="mode-select" :placeholder="$t('route.mode')">
+            <el-select v-model="routeForm.mode" class="mode-select" :placeholder="$t('route.mode')" size="default">
               <el-option :label="$t('route.driving')" value="driving" />
               <el-option :label="$t('route.transit')" value="transit" />
               <el-option :label="$t('route.walking')" value="walking" />
             </el-select>
-            
-            <el-button 
-                type="primary" 
-                size="small" 
-                class="route-submit-btn" 
-                @click="planRoute" 
+
+            <el-button
+                type="primary"
+                class="route-submit-btn"
+                @click="planRoute"
                 :disabled="loading"
             >
               {{ $t('route.planBtn') }}
@@ -56,15 +55,19 @@
               <span class="stat-lbl">Distance</span>
               <span class="stat-val">{{ routeResult?.distance || '12.5km' }}</span>
             </div>
-            <div class="compact-stat-item" v-if="routeResult?.toll">
+            <div class="compact-stat-item" v-if="routeForm.mode === 'driving' && routeResult?.toll">
               <span class="stat-lbl">Toll</span>
               <span class="stat-val">{{ routeResult.toll }}</span>
             </div>
+            <div class="compact-stat-item" v-if="routeForm.mode === 'transit' && routeResult?.cost">
+              <span class="stat-lbl">Fare</span>
+              <span class="stat-val">{{ routeResult.cost }}</span>
+            </div>
           </div>
 
-          <div class="traffic-bar-badge" :class="getTrafficClass(routeResult?.trafficStatus)">
+          <div class="traffic-bar-badge" :class="getTrafficClass(routeResult?.trafficStatus, routeForm.mode)">
             <span class="traffic-dot"></span>
-            Traffic: {{ routeResult?.trafficStatus || 'Clear' }}
+            {{ getTrafficLabel(routeForm.mode, routeResult?.trafficStatus) }}
           </div>
 
           <!-- Scrollable directions steps -->
@@ -163,12 +166,20 @@ const routeThoughtSteps = [
 
 
 
-const getTrafficClass = (status: string) => {
+const getTrafficClass = (status: string, mode: string) => {
+  if (mode === 'walking') return 'traffic-walking'
+  if (mode === 'transit') return 'traffic-transit'
   if (!status) return 'traffic-clear'
   const s = status.toLowerCase()
   if (s.includes('畅通') || s.includes('clear') || s.includes('smooth')) return 'traffic-clear'
   if (s.includes('缓行') || s.includes('slow') || s.includes('heavy') || s.includes('congested-light')) return 'traffic-slow'
   return 'traffic-jam'
+}
+
+const getTrafficLabel = (mode: string, status: string) => {
+  if (mode === 'walking') return 'Walking'
+  if (mode === 'transit') return status || 'Transit'
+  return `Traffic: ${status || 'Clear'}`
 }
 
 const planRoute = async () => {
@@ -301,20 +312,14 @@ defineExpose({ setRouteData })
 }
 .mode-select {
   width: 130px;
-  height: 32px !important;
-}
-.mode-select :deep(.el-input) {
-  height: 32px !important;
 }
 .mode-select :deep(.el-input__wrapper) {
   background: rgba(0, 0, 0, 0.04) !important;
   border: none !important;
-  border-radius: 16px !important;
+  border-radius: 10px !important;
   box-shadow: none !important;
-  height: 32px !important;
   padding: 0 12px !important;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-sizing: border-box;
 }
 .mode-select :deep(.el-input__wrapper:hover) {
   background: rgba(0, 0, 0, 0.07) !important;
@@ -327,8 +332,6 @@ defineExpose({ setRouteData })
   font-size: 12px !important;
   font-weight: 600 !important;
   color: #1c1c1e !important;
-  height: 32px !important;
-  line-height: 32px !important;
 }
 .mode-select :deep(.el-select__caret) {
   color: #8e8e93 !important;
@@ -404,6 +407,14 @@ defineExpose({ setRouteData })
 .traffic-bar-badge.traffic-jam {
   background: rgba(255, 59, 48, 0.1);
   color: #ff453a;
+}
+.traffic-bar-badge.traffic-walking {
+  background: rgba(52, 199, 89, 0.1);
+  color: #30d158;
+}
+.traffic-bar-badge.traffic-transit {
+  background: rgba(0, 122, 255, 0.1);
+  color: #007aff;
 }
 .traffic-dot {
   width: 5px;

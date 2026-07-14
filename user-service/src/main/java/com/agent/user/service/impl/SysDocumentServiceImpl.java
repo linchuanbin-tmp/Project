@@ -76,7 +76,7 @@ public class SysDocumentServiceImpl implements SysDocumentService {
 
             // Check if user belongs to the department OR if it is a system/global document
             boolean belongsToDept = doc.getDeptId() == null || (user.getDeptId() != null && user.getDeptId().equals(doc.getDeptId()));
-            boolean hasClearance = belongsToDept && (userClearance >= doc.getSecurityLevel());
+            boolean hasClearance = isAdmin || (belongsToDept && (userClearance >= doc.getSecurityLevel()));
             boolean isApproved = false;
 
             if (!hasClearance) {
