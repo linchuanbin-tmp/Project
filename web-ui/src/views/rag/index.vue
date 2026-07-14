@@ -170,6 +170,55 @@
       </main>
 
       <aside class="side-workspace">
+        <section class="side-panel health-panel">
+          <div class="panel-toolbar">
+            <div class="toolbar-title">
+              <Activity :size="17" />
+              <span>RAG Readiness</span>
+            </div>
+            <el-button size="small" :loading="healthLoading" @click="loadHealth">
+              <RefreshCw :size="13" :class="{ spin: healthLoading }" />
+            </el-button>
+          </div>
+
+          <div v-if="healthLoading && !health" class="side-loading">
+            <el-skeleton :rows="4" animated />
+          </div>
+          <template v-else-if="health">
+            <div class="health-status-row">
+              <div>
+                <span class="health-label">Embedding</span>
+                <strong>{{ health.embeddingProvider }}</strong>
+              </div>
+              <el-tag size="small" :type="health.embeddingReady ? 'success' : 'danger'">
+                {{ health.embeddingReady ? 'Ready' : 'Not Ready' }}
+              </el-tag>
+            </div>
+            <div class="health-grid">
+              <div>
+                <span>Expected Dim</span>
+                <strong>{{ health.embeddingDim || '-' }}</strong>
+              </div>
+              <div>
+                <span>Actual Dim</span>
+                <strong>{{ health.embeddingActualDim || '-' }}</strong>
+              </div>
+              <div>
+                <span>Vector Store</span>
+                <strong>{{ health.vectorStore }}</strong>
+              </div>
+              <div>
+                <span>LLM</span>
+                <strong>{{ health.llmProvider || '-' }}</strong>
+              </div>
+            </div>
+            <p class="health-message" :class="{ unhealthy: !health.embeddingReady }">
+              {{ health.embeddingMessage || 'No readiness message returned.' }}
+            </p>
+          </template>
+          <el-empty v-else description="Health unavailable" />
+        </section>
+
         <section class="side-panel access-panel">
           <div class="panel-toolbar">
             <div class="toolbar-title">
@@ -239,6 +288,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
+  Activity,
   BookOpen,
   Clock3,
   Eraser,
@@ -255,6 +305,7 @@ import {
 import { getTask, submitTask } from '@api/task'
 import {
   getAccessibleDocuments,
+  getRagHealth,
   getRagDocumentIndexStatus,
   getRagIndexTasks,
   indexRagDocument,
@@ -263,6 +314,7 @@ import {
   requestRagDocumentAccess,
   type AccessibleDocument,
   type RagDocumentIndexStatus,
+  type RagHealthResponse,
   type RagCitation,
   type RagChunk,
   type RagIndexTask,
@@ -279,6 +331,7 @@ const refreshing = ref(false)
 const rebuilding = ref(false)
 const documentsLoading = ref(false)
 const tasksLoading = ref(false)
+const healthLoading = ref(false)
 const indexingDocId = ref<number | null>(null)
 const accessRequestingDocId = ref<number | null>(null)
 const taskRunning = ref(false)
@@ -290,6 +343,7 @@ const response = ref<RagQueryResponse | null>(null)
 const accessibleDocuments = ref<AccessibleDocument[]>([])
 const documentStatusMap = ref<Record<number, RagDocumentIndexStatus>>({})
 const indexTasks = ref<RagIndexTask[]>([])
+const health = ref<RagHealthResponse | null>(null)
 
 const citations = computed<RagCitation[]>(() => response.value?.citations || [])
 const chunks = computed<RagChunk[]>(() => response.value?.chunks || [])
@@ -444,6 +498,15 @@ const loadAccessibleDocuments = async () => {
   }
 }
 
+const loadHealth = async () => {
+  healthLoading.value = true
+  try {
+    health.value = await getRagHealth()
+  } finally {
+    healthLoading.value = false
+  }
+}
+
 const loadDocumentIndexStatus = async () => {
   try {
     const statuses = await getRagDocumentIndexStatus()
@@ -468,7 +531,7 @@ const loadTasks = async () => {
 const refreshWorkspace = async () => {
   refreshing.value = true
   try {
-    await Promise.all([loadAccessibleDocuments(), loadDocumentIndexStatus(), loadTasks()])
+    await Promise.all([loadHealth(), loadAccessibleDocuments(), loadDocumentIndexStatus(), loadTasks()])
   } finally {
     refreshing.value = false
   }
@@ -846,6 +909,67 @@ onUnmounted(() => {
 .document-actions {
   justify-content: space-between;
   margin-top: 10px;
+}
+
+.health-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.health-status-row strong {
+  display: block;
+  margin-top: 2px;
+  color: #111827;
+  font-size: 15px;
+}
+
+.health-label,
+.health-grid span {
+  display: block;
+  color: #667085;
+  font-size: 12px;
+}
+
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.health-grid div {
+  min-width: 0;
+  border: 1px solid #edf0f6;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcff;
+}
+
+.health-grid strong {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #1f2937;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-message {
+  margin: 12px 0 0;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.health-message.unhealthy {
+  background: #fef2f2;
+  color: #b42318;
 }
 
 .task-table {

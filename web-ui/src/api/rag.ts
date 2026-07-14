@@ -114,6 +114,32 @@ export interface RagAccessRequestResponse {
   message?: string
 }
 
+export interface RagHealthResponse {
+  status: string
+  service: string
+  vectorStore: string
+  milvusCollection?: string
+  vectorMetric?: string
+  vectorIndex?: string
+  embeddingProvider: string
+  embeddingDim: number
+  embeddingActualDim?: number
+  embeddingReady?: boolean
+  embeddingProbed?: boolean
+  embeddingMessage?: string
+  embeddingTimeoutMs?: number
+  embeddingEndpointConfigured?: boolean
+  embeddingApiKeyConfigured?: boolean
+  embeddingModel?: string
+  llmProvider?: string
+  llmModel?: string
+  chunkSizeTokens?: number
+  chunkOverlapTokens?: number
+}
+
+export const getRagHealth = () =>
+  request.get<any, RagHealthResponse>('/rag/health')
+
 export const queryRag = (data: RagQueryRequest) =>
   request.post<any, RagQueryResponse>('/rag/query', data)
 

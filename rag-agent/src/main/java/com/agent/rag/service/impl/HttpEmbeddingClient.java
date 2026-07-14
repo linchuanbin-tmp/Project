@@ -1,5 +1,6 @@
 package com.agent.rag.service.impl;
 
+import com.agent.rag.dto.EmbeddingReadiness;
 import com.agent.rag.service.EmbeddingClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.annotation.PostConstruct;
@@ -80,6 +81,39 @@ public class HttpEmbeddingClient implements EmbeddingClient {
         List<Float> embedding = extractEmbedding(response);
         validateDimension(embedding);
         return embedding;
+    }
+
+    @Override
+    public EmbeddingReadiness checkReadiness() {
+        boolean endpointConfigured = StringUtils.hasText(endpoint);
+        boolean apiKeyConfigured = StringUtils.hasText(apiKey);
+
+        if (!"mock".equalsIgnoreCase(provider) && !"http".equalsIgnoreCase(provider)) {
+            return readiness(false, false, null,
+                    "Unsupported embedding provider: " + provider,
+                    endpointConfigured,
+                    apiKeyConfigured);
+        }
+
+        if ("http".equalsIgnoreCase(provider) && !endpointConfigured) {
+            return readiness(false, false, null,
+                    "RAG embedding endpoint is not configured.",
+                    false,
+                    apiKeyConfigured);
+        }
+
+        try {
+            List<Float> probe = embed("RAG embedding readiness probe.");
+            return readiness(true, true, probe.size(),
+                    "Embedding provider is ready.",
+                    endpointConfigured,
+                    apiKeyConfigured);
+        } catch (Exception e) {
+            return readiness(false, true, null,
+                    e.getMessage(),
+                    endpointConfigured,
+                    apiKeyConfigured);
+        }
     }
 
     private JsonNode callEmbeddingService(Map<String, Object> payload, HttpHeaders headers) {
@@ -171,8 +205,32 @@ public class HttpEmbeddingClient implements EmbeddingClient {
 
     private void validateDimension(List<Float> embedding) {
         if (dimension > 0 && embedding.size() != dimension) {
-            throw new IllegalStateException("Embedding dimension mismatch: expected " + dimension + ", got " + embedding.size());
+            throw new IllegalStateException("Embedding dimension mismatch: expected RAG_EMBEDDING_DIM="
+                    + dimension + ", got " + embedding.size()
+                    + ". Update RAG_EMBEDDING_DIM or rebuild the Milvus collection with the correct dimension.");
         }
+    }
+
+    private EmbeddingReadiness readiness(
+            boolean ready,
+            boolean probed,
+            Integer actualDimension,
+            String message,
+            boolean endpointConfigured,
+            boolean apiKeyConfigured
+    ) {
+        return EmbeddingReadiness.builder()
+                .provider(provider)
+                .ready(ready)
+                .probed(probed)
+                .message(message)
+                .dimension(dimension)
+                .actualDimension(actualDimension)
+                .model(model)
+                .endpointConfigured(endpointConfigured)
+                .apiKeyConfigured(apiKeyConfigured)
+                .timeoutMs(timeoutMs)
+                .build();
     }
 
     private List<Float> mockEmbedding(String text) {

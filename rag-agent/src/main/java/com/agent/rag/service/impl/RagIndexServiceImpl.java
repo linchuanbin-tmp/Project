@@ -185,6 +185,15 @@ public class RagIndexServiceImpl implements RagIndexService {
             entity.setUpdateTime(LocalDateTime.now());
             ragDocumentChunkMapper.insert(entity);
 
+            List<Float> embedding;
+            try {
+                embedding = embeddingClient.embed(entity.getChunkText());
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to generate embedding for document "
+                        + document.getId() + " chunk " + chunk.getChunkIndex()
+                        + ": " + e.getMessage(), e);
+            }
+
             vectorRecords.add(VectorRecord.builder()
                     .vectorId(entity.getVectorId())
                     .documentId(entity.getDocumentId())
@@ -194,7 +203,7 @@ public class RagIndexServiceImpl implements RagIndexService {
                     .securityLevel(entity.getSecurityLevel())
                     .contentHash(entity.getContentHash())
                     .chunkText(entity.getChunkText())
-                    .embedding(embeddingClient.embed(entity.getChunkText()))
+                    .embedding(embedding)
                     .build());
         }
         vectorStoreService.upsert(vectorRecords);

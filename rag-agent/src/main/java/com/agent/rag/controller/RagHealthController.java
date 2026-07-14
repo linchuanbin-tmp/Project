@@ -1,5 +1,8 @@
 package com.agent.rag.controller;
 
+import com.agent.rag.dto.EmbeddingReadiness;
+import com.agent.rag.service.EmbeddingClient;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,7 +14,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/rag")
+@RequiredArgsConstructor
 public class RagHealthController {
+
+    private final EmbeddingClient embeddingClient;
 
     @Value("${rag.vector-store.provider:milvus}")
     private String vectorStoreProvider;
@@ -72,6 +78,7 @@ public class RagHealthController {
 
     @GetMapping("/health")
     public Map<String, Object> health() {
+        EmbeddingReadiness embeddingReadiness = embeddingClient.checkReadiness();
         Map<String, Object> health = new LinkedHashMap<>();
         health.put("status", "UP");
         health.put("service", "rag-agent");
@@ -85,6 +92,10 @@ public class RagHealthController {
         health.put("embeddingEndpointConfigured", StringUtils.hasText(embeddingEndpoint));
         health.put("embeddingApiKeyConfigured", StringUtils.hasText(embeddingApiKey));
         health.put("embeddingModel", embeddingModel);
+        health.put("embeddingReady", embeddingReadiness.getReady());
+        health.put("embeddingProbed", embeddingReadiness.getProbed());
+        health.put("embeddingActualDim", embeddingReadiness.getActualDimension());
+        health.put("embeddingMessage", embeddingReadiness.getMessage());
         health.put("llmProvider", llmProvider);
         health.put("llmBaseUrlConfigured", StringUtils.hasText(llmBaseUrl));
         health.put("llmApiKeyConfigured", StringUtils.hasText(llmApiKey) && !"your_rag_llm_api_key".equals(llmApiKey));
@@ -95,5 +106,10 @@ public class RagHealthController {
         health.put("chunkSizeTokens", chunkSizeTokens);
         health.put("chunkOverlapTokens", chunkOverlapTokens);
         return health;
+    }
+
+    @GetMapping("/health/embedding")
+    public EmbeddingReadiness embeddingHealth() {
+        return embeddingClient.checkReadiness();
     }
 }
