@@ -533,7 +533,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
@@ -992,6 +992,14 @@ onMounted(async () => {
   await fetchDocuments()
   fetchDeptMembers()
   fetchDepartments()
+  // Auto-open reader if navigated with document ID from RAG page
+  const docId = route.query.id
+  if (docId) {
+    const doc = documents.value.find((d: any) => d.id === Number(docId) || String(d.id) === docId)
+    if (doc) {
+      enterReadingMode(doc)
+    }
+  }
 })
 
 watch(

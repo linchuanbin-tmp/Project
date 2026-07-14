@@ -14,11 +14,14 @@
         <div class="copilot-header" @click.stop>
           <span class="header-title">{{ t('copilot.title') }}</span>
           <div class="header-actions">
+            <button v-if="messages.length > 0" class="action-btn" @click="startNewSession" :title="t('copilot.newSession')">
+              <Plus :size="14" />
+            </button>
+            <button v-if="messages.length > 0" class="action-btn" @click="clearHistory" :title="t('copilot.clearHistory')">
+              <Trash2 :size="14" />
+            </button>
             <button class="action-btn" @click="showHistory = true" :title="t('copilot.history')">
               <Clock :size="14" />
-            </button>
-            <button class="action-btn" @click="clearHistory" :title="t('copilot.clearHistory')">
-              <Trash2 :size="14" />
             </button>
             <button class="action-btn" @click="isOpen = false">
               <Minus :size="16" />
@@ -32,9 +35,6 @@
             <div class="welcome-icon"><Sparkles :size="28" /></div>
             <h2>{{ t('dashboard.chat.greetingTitle') }}</h2>
             <p>{{ t('dashboard.chat.greetingSub') }}</p>
-            <button v-if="savedSessions.length > 0" class="history-btn-inline" @click="showHistory = true">
-              <Clock :size="14" /> {{ t('copilot.viewHistory') }}
-            </button>
           </div>
 
           <div v-else class="message-list">
@@ -94,13 +94,6 @@
             <textarea v-model="inputQuery" rows="1" :placeholder="t('dashboard.chat.inputPlaceholder')" class="copilot-textarea" @keydown="handleKeydown"></textarea>
             <button class="copilot-send-btn" @click="submitQuery" :disabled="!inputQuery.trim()"><ArrowUp :size="20" /></button>
           </div>
-          <div class="copilot-mode-selector">
-            <span class="mode-pill mode-auto" :class="{ active: selectedRouter === 'AUTO' }" @click="selectedRouter = 'AUTO'">Auto</span>
-            <span class="mode-divider"></span>
-            <span class="mode-pill mode-specific" :class="{ active: selectedRouter === 'CODE' }" @click="selectedRouter = 'CODE'">Code</span>
-            <span class="mode-pill mode-specific" :class="{ active: selectedRouter === 'TOOL' }" @click="selectedRouter = 'TOOL'">Tool</span>
-            <span class="mode-pill mode-specific" :class="{ active: selectedRouter === 'RAG' }" @click="selectedRouter = 'RAG'">Docs</span>
-          </div>
           </template>
         </div>
       </template>
@@ -136,7 +129,7 @@ import { submitTask, getTask } from '@api/task'
 import { wsClient } from '@utils/websocket'
 import {
   MessageSquare, Sparkles,
-  Trash2, ArrowUp, Minus, Clock
+  Trash2, ArrowUp, Minus, Clock, Plus
 } from 'lucide-vue-next'
 
 interface ChatMessage {
@@ -152,7 +145,6 @@ const router = useRouter()
 const isOpen = ref(false)
 const hasUnread = ref(false)
 const inputQuery = ref('')
-const selectedRouter = ref('AUTO')
 const sessionContextQuery = ref('')
 const messages = ref<ChatMessage[]>([])
 const chatBodyRef = ref<HTMLElement | null>(null)
@@ -434,7 +426,6 @@ const submitQuery = async () => {
 
   isExecuting.value = true
   startThinkingTimer()
-  let targetRouter = selectedRouter.value
 
   let queryToSend = query
   if (sessionContextQuery.value) {
@@ -442,42 +433,40 @@ const submitQuery = async () => {
   }
 
   try {
-    if (targetRouter === 'AUTO') {
-      const res: any = await request.post('/dashboard/route', { question: queryToSend })
-      targetRouter = res?.intent || 'RAG'
+    const res: any = await request.post('/dashboard/route', { question: queryToSend })
+    const targetRouter = res?.intent || 'RAG'
 
-      if (targetRouter === 'CHAT') {
-        isExecuting.value = false
-        stopThinkingTimer()
-        sessionContextQuery.value = ''
-        const replyText = res?.reply || t('copilot.chatDefault')
-        messages.value.push({ role: 'assistant', content: replyText, timestamp: Date.now() })
-        saveHistory()
-        scrollToBottom()
-        return
-      }
+    if (targetRouter === 'CHAT') {
+      isExecuting.value = false
+      stopThinkingTimer()
+      sessionContextQuery.value = ''
+      const replyText = res?.reply || t('copilot.chatDefault')
+      messages.value.push({ role: 'assistant', content: replyText, timestamp: Date.now() })
+      saveHistory()
+      scrollToBottom()
+      return
+    }
 
-      if (targetRouter === 'SETTINGS') {
-        isExecuting.value = false
-        stopThinkingTimer()
-        sessionContextQuery.value = ''
-        messages.value.push({ role: 'assistant', content: t('copilot.routingToSettings'), timestamp: Date.now() })
-        saveHistory()
-        scrollToBottom()
-        await router.push('/app/settings')
-        return
-      }
+    if (targetRouter === 'SETTINGS') {
+      isExecuting.value = false
+      stopThinkingTimer()
+      sessionContextQuery.value = ''
+      messages.value.push({ role: 'assistant', content: t('copilot.routingToSettings'), timestamp: Date.now() })
+      saveHistory()
+      scrollToBottom()
+      await router.push('/app/settings')
+      return
+    }
 
-      if (targetRouter === 'CLARIFY') {
-        isExecuting.value = false
-        stopThinkingTimer()
-        sessionContextQuery.value = queryToSend
-        const replyText = res?.reply || t('copilot.clarifyDefault')
-        messages.value.push({ role: 'assistant', content: replyText, timestamp: Date.now() })
-        saveHistory()
-        scrollToBottom()
-        return
-      }
+    if (targetRouter === 'CLARIFY') {
+      isExecuting.value = false
+      stopThinkingTimer()
+      sessionContextQuery.value = queryToSend
+      const replyText = res?.reply || t('copilot.clarifyDefault')
+      messages.value.push({ role: 'assistant', content: replyText, timestamp: Date.now() })
+      saveHistory()
+      scrollToBottom()
+      return
     }
 
     sessionContextQuery.value = ''
@@ -939,40 +928,6 @@ onUnmounted(() => {
 
 .copilot-send-btn:hover { background-color: #1f2937; transform: scale(1.06); }
 .copilot-send-btn:disabled { background-color: #e2e8f0; color: #94a3b8; cursor: not-allowed; transform: none; }
-
-.copilot-mode-selector {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-top: 10px;
-}
-
-/* Mode pills */
-.mode-pill {
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-.mode-auto { background-color: #f1f5f9; color: #475569; }
-.mode-auto:hover { background-color: #e2e8f0; color: #0f172a; }
-.mode-auto.active { background-color: #111827; color: #ffffff; }
-
-.mode-divider {
-  width: 1px;
-  height: 20px;
-  background: #e2e8f0;
-  margin: 0 4px;
-  flex-shrink: 0;
-}
-
-.mode-specific { background-color: transparent; color: #94a3b8; }
-.mode-specific:hover { color: #475569; }
-.mode-specific.active { color: #111827; }
 
 /* Animations */
 .spin { animation: loading-spin 1.2s linear infinite; }

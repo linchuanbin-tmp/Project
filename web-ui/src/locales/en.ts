@@ -222,13 +222,10 @@ export default {
 
   // RAG Agent
   rag: {
-    title: 'Knowledge Q&A',
+    pageTitle: 'RAG Agent',
+    pageSub: 'Upload documents and ask questions in plain language. Powered by retrieval-augmented generation for accurate, grounded answers.',
+    title: 'RAG Agent',
     desc: 'Upload documents and ask questions in plain language. Powered by RAG — retrieval-augmented generation for accurate, grounded answers.',
-    comingSoon: 'Coming soon',
-    feature1: 'PDF, Word & Markdown support',
-    feature2: 'Semantic search across documents',
-    feature3: 'Source citation in answers',
-    feature4: 'Multi-document knowledge base',
   },
 
   // Tool Agent
@@ -839,8 +836,8 @@ export default {
 
   // Copilot Floating Widget
   copilot: {
-    title: 'Smart Agent',
-    tooltip: 'Open Smart Agent',
+    title: 'Agent',
+    tooltip: 'Open Agent',
     clearHistory: 'Clear History',
     processingTool: 'Processing your request, please wait...',
     processingCode: 'Generating SQL code, redirecting to code generation page...',
@@ -848,10 +845,11 @@ export default {
     routingFailedFallback: 'Routing failed, redirecting to Document Library for manual search...',
     routingToSettings: 'Intent classified as Settings Navigation. Redirecting to settings page...',
     clarifyDefault: 'What are you looking to book — when, how many people, and any preferences? Or let me know route start and end points.',
-    chatDefault: "Hello! I'm your Smart Agent Copilot. I can help with SQL queries, room booking, schedule conflict detection, or knowledge base search. What can I do for you today?",
+    chatDefault: "Hello! I'm your BankAgent Copilot. I can help with SQL queries, room booking, schedule conflict detection, or knowledge base search. What can I do for you today?",
     history: 'History',
     viewHistory: 'View conversation history',
     noHistory: 'No saved conversations yet.',
+    newSession: 'New session',
     deleteSession: 'Delete conversation',
   },
 }

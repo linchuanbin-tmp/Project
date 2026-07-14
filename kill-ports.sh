@@ -10,8 +10,9 @@
 # 8082: Task Service
 # 8083: Tool Agent
 # 8084: Code Agent
+# 8085: RAG Agent
 # 8090: Code Agent Python (infer_server)
-PORTS=(3000 8080 8081 8082 8083 8084 8090)
+PORTS=(3000 8080 8081 8082 8083 8084 8085 8090)
 
 echo "🔍 正在检查本地开发端口占用情况..."
 

@@ -205,3 +205,57 @@ Tool Agent 日程冲突检测和预订管理。
 | `elapsed_time` | int | 是 | 0 | 执行时长，单位毫秒 |
 | `created_at` | datetime | 是 | CURRENT_TIMESTAMP | 创建时间 |
 | `updated_at` | datetime | 是 | CURRENT_TIMESTAMP | 状态更新时间 |
+
+---
+
+### 3.13 RAG 文档分块表 (`rag_document_chunk`)
+
+RAG Agent 将已索引文档按语义分块后的元数据记录，与 Milvus 向量库一一对应。
+
+| 字段名 | 数据类型 | 允许为空 | 默认值 | 说明 |
+|---|---|---|---|---|
+| `id` | bigint | 否 | AUTO_INCREMENT | 主键 |
+| `document_id` | bigint | 否 | — | 对应 `sys_document.id` |
+| `chunk_index` | int | 否 | — | 块在源文档中的序号 |
+| `chunk_text` | mediumtext | 否 | — | 块文本内容，用于检索匹配和引证展示 |
+| `token_count` | int | 是 | 0 | 估算的 token 数量 |
+| `vector_id` | varchar(128) | 否 | — | Milvus 向量主键 |
+| `security_level` | tinyint | 否 | 1 | 继承自 `sys_document.security_level` |
+| `dept_id` | bigint | 是 | NULL | 继承自 `sys_document.dept_id` |
+| `content_hash` | varchar(64) | 是 | NULL | 块内容哈希，用于增量更新检测 |
+| `create_time` | datetime | 是 | CURRENT_TIMESTAMP | 创建时间 |
+| `update_time` | datetime | 是 | CURRENT_TIMESTAMP | 更新时间 |
+| `deleted` | tinyint | 否 | 0 | 逻辑删除标记 |
+
+### 3.14 RAG 查询审计表 (`rag_query_log`)
+
+记录每次 RAG 问答的完整链路，包括输入、输出、检索到的文档 ID、被拦截的文档 ID 和耗时。
+
+| 字段名 | 数据类型 | 允许为空 | 默认值 | 说明 |
+|---|---|---|---|---|
+| `id` | bigint | 否 | AUTO_INCREMENT | 主键 |
+| `user_id` | bigint | 否 | — | 提问用户 ID |
+| `username` | varchar(100) | 否 | — | 提问用户名（冗余方便查询） |
+| `question` | text | 否 | — | 用户原始问题 |
+| `answer` | mediumtext | 是 | NULL | RAG 生成的最终回答 |
+| `retrieved_doc_ids` | varchar(500) | 是 | NULL | 命中权限过滤、参与生成的文档 ID 列表 |
+| `blocked_doc_ids` | varchar(500) | 是 | NULL | 检索到但权限不满足被过滤的文档 ID 列表 |
+| `top_k` | int | 是 | 5 | 检索时请求的候选 chunk 数量 |
+| `latency_ms` | int | 是 | 0 | 端到端耗时（毫秒） |
+| `status` | varchar(30) | 否 | INIT | 状态：INIT / RUNNING / SUCCESS / FAIL |
+| `error_msg` | text | 是 | NULL | 失败时的错误信息 |
+| `create_time` | datetime | 是 | CURRENT_TIMESTAMP | 创建时间 |
+
+### 3.15 RAG 索引任务表 (`rag_index_task`)
+
+管理 RAG 文档索引的异步重建/增量索引任务。
+
+| 字段名 | 数据类型 | 允许为空 | 默认值 | 说明 |
+|---|---|---|---|---|
+| `id` | bigint | 否 | AUTO_INCREMENT | 主键 |
+| `document_id` | bigint | 是 | NULL | NULL 表示全量重建 |
+| `task_type` | varchar(30) | 否 | — | 任务类型：REBUILD_ALL / INDEX_DOCUMENT / DELETE_DOCUMENT |
+| `status` | varchar(30) | 否 | INIT | 状态：INIT / RUNNING / SUCCESS / FAIL |
+| `message` | text | 是 | NULL | 任务执行日志/错误详情 |
+| `create_time` | datetime | 是 | CURRENT_TIMESTAMP | 创建时间 |
+| `update_time` | datetime | 是 | CURRENT_TIMESTAMP | 状态更新时间 |

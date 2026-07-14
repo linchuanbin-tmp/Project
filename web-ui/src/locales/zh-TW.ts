@@ -220,13 +220,10 @@ export default {
 
   // RAG Agent
   rag: {
-    title: '知識問答',
-    desc: '上傳文件並使用自然語言提問。基於 RAG（檢索增強生成）技術提供精準、可溯源的答案。',
-    comingSoon: '即將推出',
-    feature1: '支援 PDF、Word 和 Markdown 格式',
-    feature2: '跨文件語義搜尋',
-    feature3: '答案來源引用',
-    feature4: '多文件知識庫',
+    pageTitle: 'RAG Agent',
+    pageSub: '上傳文件並使用自然語言提問。基於檢索增強生成技術提供精準、可溯源的答案。',
+    title: 'RAG Agent',
+    desc: '上傳文件並使用自然語言提問。基於 RAG 技術提供精準、可溯源的答案。',
   },
 
   // Tool Agent
@@ -824,8 +821,8 @@ export default {
 
   // Copilot 懸浮窗
   copilot: {
-    title: '智能助手',
-    tooltip: '開啟智能助手',
+    title: 'Agent',
+    tooltip: '開啟 Agent',
     clearHistory: '清空聊天歷史',
     processingTool: '正在為您處理任務，請稍候...',
     processingCode: '正在為您生成 SQL 程式碼，即將跳轉到程式碼生成頁面...',
@@ -833,10 +830,11 @@ export default {
     routingFailedFallback: '路由失敗，即將跳轉到知識庫頁面...',
     routingToSettings: '識別為設定導航意圖，正在跳轉到設定頁面...',
     clarifyDefault: '請問您需要預定哪一天的會議室，大概多少人？或者您能提供路線規劃的起點和終點嗎？',
-    chatDefault: '你好！我是你的智能助理 Copilot，隨時可以幫你處理 SQL 查詢、會議室預訂、日程衝突檢測或知識庫檢索。請問今天有什麼我可以幫你的？',
+    chatDefault: '你好！我是你的 BankAgent Copilot，隨時可以幫你處理 SQL 查詢、會議室預訂、日程衝突檢測或知識庫檢索。請問今天有什麼我可以幫你的？',
     history: '歷史記錄',
     viewHistory: '查看歷史對話',
     noHistory: '尚無歷史對話記錄',
+    newSession: '新對話',
     deleteSession: '刪除對話',
   },
 }

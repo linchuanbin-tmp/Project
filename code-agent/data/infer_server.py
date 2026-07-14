@@ -356,13 +356,13 @@ def route_intent():
 
     q_lower = question.lower()
     # Check greetings first for keyword fallback
-    if any(w in q_lower for w in ["你好", "您好", "hello", "hi", "hey", "who are you", "你是谁", "是谁", "助手", "小助手", "copilot"]):
+    if any(w in q_lower for w in ["你好", "您好", "hello", "hi", "hey", "who are you", "你是谁", "是谁", "助手", "小助手", "copilot", "agent"]):
         return jsonify({
             "code": 200,
             "message": "success",
             "data": {
                 "intent": "CHAT",
-                "reply": "你好！我是你的智能助理 Copilot，随时可以帮您处理 SQL 查询、会议室预订、日程冲突检测或知识库检索。请问今天有什么我可以帮您的？",
+                "reply": "你好！我是你的 BankAgent Copilot，随时可以帮您处理 SQL 查询、会议室预订、日程冲突检测或知识库检索。请问今天有什么我可以帮您的？",
                 "method": "KEYWORD"
             }
         })
@@ -454,7 +454,7 @@ def route_intent():
                 response_chat = client.chat.completions.create(
                     model=DEEPSEEK_MODEL,
                     messages=[
-                        {"role": "system", "content": "你是一个银行智能化办公助理 Copilot。请以友好、专业、简短的方式回复用户的打招呼或闲聊问候（通常不超过两句话）。"},
+                        {"role": "system", "content": "你是一个银行智能化办公助理 BankAgent。请以友好、专业、简短的方式回复用户的打招呼或闲聊问候（通常不超过两句话）。"},
                         {"role": "user", "content": question},
                     ],
                     max_tokens=150,
@@ -474,7 +474,7 @@ def route_intent():
                     "message": "success",
                     "data": {
                         "intent": "CHAT",
-                        "reply": "你好！我是你的智能助理 Copilot，随时可以帮您处理 SQL 查询、会议室预订、日程冲突检测或知识库检索。请问今天有什么我可以帮您的？",
+                        "reply": "你好！我是你的 BankAgent Copilot，随时可以帮您处理 SQL 查询、会议室预订、日程冲突检测或知识库检索。请问今天有什么我可以帮您的？",
                         "method": "LLM_FALLBACK"
                     }
                 })
