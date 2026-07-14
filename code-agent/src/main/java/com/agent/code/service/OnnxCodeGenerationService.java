@@ -47,7 +47,7 @@ public class OnnxCodeGenerationService implements CodeGenerationService {
                     .uri(URI.create(codeAgentProperties.getOnnx().getServerUrl()))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .timeout(Duration.ofSeconds(60))
+                    .timeout(Duration.ofSeconds(120))
                     .build();
 
             HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());

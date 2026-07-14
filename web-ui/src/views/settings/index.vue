@@ -11,6 +11,52 @@
     <!-- Settings Sections -->
     <div class="settings-sections">
 
+      <!-- Category: System Administration (Admin only) -->
+      <div v-if="isAdmin" class="settings-category admin-category">
+        <h3 class="category-title admin-category-title">{{ $t('settings.categoryAdmin') }}</h3>
+        <div class="category-card admin-category-card">
+          <!-- AI Provider -->
+          <div class="settings-item">
+            <div class="item-left">
+              <div class="item-icon-wrap">
+                <Cpu :size="17" :stroke-width="1.7" />
+              </div>
+              <div class="item-text">
+                <span class="item-title">{{ $t('settings.aiProvider') }}</span>
+                <span class="item-desc">{{ currentProviderLabel }}</span>
+              </div>
+            </div>
+            <button class="edit-btn" @click="openAiProviderDialog">{{ $t('common.edit') }}</button>
+          </div>
+
+          <div class="settings-item">
+            <div class="item-left">
+              <div class="item-icon-wrap">
+                <Timer :size="17" :stroke-width="1.7" />
+              </div>
+              <div class="item-text">
+                <span class="item-title">{{ $t('settings.sessionTimeout') }}</span>
+                <span class="item-desc">{{ $t('settings.sessionTimeoutDesc') }}</span>
+              </div>
+            </div>
+            <div class="session-timeout-ctrl">
+              <el-input-number
+                v-model="sessionTimeoutMinutes"
+                :min="1"
+                :max="1440"
+                :step="5"
+                controls-position="right"
+                style="width: 120px;"
+              />
+              <span class="timeout-unit">min</span>
+              <button class="edit-btn" :disabled="sessionTimeoutSaving" @click="handleSaveSessionTimeout">
+                {{ sessionTimeoutSaving ? $t('common.saving') : $t('common.save') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Category: Account & Security -->
       <div class="settings-category">
         <h3 class="category-title">{{ $t('settings.categoryAccount') }}</h3>
@@ -99,38 +145,6 @@
               </div>
             </div>
             <button class="edit-btn" @click="openAboutDialog">{{ $t('settings.aboutViewBtn') }}</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Category: System Administration (Admin only) -->
-      <div v-if="isAdmin" class="settings-category">
-        <h3 class="category-title">{{ $t('settings.categoryAdmin') }}</h3>
-        <div class="category-card">
-          <div class="settings-item">
-            <div class="item-left">
-              <div class="item-icon-wrap">
-                <Timer :size="17" :stroke-width="1.7" />
-              </div>
-              <div class="item-text">
-                <span class="item-title">{{ $t('settings.sessionTimeout') }}</span>
-                <span class="item-desc">{{ $t('settings.sessionTimeoutDesc') }}</span>
-              </div>
-            </div>
-            <div class="session-timeout-ctrl">
-              <el-input-number
-                v-model="sessionTimeoutMinutes"
-                :min="1"
-                :max="1440"
-                :step="5"
-                controls-position="right"
-                style="width: 120px;"
-              />
-              <span class="timeout-unit">min</span>
-              <button class="edit-btn" :disabled="sessionTimeoutSaving" @click="handleSaveSessionTimeout">
-                {{ sessionTimeoutSaving ? $t('common.saving') : $t('common.save') }}
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -366,6 +380,105 @@
       </template>
     </el-dialog>
 
+    <!-- ── AI Provider Dialog ──────────────────────── -->
+    <el-dialog
+      v-model="aiDialogVisible"
+      :title="$t('settings.aiProviderDialogTitle')"
+      width="720px"
+      :close-on-click-modal="false"
+      class="settings-dialog ai-provider-dialog"
+    >
+      <div class="ai-dialog-layout">
+        <!-- Left: Provider list -->
+        <div class="ai-dialog-left">
+          <div class="ai-preset-label">{{ $t('settings.aiPresets') }}</div>
+          <div class="ai-preset-list">
+            <div
+              v-for="p in AI_PROVIDERS"
+              :key="p.key"
+              class="ai-preset-item"
+              :class="{ selected: aiProvider === p.key }"
+              @click="selectProvider(p.key)"
+            >
+              <div class="ai-preset-name">{{ p.label }}</div>
+            </div>
+            <div
+              class="ai-preset-item"
+              :class="{ selected: aiProvider === 'custom' }"
+              @click="selectProvider('custom')"
+            >
+              <div class="ai-preset-name">{{ $t('settings.aiProviderCustom') }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: detail form -->
+        <div class="ai-dialog-right">
+          <div class="ai-form-group">
+            <label class="ai-form-label">Base URL</label>
+            <el-input
+              v-model="aiProviderBaseUrl"
+              :disabled="aiProvider !== 'custom'"
+              size="small"
+            />
+          </div>
+          <div class="ai-form-group">
+            <label class="ai-form-label">Model</label>
+            <el-input
+              v-if="aiProvider === 'ollama' || aiProvider === 'custom'"
+              v-model="aiProviderCustomModel"
+              placeholder="e.g. llama3, qwen2"
+              size="small"
+            />
+            <el-input
+              v-else
+              :model-value="selectedProvider?.model || ''"
+              disabled
+              size="small"
+            />
+          </div>
+          <div class="ai-form-group">
+            <label class="ai-form-label">{{ $t('settings.apiKey') }}</label>
+            <el-input
+              v-model="aiProviderApiKey"
+              type="password"
+              show-password
+              :placeholder="$t('settings.apiKeyPlaceholder')"
+              size="small"
+            />
+          </div>
+
+          <!-- Test area -->
+          <div class="ai-test-area">
+            <div class="ai-test-label">{{ $t('settings.testConnection') }}</div>
+            <textarea
+              v-model="aiTestMessage"
+              rows="2"
+              :placeholder="$t('settings.testPlaceholder')"
+              class="ai-test-input"
+            ></textarea>
+            <div class="ai-test-actions">
+              <button class="btn-test-connection" :disabled="aiTesting" @click="testAiConnection">
+                <Loader v-if="aiTesting" :size="12" class="spin" /> {{ aiTesting ? $t('settings.testing') : $t('settings.testConnectionBtn') }}
+              </button>
+            </div>
+            <div v-if="aiTestResult !== null" class="ai-test-result" :class="aiTestResultClass">
+              {{ aiTestResult }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="aiDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+          <el-button type="primary" :disabled="aiProviderSaving" @click="handleSaveAiProvider">
+            {{ aiProviderSaving ? $t('common.saving') : $t('common.save') }}
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -375,7 +488,7 @@ import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe, AlertCircle, Info, Timer } from 'lucide-vue-next'
+import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe, AlertCircle, Info, Timer, Cpu, Loader } from 'lucide-vue-next'
 import request from '@utils/request'
 
 const { t, locale } = useI18n()
@@ -410,6 +523,149 @@ const avatarLetter = computed(() => {
   return name.charAt(0).toUpperCase()
 })
 
+// ── AI Model Provider ───────────────────────────────────
+const AI_PROVIDERS_BASE = [
+  { key: 'xunfei',       i18nKey: 'settings.aiProviderXunfei',     baseUrl: 'https://maas-api.cn-huabei-1.xf-yun.com/v2', model: 'xopdeepseekv32' },
+  { key: 'deepseek',     i18nKey: 'settings.aiProviderDeepseek',   baseUrl: 'https://api.deepseek.com',                   model: 'deepseek-chat' },
+  { key: 'deepseek-v4',  i18nKey: 'settings.aiProviderDeepseekV4', baseUrl: 'https://api.deepseek.com',                   model: 'deepseek-v4-flash' },
+  { key: 'ollama',       i18nKey: 'settings.aiProviderOllama',     baseUrl: 'http://localhost:11434/v1',                  model: '' },
+]
+
+const AI_PROVIDERS = computed(() =>
+  AI_PROVIDERS_BASE.map(p => ({ ...p, label: t(p.i18nKey) }))
+)
+
+const aiProviderSaving = ref(false)
+const aiProvider = ref('')
+const aiProviderBaseUrl = ref('')
+const aiProviderCustomModel = ref('')
+
+const selectProvider = (key: string) => {
+  aiProvider.value = key
+  const preset = AI_PROVIDERS.value.find(p => p.key === key)
+  if (key === 'custom') {
+    aiProviderBaseUrl.value = ''
+    aiProviderCustomModel.value = ''
+  } else if (preset) {
+    aiProviderBaseUrl.value = preset.baseUrl
+    aiProviderCustomModel.value = preset.model
+  }
+}
+const aiProviderApiKey = ref('')
+const aiDialogVisible = ref(false)
+const aiTesting = ref(false)
+const aiTestMessage = ref('hi')
+const aiTestResult = ref<string | null>(null)
+const aiTestResultClass = ref('')
+
+const selectedProvider = computed(() =>
+  AI_PROVIDERS.value.find(p => p.key === aiProvider.value)
+)
+
+const currentProviderLabel = computed(() => {
+  const p = selectedProvider.value
+  return p ? `${p.label}${aiProviderCustomModel.value ? ' (' + aiProviderCustomModel.value + ')' : ''}` : ''
+})
+
+const openAiProviderDialog = () => {
+  aiTestResult.value = null
+  const preset = AI_PROVIDERS.value.find(p => p.key === aiProvider.value)
+  if (aiProvider.value === 'custom') {
+    // keep current baseUrl/model
+  } else if (preset) {
+    aiProviderBaseUrl.value = preset.baseUrl
+    aiProviderCustomModel.value = preset.model
+  }
+  aiDialogVisible.value = true
+}
+
+const testAiConnection = async () => {
+  aiTesting.value = true
+  aiTestResult.value = null
+  aiTestResultClass.value = ''
+  const baseUrl = aiProvider.value === 'custom'
+    ? aiProviderBaseUrl.value
+    : (selectedProvider.value?.baseUrl || '')
+
+  try {
+    const modelName = aiProvider.value === 'custom'
+      ? aiProviderCustomModel.value
+      : (aiProviderCustomModel.value || selectedProvider.value?.model || '')
+    const res: any = await request.post('/user/config/ai-provider/test', {
+      baseUrl,
+      model: modelName,
+      message: aiTestMessage.value,
+      apiKey: aiProviderApiKey.value || undefined,
+    })
+    if (res && res.ok) {
+      aiTestResult.value = `✓ Success — ${res.reply || 'connected'}`
+      aiTestResultClass.value = 'success'
+    } else {
+      aiTestResult.value = `✗ Failed — ${res?.error || 'no response'}`
+      aiTestResultClass.value = 'error'
+    }
+  } catch (e: any) {
+    const msg = e?.response?.data?.message || e?.message || 'connection error'
+    aiTestResult.value = `✗ Failed — ${msg}`
+    aiTestResultClass.value = 'error'
+  } finally {
+    aiTesting.value = false
+  }
+}
+
+const loadAiProvider = async () => {
+  try {
+    const res: any = await request.get('/user/config/ai-provider')
+    if (res && res.provider) {
+      aiProvider.value = AI_PROVIDERS.value.some(p => p.key === res.provider) ? res.provider : 'xunfei'
+      // If the server returns a custom model (e.g. for ollama), populate it
+      if (res.model && AI_PROVIDERS.value.find(p => p.key === res.provider)?.model !== res.model) {
+        aiProviderCustomModel.value = res.model
+      }
+      return
+    }
+  } catch (_) {}
+  // Fallback to localStorage
+  const rawProvider = localStorage.getItem('ai_provider') || 'xunfei'
+  aiProvider.value = AI_PROVIDERS.value.some(p => p.key === rawProvider) ? rawProvider : 'xunfei'
+  aiProviderCustomModel.value = localStorage.getItem('ai_provider_custom_model') || ''
+}
+
+const handleSaveAiProvider = async () => {
+  aiProviderSaving.value = true
+  try {
+    const baseUrl = aiProvider.value === 'custom'
+      ? aiProviderBaseUrl.value.trim()
+      : (selectedProvider.value?.baseUrl || '')
+    const modelName = aiProvider.value === 'custom'
+      ? aiProviderCustomModel.value.trim()
+      : (aiProviderCustomModel.value.trim() || (selectedProvider.value?.model || ''))
+
+    await request.put('/user/config/ai-provider', {
+      provider: aiProvider.value,
+      baseUrl,
+      model: modelName,
+      apiKey: aiProviderApiKey.value || undefined,
+    })
+
+    aiDialogVisible.value = false
+
+    // Also keep localStorage as fallback
+    localStorage.setItem('ai_provider', aiProvider.value)
+    if (aiProviderCustomModel.value.trim()) {
+      localStorage.setItem('ai_provider_custom_model', aiProviderCustomModel.value.trim())
+    } else {
+      localStorage.removeItem('ai_provider_custom_model')
+    }
+
+    ElMessage.success(t('settings.aiProviderSaved'))
+  } catch (_) {
+    ElMessage.error(t('settings.aiProviderFailed'))
+  } finally {
+    aiProviderSaving.value = false
+  }
+}
+
 // ── Admin: Session Timeout ─────────────────────────────────
 const sessionTimeoutMinutes = ref(30)
 const sessionTimeoutSaving  = ref(false)
@@ -434,7 +690,7 @@ const handleSaveSessionTimeout = async () => {
   }
 }
 
-onMounted(() => { loadSessionTimeout() })
+onMounted(() => { loadSessionTimeout(); loadAiProvider() })
 
 // ── Profile Dialog ────────────────────────────────
 const profileDialogVisible = ref(false)
@@ -1035,10 +1291,160 @@ const openAboutDialog = () => {
   font-weight: 500;
   white-space: nowrap;
 }
-</style>
 
-<!-- Dialog global style overrides -->
-<style>
+.ai-provider-item {
+  flex-wrap: wrap;
+}
+
+.ai-provider-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Admin category visual distinction ───────────── */
+.admin-category {
+  position: relative;
+}
+
+.admin-category .admin-category-title {
+  color: #7c3aed;
+  font-weight: 700;
+}
+
+.admin-category .admin-category-card {
+  border: 1.5px solid #c4b5fd;
+  background: linear-gradient(135deg, #faf5ff 0%, #f5f0ff 100%);
+  box-shadow: 0 1px 4px rgba(124, 58, 237, 0.06);
+}
+
+.admin-category .settings-item {
+  border-bottom-color: #ede4ff;
+}
+
+/* ── AI Provider Dialog ──────────────────────────── */
+.ai-dialog-layout {
+  display: flex;
+  gap: 20px;
+  min-height: 420px;
+}
+
+.ai-dialog-left {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid #f1f5f9;
+  padding-right: 16px;
+}
+
+.ai-preset-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+
+.ai-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ai-preset-item {
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #475569;
+  transition: all 0.15s;
+  line-height: 1.4;
+}
+.ai-preset-item:hover { background: #f8fafc; color: #1e293b; }
+.ai-preset-item.selected {
+  background: #f5f3ff;
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.ai-dialog-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ai-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.ai-test-area {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.ai-test-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.ai-test-input {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+}
+.ai-test-input:focus { border-color: #4f46e5; }
+
+.ai-test-actions {
+  margin-top: 8px;
+}
+
+.btn-test-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-test-connection:hover { background: #f8fafc; border-color: #cbd5e1; }
+.btn-test-connection:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ai-test-result {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.ai-test-result.success { background: #f0fdf4; color: #15803d; }
+.ai-test-result.error   { background: #fef2f2; color: #dc2626; }
+/* ── End AI Provider Dialog ──────────────────────── */
+
+/* Dialog global style overrides */
 .settings-dialog .el-dialog {
   border-radius: 16px !important;
 }
@@ -1062,4 +1468,124 @@ const openAboutDialog = () => {
   border-top: 1px solid #f0f0f0;
   padding-top: 16px !important;
 }
+
+/* ── AI Provider Dialog ──────────────────────────── */
+.ai-dialog-layout {
+  display: flex;
+  gap: 20px;
+}
+
+.ai-dialog-left {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid #f1f5f9;
+  padding-right: 16px;
+}
+
+.ai-preset-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+
+.ai-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-preset-item {
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: #475569;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+.ai-preset-item:hover { background: #f8fafc; color: #1e293b; }
+.ai-preset-item.selected {
+  background: #f5f3ff;
+  color: #4f46e5;
+  font-weight: 600;
+  border-color: #e8e5ff;
+}
+
+.ai-dialog-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.ai-test-area {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.ai-test-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.ai-test-input {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+}
+.ai-test-input:focus { border-color: #4f46e5; }
+
+.ai-test-actions {
+  margin-top: 8px;
+}
+
+.btn-test-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-test-connection:hover { background: #f8fafc; border-color: #cbd5e1; }
+.btn-test-connection:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ai-test-result {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.ai-test-result.success { background: #f0fdf4; color: #15803d; }
+.ai-test-result.error   { background: #fef2f2; color: #dc2626; }
 </style>

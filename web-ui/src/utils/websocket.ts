@@ -15,7 +15,8 @@ class WebSocketClient {
      */
     connect(url: string) {
         this.url = url
-        this.reconnectAttempts = 0
+        // NOTE: do NOT reset reconnectAttempts here — attemptReconnect() calls connect()
+        // and the counter must survive across calls to actually stop after maxAttempts.
 
         try {
             this.ws = new WebSocket(url)
@@ -64,7 +65,7 @@ class WebSocketClient {
     }
 
     /**
-     * Close the connection.
+     * Close the connection and clear all listeners.
      */
     close() {
         if (this.reconnectTimer) {
@@ -75,6 +76,7 @@ class WebSocketClient {
             this.ws.close()
             this.ws = null
         }
+        this.listeners.clear()
     }
 
     /**
@@ -96,6 +98,13 @@ class WebSocketClient {
             const index = callbacks.indexOf(callback)
             if (index > -1) callbacks.splice(index, 1)
         }
+    }
+
+    /**
+     * Remove all listeners for an event.
+     */
+    removeAllListeners(event: string) {
+        this.listeners.delete(event)
     }
 
     private emit(event: string, data: any) {
