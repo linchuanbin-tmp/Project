@@ -397,14 +397,14 @@
               v-for="p in AI_PROVIDERS"
               :key="p.key"
               class="ai-preset-item"
-              :class="{ selected: aiProvider === p.key }"
+              :class="{ selected: aiProviderDraft === p.key }"
               @click="selectProvider(p.key)"
             >
               <div class="ai-preset-name">{{ p.label }}</div>
             </div>
             <div
               class="ai-preset-item"
-              :class="{ selected: aiProvider === 'custom' }"
+              :class="{ selected: aiProviderDraft === 'custom' }"
               @click="selectProvider('custom')"
             >
               <div class="ai-preset-name">{{ $t('settings.aiProviderCustom') }}</div>
@@ -425,7 +425,7 @@
           <div class="ai-form-group">
             <label class="ai-form-label">Model</label>
             <el-input
-              v-if="aiProvider === 'ollama' || aiProvider === 'custom'"
+              v-if="aiProviderDraft === 'ollama' || aiProviderDraft === 'custom'"
               v-model="aiProviderCustomModel"
               placeholder="e.g. llama3, qwen2"
               size="small"
@@ -537,11 +537,12 @@ const AI_PROVIDERS = computed(() =>
 
 const aiProviderSaving = ref(false)
 const aiProvider = ref('')
+const aiProviderDraft = ref('')
 const aiProviderBaseUrl = ref('')
 const aiProviderCustomModel = ref('')
 
 const selectProvider = (key: string) => {
-  aiProvider.value = key
+  aiProviderDraft.value = key
   const preset = AI_PROVIDERS.value.find(p => p.key === key)
   if (key === 'custom') {
     aiProviderBaseUrl.value = ''
@@ -569,6 +570,7 @@ const currentProviderLabel = computed(() => {
 
 const openAiProviderDialog = () => {
   aiTestResult.value = null
+  aiProviderDraft.value = aiProvider.value
   const preset = AI_PROVIDERS.value.find(p => p.key === aiProvider.value)
   if (aiProvider.value === 'custom') {
     // keep current baseUrl/model
@@ -583,12 +585,12 @@ const testAiConnection = async () => {
   aiTesting.value = true
   aiTestResult.value = null
   aiTestResultClass.value = ''
-  const baseUrl = aiProvider.value === 'custom'
+  const baseUrl = aiProviderDraft.value === 'custom'
     ? aiProviderBaseUrl.value
     : (selectedProvider.value?.baseUrl || '')
 
   try {
-    const modelName = aiProvider.value === 'custom'
+    const modelName = aiProviderDraft.value === 'custom'
       ? aiProviderCustomModel.value
       : (aiProviderCustomModel.value || selectedProvider.value?.model || '')
     const res: any = await request.post('/user/config/ai-provider/test', {
@@ -634,21 +636,23 @@ const loadAiProvider = async () => {
 const handleSaveAiProvider = async () => {
   aiProviderSaving.value = true
   try {
-    const baseUrl = aiProvider.value === 'custom'
+    const baseUrl = aiProviderDraft.value === 'custom'
       ? aiProviderBaseUrl.value.trim()
       : (selectedProvider.value?.baseUrl || '')
-    const modelName = aiProvider.value === 'custom'
+    const modelName = aiProviderDraft.value === 'custom'
       ? aiProviderCustomModel.value.trim()
       : (aiProviderCustomModel.value.trim() || (selectedProvider.value?.model || ''))
 
     await request.put('/user/config/ai-provider', {
-      provider: aiProvider.value,
+      provider: aiProviderDraft.value,
       baseUrl,
       model: modelName,
       apiKey: aiProviderApiKey.value || undefined,
     })
 
     aiDialogVisible.value = false
+    // Commit draft to real state
+    aiProvider.value = aiProviderDraft.value
 
     // Also keep localStorage as fallback
     localStorage.setItem('ai_provider', aiProvider.value)

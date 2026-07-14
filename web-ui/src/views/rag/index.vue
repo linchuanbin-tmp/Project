@@ -1,16 +1,16 @@
 <template>
   <div class="rag-page">
     <div class="page-header">
-      <div>
-        <h1 class="page-title">{{ $t('rag.title') }}</h1>
-        <p class="page-sub">{{ $t('rag.desc') }}</p>
+      <div class="header-left">
+        <h1 class="page-title">{{ $t('rag.pageTitle') }}</h1>
+        <p class="page-sub">{{ $t('rag.pageSub') }}</p>
       </div>
       <div class="header-actions">
-        <el-button :loading="refreshing" @click="refreshWorkspace">
+        <el-button class="btn-refresh" :loading="refreshing" @click="refreshWorkspace">
           <RefreshCw :size="14" :class="{ spin: refreshing }" />
           Refresh
         </el-button>
-        <el-button type="primary" :loading="rebuilding" @click="handleRebuild">
+        <el-button class="btn-primary" :loading="rebuilding" @click="handleRebuild">
           <RotateCcw :size="14" :class="{ spin: rebuilding }" />
           Rebuild Index
         </el-button>
@@ -19,88 +19,85 @@
 
     <div class="workspace-grid">
       <main class="query-workspace">
-        <section class="query-panel">
-          <div class="panel-toolbar">
-            <div class="toolbar-title">
-              <MessageSquareText :size="17" />
-              <span>Ask Knowledge Base</span>
+        <div class="premium-card">
+          <div class="card-header-simple">
+            <span class="card-title-text">
+              <MessageSquareText :size="16" class="icon-sparkles" />
+              Ask Knowledge Base
+            </span>
+          </div>
+
+          <div class="modern-input-container">
+            <textarea
+              v-model="question"
+              rows="4"
+              placeholder="Ask about accessible enterprise documents..."
+              class="modern-textarea"
+              @keydown.ctrl.enter.prevent="handleQuery"
+            ></textarea>
+            <div class="modern-input-footer">
+              <div class="footer-spacer"></div>
+              <button
+                :disabled="!question.trim() || querying"
+                class="modern-btn-generate"
+                @click="handleQuery"
+              >
+                <span v-if="querying">{{ $t('code.generating') }}</span>
+                <span v-else>Send</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="topk-row">
+            <div class="topk-desc">
+              <span class="topk-label">Documents to retrieve</span>
+              <span class="topk-hint">How many relevant document chunks to search before generating an answer</span>
             </div>
             <div class="topk-control">
-              <span>TopK</span>
-              <el-input-number v-model="topK" :min="1" :max="20" size="small" controls-position="right" />
+              <el-slider
+                v-model="topK"
+                :min="1"
+                :max="20"
+                :step="1"
+                size="small"
+                class="topk-slider"
+              />
+              <span class="topk-value">{{ topK }}</span>
             </div>
           </div>
+        </div>
 
-          <el-input
-            v-model="question"
-            type="textarea"
-            :rows="5"
-            resize="none"
-            placeholder="Ask about accessible enterprise documents..."
-            class="question-input"
-            @keydown.ctrl.enter.prevent="handleQuery"
-          />
-
-          <div class="query-actions">
-            <el-button :disabled="!question.trim()" :loading="querying" type="primary" @click="handleQuery">
-              <SendHorizontal :size="14" />
-              Send
-            </el-button>
-            <el-button :disabled="!question.trim()" :loading="taskRunning" @click="handleRunAsTask">
-              <Clock3 :size="14" />
-              Run as Task
-            </el-button>
-            <el-button :disabled="querying && !answer" @click="clearQuery">
-              <Eraser :size="14" />
-              Clear
-            </el-button>
-          </div>
-
-          <div v-if="taskRunning || taskProgress > 0" class="task-progress-box">
-            <div class="task-progress-head">
-              <span>{{ taskMessage || 'Preparing RAG task...' }}</span>
-              <span>{{ taskProgress }}%</span>
-            </div>
-            <el-progress :percentage="taskProgress" :show-text="false" />
-          </div>
-        </section>
-
-        <section class="answer-panel">
-          <div class="panel-toolbar">
-            <div class="toolbar-title">
-              <FileSearch :size="17" />
-              <span>Answer</span>
-            </div>
-            <div v-if="response" class="response-meta">
+        <div v-if="response" class="premium-card review-card">
+          <div class="card-header-simple">
+            <span class="card-title-text">
+              <FileSearch :size="16" class="icon-database" />
+              Answer
+            </span>
+            <div class="response-meta">
               <el-tag size="small" :type="statusTagType(response.status)">{{ response.status }}</el-tag>
-              <span>{{ response.latencyMs || 0 }}ms</span>
+              <span class="stat-text">{{ response.latencyMs || 0 }}ms</span>
             </div>
           </div>
 
-          <div v-if="querying" class="loading-state">
-            <el-skeleton :rows="5" animated />
+          <div class="answer-text">{{ response.answer }}</div>
+          <div class="trace-row">
+            <span>Trace</span>
+            <code>{{ response.traceId }}</code>
           </div>
+        </div>
 
-          <template v-else-if="response">
-            <div class="answer-text">{{ response.answer }}</div>
-            <div class="trace-row">
-              <span>Trace</span>
-              <code>{{ response.traceId }}</code>
-            </div>
-          </template>
+        <div v-if="querying" class="loading-state">
+          <el-skeleton :rows="5" animated />
+        </div>
 
-          <el-empty v-else description="No answer yet" />
-        </section>
-
-        <section v-if="citations.length" class="citations-panel">
-          <div class="panel-toolbar">
-            <div class="toolbar-title">
-              <Quote :size="17" />
-              <span>Citations</span>
-            </div>
+        <div v-if="citations.length" class="premium-card review-card">
+          <div class="card-header-simple">
+            <span class="card-title-text">
+              <Quote :size="16" class="icon-database" />
+              Citations
+            </span>
             <el-tag size="small">{{ citations.length }}</el-tag>
           </div>
-
           <div class="citation-list">
             <article v-for="citation in citations" :key="citationKey(citation)" class="citation-item">
               <div class="citation-head">
@@ -110,17 +107,16 @@
               <p>{{ citation.snippet || 'No snippet returned.' }}</p>
             </article>
           </div>
-        </section>
+        </div>
 
-        <section v-if="chunks.length" class="chunks-panel">
-          <div class="panel-toolbar">
-            <div class="toolbar-title">
-              <Layers3 :size="17" />
-              <span>Retrieved Chunks</span>
-            </div>
+        <div v-if="chunks.length" class="premium-card review-card">
+          <div class="card-header-simple">
+            <span class="card-title-text">
+              <Layers3 :size="16" class="icon-database" />
+              Retrieved Chunks
+            </span>
             <el-tag size="small">{{ chunks.length }}</el-tag>
           </div>
-
           <el-collapse class="chunk-collapse">
             <el-collapse-item
               v-for="chunk in chunks"
@@ -136,24 +132,23 @@
               <p class="chunk-text">{{ chunk.chunkText }}</p>
             </el-collapse-item>
           </el-collapse>
-        </section>
+        </div>
 
-        <section v-if="blockedDocumentIds.length" class="blocked-panel">
-          <div class="panel-toolbar">
-            <div class="toolbar-title">
-              <ShieldAlert :size="17" />
-              <span>Blocked Documents</span>
-            </div>
+        <div v-if="blockedDocumentIds.length" class="premium-card review-card">
+          <div class="card-header-simple">
+            <span class="card-title-text">
+              <ShieldAlert :size="16" class="icon-database" />
+              Blocked Documents
+            </span>
             <el-tag size="small" type="warning">{{ blockedDocumentIds.length }}</el-tag>
           </div>
-
           <div class="blocked-list">
             <article v-for="documentId in blockedDocumentIds" :key="documentId" class="blocked-item">
               <div>
                 <h3>{{ documentTitle(documentId) }}</h3>
                 <p>
                   Doc {{ documentId }}
-                  <span v-if="documentSecurityLevel(documentId)">路 Level {{ documentSecurityLevel(documentId) }}</span>
+                  <span v-if="documentSecurityLevel(documentId)"> · Level {{ documentSecurityLevel(documentId) }}</span>
                 </p>
               </div>
               <el-button
@@ -166,17 +161,22 @@
               </el-button>
             </article>
           </div>
-        </section>
+        </div>
       </main>
 
       <aside class="side-workspace">
-        <section class="side-panel access-panel">
-          <div class="panel-toolbar">
-            <div class="toolbar-title">
-              <ShieldCheck :size="17" />
-              <span>Accessible Documents</span>
+        <div class="premium-card">
+          <div class="card-header-simple">
+            <span class="card-title-text">
+              <ShieldCheck :size="16" class="icon-sparkles" />
+              Accessible Documents
+            </span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <el-tag size="small">{{ accessibleDocuments.length }}</el-tag>
+              <button class="mini-refresh-btn" :disabled="documentsLoading" @click="refreshWorkspace">
+                <RefreshCw :size="13" :class="{ spin: documentsLoading }" />
+              </button>
             </div>
-            <el-tag size="small">{{ accessibleDocuments.length }}</el-tag>
           </div>
 
           <div v-if="documentsLoading" class="side-loading">
@@ -184,30 +184,38 @@
           </div>
           <el-empty v-else-if="!accessibleDocuments.length" description="No accessible documents" />
           <div v-else class="document-list">
-            <article v-for="doc in accessibleDocuments" :key="doc.documentId" class="document-item">
+            <article
+              v-for="doc in visibleDocuments"
+              :key="doc.documentId"
+              class="document-item"
+              @click="openDocumentReader(doc.documentId)"
+            >
               <div class="document-main">
                 <BookOpen :size="16" />
                 <div>
                   <h3>{{ doc.title || `Document ${doc.documentId}` }}</h3>
-                  <p>Doc {{ doc.documentId }} · Level {{ doc.securityLevel || 1 }}</p>
+                  <p>
+                    <span class="level-tag" :class="levelClass(doc.securityLevel)">Level {{ doc.securityLevel || 1 }}</span>
+                    <span class="reason-tag">{{ doc.accessReason }}</span>
+                  </p>
                 </div>
               </div>
-              <div class="document-actions">
-                <el-tag size="small" effect="plain">{{ doc.accessReason }}</el-tag>
-                <el-button :loading="indexingDocId === doc.documentId" size="small" @click="handleIndexDocument(doc.documentId)">
-                  <RefreshCw :size="13" :class="{ spin: indexingDocId === doc.documentId }" />
-                </el-button>
-              </div>
+              <el-button :loading="indexingDocId === doc.documentId" size="small" @click.stop="handleIndexDocument(doc.documentId)">
+                <RefreshCw :size="13" :class="{ spin: indexingDocId === doc.documentId }" />
+              </el-button>
             </article>
+            <button v-if="hasMoreDocs" class="view-all-link" @click="docsDialogVisible = true">
+              View all {{ accessibleDocuments.length }} documents →
+            </button>
           </div>
-        </section>
+        </div>
 
-        <section class="side-panel task-panel">
-          <div class="panel-toolbar">
-            <div class="toolbar-title">
-              <Clock3 :size="17" />
-              <span>Index Tasks</span>
-            </div>
+        <div class="premium-card">
+          <div class="card-header-simple">
+            <span class="card-title-text">
+              <Clock3 :size="16" class="icon-database" />
+              Index Tasks
+            </span>
             <el-button size="small" :loading="tasksLoading" @click="loadTasks">
               <RefreshCw :size="13" :class="{ spin: tasksLoading }" />
             </el-button>
@@ -228,31 +236,63 @@
             </el-table-column>
           </el-table>
           <el-empty v-else description="No index tasks" />
-        </section>
+        </div>
       </aside>
     </div>
+
+    <!-- ── All Documents Dialog ─────────────────────────────── -->
+    <el-dialog v-model="docsDialogVisible" title="Accessible Documents" width="680px" :close-on-click-modal="true">
+      <div class="docs-dialog-list">
+        <article
+          v-for="doc in paginatedDocs"
+          :key="doc.documentId"
+          class="document-item dialog-doc-item"
+          @click="openDocumentReader(doc.documentId)"
+        >
+          <div class="document-main">
+            <BookOpen :size="16" />
+            <div>
+              <h3>{{ doc.title || `Document ${doc.documentId}` }}</h3>
+              <p>
+                <span class="level-tag" :class="levelClass(doc.securityLevel)">Level {{ doc.securityLevel || 1 }}</span>
+                <span class="reason-tag">{{ doc.accessReason }}</span>
+              </p>
+            </div>
+          </div>
+          <el-button :loading="indexingDocId === doc.documentId" size="small" @click.stop="handleIndexDocument(doc.documentId)">
+            <RefreshCw :size="13" :class="{ spin: indexingDocId === doc.documentId }" />
+          </el-button>
+        </article>
+      </div>
+      <div style="display:flex;justify-content:center;margin-top:16px;">
+        <el-pagination
+          v-model:current-page="docsPage"
+          :page-size="docsPageSize"
+          :total="accessibleDocuments.length"
+          layout="prev, pager, next"
+          small
+        />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   BookOpen,
   Clock3,
-  Eraser,
   FileSearch,
   Layers3,
   MessageSquareText,
   Quote,
   RefreshCw,
   RotateCcw,
-  SendHorizontal,
   ShieldAlert,
   ShieldCheck
 } from 'lucide-vue-next'
-import { getTask, submitTask } from '@api/task'
 import {
   getAccessibleDocuments,
   getRagDocumentIndexStatus,
@@ -268,9 +308,9 @@ import {
   type RagIndexTask,
   type RagQueryResponse
 } from '@api/rag'
-import { wsClient } from '@utils/websocket'
 
 const route = useRoute()
+const router = useRouter()
 
 const question = ref('')
 const topK = ref(5)
@@ -281,21 +321,30 @@ const documentsLoading = ref(false)
 const tasksLoading = ref(false)
 const indexingDocId = ref<number | null>(null)
 const accessRequestingDocId = ref<number | null>(null)
-const taskRunning = ref(false)
-const taskProgress = ref(0)
-const taskMessage = ref('')
-const taskPollTimer = ref<number | null>(null)
 
 const response = ref<RagQueryResponse | null>(null)
 const accessibleDocuments = ref<AccessibleDocument[]>([])
 const documentStatusMap = ref<Record<number, RagDocumentIndexStatus>>({})
 const indexTasks = ref<RagIndexTask[]>([])
 
+// ── Document list display ──
+const MAX_VISIBLE_DOCS = 4
+const docsDialogVisible = ref(false)
+const docsPage = ref(1)
+const docsPageSize = 15
+
+const visibleDocuments = computed(() => accessibleDocuments.value.slice(0, MAX_VISIBLE_DOCS))
+const hasMoreDocs = computed(() => accessibleDocuments.value.length > MAX_VISIBLE_DOCS)
+const paginatedDocs = computed(() => {
+  const start = (docsPage.value - 1) * docsPageSize
+  return accessibleDocuments.value.slice(start, start + docsPageSize)
+})
+
 const citations = computed<RagCitation[]>(() => response.value?.citations || [])
 const chunks = computed<RagChunk[]>(() => response.value?.chunks || [])
 const blockedDocumentIds = computed<number[]>(() => response.value?.blockedDocumentIds || [])
-const answer = computed(() => response.value?.answer || '')
 
+// ── Query ──
 const handleQuery = async () => {
   const text = question.value.trim()
   if (!text) {
@@ -314,124 +363,6 @@ const handleQuery = async () => {
   } finally {
     querying.value = false
   }
-}
-
-const handleRunAsTask = async () => {
-  const text = question.value.trim()
-  if (!text) {
-    ElMessage.warning('Please enter a question.')
-    return
-  }
-
-  taskRunning.value = true
-  taskProgress.value = 0
-  taskMessage.value = 'Submitting RAG task...'
-
-  try {
-    const submitted: any = await submitTask({ taskType: 'RAG', input: text })
-    const taskId = submitted?.id ?? submitted?.data?.id
-    if (!taskId) {
-      throw new Error('Task service did not return task id.')
-    }
-
-    connectTaskProgress(taskId)
-  } catch (error: any) {
-    taskRunning.value = false
-    taskMessage.value = ''
-    ElMessage.error(error.message || 'Failed to submit RAG task.')
-  }
-}
-
-const connectTaskProgress = (taskId: number) => {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const wsUrl = `${protocol}//${window.location.host}/ws/task/progress?taskId=${taskId}`
-
-  const onMessage = async (data: any) => {
-    taskProgress.value = data.progress ?? taskProgress.value
-    taskMessage.value = data.message || taskMessage.value
-
-    if (data.status === 'completed') {
-      await hydrateResponseFromTask(taskId)
-      cleanupTaskSocket(onMessage, onError)
-      taskRunning.value = false
-      ElMessage.success('RAG task completed.')
-    } else if (data.status === 'error') {
-      cleanupTaskSocket(onMessage, onError)
-      taskRunning.value = false
-      ElMessage.error(data.message || 'RAG task failed.')
-    }
-  }
-
-  const onError = () => {
-    cleanupTaskSocket(onMessage, onError)
-    taskRunning.value = false
-    ElMessage.error('Task progress connection failed.')
-  }
-
-  wsClient.on('message', onMessage)
-  wsClient.on('error', onError)
-  wsClient.connect(wsUrl)
-  startTaskPolling(taskId, onMessage, onError)
-}
-
-const cleanupTaskSocket = (onMessage: Function, onError: Function) => {
-  if (taskPollTimer.value) {
-    window.clearInterval(taskPollTimer.value)
-    taskPollTimer.value = null
-  }
-  wsClient.off('message', onMessage)
-  wsClient.off('error', onError)
-  wsClient.close()
-}
-
-const startTaskPolling = (taskId: number, onMessage: Function, onError: Function) => {
-  taskPollTimer.value = window.setInterval(async () => {
-    try {
-      const task: any = await getTask(taskId)
-      const status = task?.status ?? task?.data?.status
-      if (status === 'SUCCESS') {
-        taskProgress.value = 100
-        taskMessage.value = 'Task completed successfully.'
-        await hydrateResponseFromTask(taskId)
-        cleanupTaskSocket(onMessage, onError)
-        taskRunning.value = false
-      } else if (status === 'FAIL') {
-        const errorMsg = task?.errorMsg ?? task?.data?.errorMsg ?? 'RAG task failed.'
-        cleanupTaskSocket(onMessage, onError)
-        taskRunning.value = false
-        ElMessage.error(errorMsg)
-      }
-    } catch {
-      // WebSocket remains the primary progress channel; transient polling errors are ignored.
-    }
-  }, 1800)
-}
-
-const hydrateResponseFromTask = async (taskId: number) => {
-  const task: any = await getTask(taskId)
-  const output = task?.output ?? task?.data?.output
-  if (!output) return
-  try {
-    response.value = JSON.parse(output)
-  } catch {
-    response.value = {
-      traceId: `task-${taskId}`,
-      status: 'SUCCESS',
-      answer: output,
-      citations: [],
-      chunks: [],
-      retrievedDocumentIds: [],
-      blockedDocumentIds: [],
-      topK: topK.value,
-      latencyMs: task?.elapsedTime ?? 0,
-      message: 'Task output parsed as plain text.'
-    }
-  }
-}
-
-const clearQuery = () => {
-  question.value = ''
-  response.value = null
 }
 
 const loadAccessibleDocuments = async () => {
@@ -496,6 +427,10 @@ const handleIndexDocument = async (documentId: number) => {
   }
 }
 
+const openDocumentReader = (documentId: number) => {
+  router.push({ path: '/app/dept-docs', query: { id: String(documentId) } })
+}
+
 const handleRequestAccess = async (documentId: number) => {
   try {
     const { value } = await ElMessageBox.prompt(
@@ -552,6 +487,12 @@ const formatScore = (score?: number) => {
   return score.toFixed(3)
 }
 
+const levelClass = (level?: number) => {
+  if (level === 3) return 'confidential'
+  if (level === 2) return 'internal'
+  return 'public'
+}
+
 const formatTime = (value?: string) => {
   if (!value) return '-'
   const date = new Date(value)
@@ -585,44 +526,70 @@ onUnmounted(() => {
 
 <style scoped>
 .rag-page {
-  min-height: calc(100vh - 56px);
-  padding: 24px;
-  background: #f6f7fb;
+  padding: 16px 0;
+  max-width: 1200px;
   color: #111827;
 }
 
 .page-header {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 18px;
+  align-items: flex-start;
+  margin-bottom: 30px;
+  padding-top: 20px;
 }
 
 .page-title {
-  margin: 0;
   font-size: 24px;
-  font-weight: 750;
-  line-height: 1.2;
-  letter-spacing: 0;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.5px;
 }
 
 .page-sub {
-  margin: 6px 0 0;
-  max-width: 760px;
-  color: #667085;
   font-size: 14px;
-  line-height: 1.55;
+  color: #9ca3af;
+  margin: 0;
 }
 
-.header-actions,
-.query-actions,
-.document-actions,
-.response-meta {
+.header-actions {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+
+.btn-refresh {
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 9px !important;
+  color: #374151 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  height: 38px !important;
+  padding: 0 16px !important;
+  transition: all 0.15s;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+}
+.btn-refresh:hover { background: #f9fafb !important; border-color: #d1d5db !important; }
+
+.btn-primary {
+  background: #111827 !important;
+  border: none !important;
+  border-radius: 9px !important;
+  color: #fff !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  height: 38px !important;
+  padding: 0 16px !important;
+  transition: all 0.15s;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+}
+.btn-primary:hover { background: #1f2937 !important; }
 
 .workspace-grid {
   display: grid;
@@ -638,21 +605,16 @@ onUnmounted(() => {
   gap: 16px;
 }
 
-.query-panel,
-.answer-panel,
-.citations-panel,
-.chunks-panel,
-.blocked-panel,
-.side-panel {
-  background: #ffffff;
-  border: 1px solid #e6e8ef;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+/* ── Cards ── */
+.premium-card {
+  background: #fff;
+  border: 1px solid #f1f5f9;
+  border-radius: 14px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
-.panel-toolbar {
-  min-height: 32px;
+.card-header-simple {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -660,237 +622,278 @@ onUnmounted(() => {
   margin-bottom: 14px;
 }
 
-.toolbar-title {
+.card-title-text {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.topk-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #667085;
   font-size: 13px;
+  font-weight: 600;
+  color: #334155;
 }
 
-.question-input :deep(.el-textarea__inner) {
-  min-height: 132px !important;
-  border-radius: 8px;
+.icon-sparkles { color: #4f46e5; }
+.icon-database { color: #0f172a; }
+
+/* ── Input ── */
+.modern-input-container {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 10px 8px 10px 16px;
+  transition: border-color 0.2s;
+}
+.modern-input-container:focus-within { border-color: #111827; }
+
+.modern-textarea {
+  width: 100%;
+  border: none;
+  resize: none;
+  font-family: inherit;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.5;
+  color: #0f172a;
+  outline: none;
+  background: transparent;
 }
+.modern-textarea::placeholder { color: #94a3b8; }
 
-.query-actions {
+.modern-input-footer {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
-  margin-top: 12px;
+  margin-top: 8px;
 }
+.footer-spacer { flex: 1; }
 
-.task-progress-box {
+.modern-btn-generate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background: #111827;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  height: 40px;
+  padding: 0 24px;
+}
+.modern-btn-generate:hover { background: #1f2937; }
+.modern-btn-generate:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+
+/* ── TopK row ── */
+.topk-row {
   margin-top: 14px;
-  padding: 12px;
-  border: 1px solid #e8edf7;
-  border-radius: 8px;
-  background: #f8fbff;
-}
-
-.task-progress-head {
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-  color: #475467;
+  gap: 16px;
+}
+
+.topk-desc {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.topk-label {
   font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
 }
 
-.answer-panel {
-  min-height: 260px;
+.topk-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.4;
 }
 
+.topk-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.topk-slider {
+  width: 120px;
+}
+.topk-slider :deep(.el-slider__runway) { height: 3px; background: #e2e8f0; }
+.topk-slider :deep(.el-slider__bar) { height: 3px; background: #4f46e5; }
+.topk-slider :deep(.el-slider__button) {
+  width: 14px;
+  height: 14px;
+  border-color: #4f46e5;
+  background: #4f46e5;
+  box-shadow: 0 1px 3px rgba(79,70,229,0.15);
+}
+
+.topk-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  min-width: 20px;
+  text-align: right;
+}
+
+/* ── Answer ── */
 .answer-text {
   white-space: pre-wrap;
   line-height: 1.72;
-  font-size: 14.5px;
-  color: #1f2937;
+  font-size: 13.5px;
+  color: #1e293b;
 }
 
 .trace-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 18px;
-  padding-top: 12px;
-  border-top: 1px solid #eef0f5;
-  color: #667085;
-  font-size: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 11px;
+  color: #94a3b8;
 }
+.trace-row code { font-family: monospace; font-size: 11px; color: #64748b; }
 
-.trace-row code {
-  min-width: 0;
-  color: #344054;
-  overflow-wrap: anywhere;
-}
-
-.loading-state,
-.side-loading {
-  padding: 8px 0;
-}
-
-.citation-list,
-.blocked-list,
-.document-list {
+.response-meta {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 10px;
 }
 
-.citation-item,
-.blocked-item,
-.document-item {
-  border: 1px solid #edf0f6;
+/* ── Citations ── */
+.citation-list { display: flex; flex-direction: column; gap: 8px; }
+.citation-item {
+  padding: 10px 12px;
+  border: 1px solid #f1f5f9;
   border-radius: 8px;
-  background: #fbfcff;
-  padding: 12px;
+  background: #f8fafc;
 }
-
-.blocked-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-color: #fed7aa;
-  background: #fff7ed;
-}
-
-.blocked-item h3 {
-  margin: 0;
-  color: #9a3412;
-  font-size: 13.5px;
-  font-weight: 750;
-}
-
-.blocked-item p {
-  margin: 4px 0 0;
-  color: #c2410c;
-  font-size: 12px;
-}
-
-.citation-head,
-.document-main {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
 .citation-head {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  color: #344054;
-  font-size: 13px;
-  font-weight: 650;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
 }
+.citation-item p { margin: 0; font-size: 12.5px; color: #64748b; line-height: 1.5; }
 
-.citation-item p,
-.chunk-text {
-  margin: 8px 0 0;
-  color: #475467;
+/* ── Chunks ── */
+.chunk-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   font-size: 13px;
+}
+.chunk-text {
+  font-size: 12.5px;
+  color: #64748b;
   line-height: 1.6;
   white-space: pre-wrap;
 }
 
-.chunk-collapse {
-  border-top: 1px solid #eef0f5;
-}
-
-.chunk-title {
-  width: 100%;
+/* ── Blocked ── */
+.blocked-list { display: flex; flex-direction: column; gap: 8px; }
+.blocked-item {
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+}
+.blocked-item h3 { margin: 0 0 2px; font-size: 13px; font-weight: 600; color: #1e293b; }
+.blocked-item p { margin: 0; font-size: 11px; color: #94a3b8; }
+
+/* ── Sidebar ── */
+.document-list { display: flex; flex-direction: column; gap: 6px; }
+.document-item {
+  display: flex;
   justify-content: space-between;
-  gap: 12px;
-  padding-right: 12px;
-  color: #344054;
-  font-size: 13px;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.document-item:hover { background: #f1f5f9; box-shadow: 0 1px 4px rgba(15,23,42,0.04); }
+
+.docs-dialog-list { display: flex; flex-direction: column; gap: 6px; }
+.dialog-doc-item { cursor: pointer; }
+.document-main { display: flex; align-items: flex-start; gap: 8px; }
+.document-main h3 { margin: 0 0 3px; font-size: 12.5px; font-weight: 600; color: #1e293b; }
+.document-main p { margin: 0; font-size: 11px; color: #94a3b8; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+/* Level tags */
+.level-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.level-tag.public { background: #f0fdf4; color: #15803d; }
+.level-tag.internal { background: #fffbeb; color: #b45309; }
+.level-tag.confidential { background: #fef2f2; color: #dc2626; }
+
+.reason-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  background: #f1f5f9;
+  color: #64748b;
 }
 
-.document-main {
-  justify-content: flex-start;
-}
-
-.document-main svg {
-  flex: 0 0 auto;
-  margin-top: 2px;
-  color: #2563eb;
-}
-
-.document-main h3 {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.4;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.document-main p {
-  margin: 4px 0 0;
-  color: #667085;
+.view-all-link {
+  display: block;
+  background: none;
+  border: none;
+  padding: 8px 0 0;
   font-size: 12px;
+  color: #4f46e5;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+.view-all-link:hover { color: #3730a3; }
+
+.mini-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  color: #94a3b8;
+}
+.mini-refresh-btn:hover { background: #f8fafc; color: #0f172a; }
+
+.loading-state { padding: 20px 0; }
+.side-loading { padding: 10px 0; }
+.spin { animation: loading-spin 1.2s linear infinite; }
+
+@keyframes loading-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-.document-actions {
-  justify-content: space-between;
-  margin-top: 10px;
-}
-
-.task-table {
-  width: 100%;
-}
-
-.spin {
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (max-width: 1100px) {
-  .workspace-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .side-workspace {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 760px) {
-  .rag-page {
-    padding: 16px;
-  }
-
-  .page-header {
-    flex-direction: column;
-  }
-
-  .header-actions,
-  .side-workspace {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .header-actions :deep(.el-button) {
-    width: 100%;
-  }
+@media (max-width: 960px) {
+  .workspace-grid { grid-template-columns: 1fr; }
+  .rag-page { padding: 12px; }
 }
 </style>

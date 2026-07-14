@@ -16,8 +16,8 @@ fi
 # ⚠️  强制 Maven 使用 JDK 17（Homebrew 安装 of Maven 默认绑定 Java 26，会导致 Lombok 崩溃）
 export JAVA_HOME=/Users/mitsuhahi/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home
 
-echo "🚀 启动基础设施（MySQL + Redis）..."
-docker compose up -d mysql redis
+echo "🚀 启动基础设施（MySQL + Redis + Milvus + MinIO）..."
+docker compose up -d mysql redis milvus minio
 
 echo "⏳ 等待 MySQL 初始化（15 秒）..."
 sleep 15
@@ -78,7 +78,9 @@ open_new_terminal "Tool Agent (8083)"   "$JDK17 && cd '$PROJECT_DIR/tool-agent' 
 sleep 1
 open_new_terminal "Code Agent (8084)"   "$JDK17 && cd '$PROJECT_DIR/code-agent'       && mvn spring-boot:run -DskipTests"
 sleep 1
-open_new_terminal "Code Agent Python (8090)" "export DB_PASSWORD='${DB_PASSWORD:-123456}' && export DB_USER='${DB_USERNAME:-root}' && export DEEPSEEK_API_KEY='${DEEPSEEK_API_KEY}' && export DEEPSEEK_BASE_URL='${DEEPSEEK_BASE_URL}' && export DEEPSEEK_MODEL='${DEEPSEEK_MODEL}' && cd '$PROJECT_DIR/code-agent/data' && python3 infer_server.py"
+open_new_terminal "RAG Agent (8085)"    "$JDK17 && export RAG_LLM_PROVIDER='${RAG_LLM_PROVIDER}' && export RAG_LLM_API_KEY='${RAG_LLM_API_KEY}' && export RAG_LLM_BASE_URL='${RAG_LLM_BASE_URL}' && export RAG_LLM_MODEL='${RAG_LLM_MODEL}' && export RAG_EMBEDDING_PROVIDER='${RAG_EMBEDDING_PROVIDER}' && export MILVUS_HOST='${MILVUS_HOST:-localhost}' && export MILVUS_PORT='${MILVUS_PORT:-19530}' && cd '$PROJECT_DIR/rag-agent' && mvn spring-boot:run -DskipTests"
+sleep 1
+open_new_terminal "Code Agent Python (8090)" "export DB_PASSWORD='${DB_PASSWORD:-123456}' && export DB_USER='${DB_USERNAME:-root}' && export DEEPSEEK_API_KEY='${DEEPSEEK_API_KEY}' && export DEEPSEEK_OFFICIAL_API_KEY='${DEEPSEEK_OFFICIAL_API_KEY}' && export DEEPSEEK_BASE_URL='${DEEPSEEK_BASE_URL}' && export DEEPSEEK_MODEL='${DEEPSEEK_MODEL}' && cd '$PROJECT_DIR/code-agent/data' && python3 infer_server.py"
 sleep 1
 
 echo "🎨 启动前端..."

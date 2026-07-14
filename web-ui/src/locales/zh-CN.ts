@@ -222,13 +222,10 @@ export default {
 
   // RAG Agent
   rag: {
-    title: '知识问答',
+    pageTitle: 'RAG Agent',
+    pageSub: '上传文档并使用自然语言提问。基于检索增强生成技术提供精准、可溯源的答案。',
+    title: 'RAG Agent',
     desc: '上传文档并使用自然语言提问。基于 RAG（检索增强生成）技术提供精准、可溯源的答案。',
-    comingSoon: '即将推出',
-    feature1: '支持 PDF、Word 和 Markdown 格式',
-    feature2: '跨文档语义搜索',
-    feature3: '答案来源引用',
-    feature4: '多文档知识库',
   },
 
   // Tool Agent
@@ -839,8 +836,8 @@ export default {
 
   // Copilot 悬浮窗
   copilot: {
-    title: '智能助手',
-    tooltip: '打开智能助手',
+    title: 'Agent',
+    tooltip: '打开 Agent',
     clearHistory: '清空聊天历史',
     processingTool: '正在为您处理任务，请稍候...',
     processingCode: '正在为您生成 SQL 代码，即将跳转到代码生成页面...',
@@ -848,10 +845,11 @@ export default {
     routingFailedFallback: '路由失败，即将跳转到知识库页面...',
     routingToSettings: '识别为设置导航意图，正在跳转到设置页面...',
     clarifyDefault: '请问您需要预定哪一天的会议室、大概多少人？或者您能提供路线规划的起点和终点吗？',
-    chatDefault: '你好！我是你的智能助理 Copilot，随时可以帮您处理 SQL 查询、会议室预订、日程检测或知识库检索。请问今天有什么我可以帮您的？',
+    chatDefault: '你好！我是你的 BankAgent Copilot，随时可以帮您处理 SQL 查询、会议室预订、日程检测或知识库检索。请问今天有什么我可以帮您的？',
     history: '历史记录',
     viewHistory: '查看历史对话',
     noHistory: '暂无历史对话记录',
+    newSession: '新对话',
     deleteSession: '删除对话',
   },
 }
