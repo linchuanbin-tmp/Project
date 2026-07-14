@@ -13,6 +13,8 @@ spring:
     properties:
       mail.smtp.auth: true
       mail.smtp.ssl.enable: true
+      mail.smtp.ssl.trust: smtp.qq.com
+      mail.smtp.ssl.protocols: TLSv1.2
       mail.smtp.socketFactory.class: javax.net.ssl.SSLSocketFactory
 
   datasource:
@@ -32,6 +34,18 @@ spring:
 jwt:
   secret: ${JWT_SECRET:your-secret-key-here-change-in-production}
   expiration: ${JWT_EXPIRATION:86400000}
+
+# API Key 配置（敏感信息，通过环境变量或 .env 注入）
+# 本地开发：在 IDE 运行配置中设置 DEEPSEEK_API_KEY 和 DEEPSEEK_OFFICIAL_API_KEY
+# Docker：由 docker-compose 从 .env 注入
+app:
+  deepseek:
+    api-key: ${DEEPSEEK_API_KEY:}
+  deepseek-official:
+    api-key: ${DEEPSEEK_OFFICIAL_API_KEY:}
+  encryption:
+    password: ${APP_ENCRYPTION_PASSWORD:change-me-in-production}
+    salt: ${APP_ENCRYPTION_SALT:deadbeef}
 
 mybatis-plus:
   configuration:

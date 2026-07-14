@@ -76,7 +76,7 @@
           </div>
 
           <div v-if="isExecuting" class="thinking-row">
-            <span class="thinking-label">{{ progressMessage || 'Thinking' }}</span>
+            <span class="processing-text-inline">{{ progressMessage || 'Processing...' }}</span>
             <span class="thinking-elapsed">{{ thinkingElapsed }}s</span>
           </div>
         </div>
@@ -87,7 +87,6 @@
             <div class="copilot-processing-bar">
               <span class="processing-dot"></span>
               <span class="processing-text">{{ progressMessage || 'Processing your request...' }}</span>
-              <span class="processing-time">{{ thinkingElapsed }}s</span>
             </div>
           </template>
           <template v-else>
@@ -527,6 +526,13 @@ watch(() => router.currentRoute.value.query.query, async (newQuery) => {
 onMounted(() => {
   loadSessions()
   // Don't auto-load last session — user sees welcome screen by default
+  // Preload AI provider config so Copilot uses correct model
+  request.get('/user/config/ai-provider').then((res: any) => {
+    if (res && res.provider) {
+      localStorage.setItem('ai_provider', res.provider)
+      if (res.model) localStorage.setItem('ai_provider_custom_model', res.model)
+    }
+  }).catch(() => {})
 })
 
 onUnmounted(() => {
@@ -822,41 +828,26 @@ onUnmounted(() => {
 .conflict-alert.warning { background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
 .conflict-alert.success { background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
 
-/* Thinking indicator — shimmer typewriter text + elapsed time */
 .thinking-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 0;
+  padding: 4px 24px 8px;
 }
 
-.thinking-label {
-  font-size: 13px;
-  font-weight: 500;
-  background: linear-gradient(
-    90deg,
-    #94a3b8 0%,
-    #64748b 45%,
-    #94a3b8 55%,
-    #64748b 100%
-  );
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: thinking-shimmer 2s ease-in-out infinite;
-}
-
-@keyframes thinking-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+.processing-text-inline {
+  font-size: 12px;
+  color: #94a3b8;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .thinking-elapsed {
   font-size: 11px;
   color: #94a3b8;
   font-weight: 500;
-  margin-left: auto;
 }
 
 /* ── Input Area ───────────────────────────────── */
@@ -899,12 +890,7 @@ onUnmounted(() => {
   text-overflow: ellipsis;
 }
 
-.processing-time {
-  font-size: 11px;
-  font-weight: 500;
-  color: #94a3b8;
-  flex-shrink: 0;
-}
+/* ── Input area restored ── */
 
 .copilot-input-row {
   display: flex;

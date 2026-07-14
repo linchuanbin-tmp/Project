@@ -83,22 +83,19 @@ public class ToolServiceImpl implements ToolService {
         String systemPrompt = """
             你是智能任务路由助手。分析用户的自然语言请求，判断意图并提取参数。
             只返回JSON，不要其他文字。
-            
+
             可能的意图类型：
             - "ROUTE_PLAN": 路线规划，需要提取 from(出发地), to(目的地), mode(出行方式，默认driving)
-            - "MEETING_QUERY": 会议室查询，需要提取 date(日期), capacity(人数), equipment(设备数组，如["投影仪","白板"])
-            - "SCHEDULE_CHECK": 日程冲突检测，需要提取 timeRange(时间范围描述), attendees(参会人员数组)
-            
+            - "MEETING_QUERY": 会议室查询或预订，需要提取 date(日期), capacity(人数)。用户说"开会"、"订会议室"、"预订房间"等都属于此类。
+            - "SCHEDULE_CHECK": 日程冲突检测，仅当用户明确提到"检测冲突"、"有没有空"、"是否有时间冲突"、"查一下日程"等时才归为此类。普通订会议室不属于此类。
+
             返回格式：
             {
                 "intent": "ROUTE_PLAN|MEETING_QUERY|SCHEDULE_CHECK",
-                "parameters": {
-                    "from": "...",
-                    "to": "...",
-                    "mode": "driving"
-                },
+                "parameters": { ... },
                 "reasoning": "分析过程"
             }
+            重要：如果用户是"开会"或"订会议室"，默认归为MEETING_QUERY，不要归为SCHEDULE_CHECK。
             如果信息缺失，给出合理默认值。date如果用户说今天，就返回"today"。
             """;
 

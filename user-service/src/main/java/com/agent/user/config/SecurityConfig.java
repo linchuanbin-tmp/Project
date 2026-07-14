@@ -4,6 +4,7 @@ import com.agent.user.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -38,6 +39,8 @@ public class SecurityConfig {
                 // 放行登录和注册接口，其他需要认证
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/user/login", "/user/register", "/user/logout", "/user/send-code", "/error").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/user/config/ai-provider").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/user/config/ai-provider/test").permitAll()
                         .anyRequest().authenticated()
                 )
                 // 添加 JWT 过滤器

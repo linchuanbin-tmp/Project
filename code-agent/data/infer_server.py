@@ -55,6 +55,7 @@ _cfg = _load_config()
 DEEPSEEK_API_KEY = _cfg["api_key"]
 DEEPSEEK_BASE_URL = _cfg["base_url"]
 DEEPSEEK_MODEL = _cfg["model"]
+ROUTE_CLASSIFY_MODEL = os.environ.get("DEEPSEEK_CLASSIFY_MODEL", DEEPSEEK_MODEL)
 
 MAX_TOKENS = 1024
 TEMPERATURE = 0.1  # Text-to-SQL 需要确定性输出
@@ -414,18 +415,16 @@ def route_intent():
             base_url=DEEPSEEK_BASE_URL,
         )
 
-        system_prompt = """你是一个智能意图分类器。请根据用户的输入，将其归类为以下六类之一：
-- CODE: 如果用户想要查询数据库、生成 SQL、统计或查看报表数据。
-- TOOL: 如果用户想要进行业务操作，例如订会议室（需包含日期/时间/人数）、日程冲突检测（需包含人员/时间范围）、路径规划（需包含起点和终点）。
-- RAG: 如果用户在询问规章制度、文档内容、概念定义或政策规程。
-- SETTINGS: 如果用户想要修改密码、查看个人资料、更改系统设置或配置。
-- CLARIFY: 如果用户表达了想订会议室或规划路线的意图，但缺少核心关键参数（例如：订会议室没说日期/时间/人数；规划路线没有提供起点或终点）。
-- CHAT: 如果用户在说你好、打招呼、进行简单问候、问你是谁，或者进行与上述业务无关的日常闲聊对话。
-
-请只输出对应的大写单词：CODE、TOOL、RAG、SETTINGS、CLARIFY 或 CHAT。绝对不要包含任何其他解释、前导词或 markdown 标记。"""
+        system_prompt = """你是智能意图分类器。只输出一个单词：CODE/TOOL/RAG/SETTINGS/CLARIFY/CHAT。
+- CODE: 查询数据库、生成SQL、统计数据。
+- TOOL: 订会议室（有时间和人数就是TOOL，不需要地点）、日程冲突检测、路径规划（有起点和终点就是TOOL）。
+- RAG: 问规章制度、文档、概念定义。
+- SETTINGS: 改密码、个人资料、系统配置。
+- CLARIFY: 想订会议室但缺时间或人数；想规划路线但缺起点或终点。
+- CHAT: 打招呼、闲聊。"""
 
         response = client.chat.completions.create(
-            model=DEEPSEEK_MODEL,
+            model=ROUTE_CLASSIFY_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": question},
@@ -485,7 +484,7 @@ def route_intent():
                 response_clarify = client.chat.completions.create(
                     model=DEEPSEEK_MODEL,
                     messages=[
-                        {"role": "system", "content": "你是一个会议室预订与地图服务助手。用户想使用服务但缺少核心参数。请用友好、专业、简短的一句话询问用户缺少的参数（例如询问具体时间、人数，或询问起点和终点）。"},
+                        {"role": "system", "content": "你是会议室预订与地图服务助手。用户想使用服务但缺少核心参数。对于会议室预订，核心参数只有：日期/时间、人数。请只问缺失的参数，不要问无关问题（不要问地点、设备等）。用友好、简短的一句话询问。"},
                         {"role": "user", "content": question},
                     ],
                     max_tokens=150,
