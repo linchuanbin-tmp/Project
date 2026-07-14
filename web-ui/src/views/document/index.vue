@@ -53,8 +53,22 @@
                     <BookOpen :size="18" />
                   </div>
                   <div class="header-right-side" style="display: flex; align-items: center; gap: 8px;">
+                    <span class="rag-index-badge" :class="{ indexed: getDocIndexStatus(doc)?.indexed }">
+                      <Database :size="12" />
+                      {{ getDocIndexStatus(doc)?.chunkCount || 0 }}
+                    </span>
                     <span class="security-badge global">{{ $t('document.global') }}</span>
                     <div v-if="canManage(doc)" class="card-mgmt-actions">
+                      <el-button
+                        class="icon-action-btn index"
+                        :loading="isIndexingDoc(doc.id)"
+                        @click.stop="handleReindexDoc(doc)"
+                      >
+                        <RefreshCw :size="12" />
+                      </el-button>
+                      <el-button class="icon-action-btn chunks" @click.stop="openChunksDialog(doc)">
+                        <Eye :size="12" />
+                      </el-button>
                       <el-button class="icon-action-btn edit" @click.stop="openEditDialog(doc)">
                         <Edit :size="12" />
                       </el-button>
@@ -117,10 +131,24 @@
                       <FileText v-else :size="18" />
                     </div>
                     <div class="header-right-side" style="display: flex; align-items: center; gap: 8px;">
+                      <span class="rag-index-badge" :class="{ indexed: getDocIndexStatus(doc)?.indexed }">
+                        <Database :size="12" />
+                        {{ getDocIndexStatus(doc)?.chunkCount || 0 }}
+                      </span>
                       <span class="security-badge" :class="'level-' + doc.securityLevel">
                         Level-{{ doc.securityLevel }} ({{ getClearanceLabel(doc.securityLevel) }})
                       </span>
                       <div v-if="canManage(doc)" class="card-mgmt-actions">
+                        <el-button
+                          class="icon-action-btn index"
+                          :loading="isIndexingDoc(doc.id)"
+                          @click.stop="handleReindexDoc(doc)"
+                        >
+                          <RefreshCw :size="12" />
+                        </el-button>
+                        <el-button class="icon-action-btn chunks" @click.stop="openChunksDialog(doc)">
+                          <Eye :size="12" />
+                        </el-button>
                         <el-button class="icon-action-btn edit" @click.stop="openEditDialog(doc)">
                           <Edit :size="12" />
                         </el-button>
@@ -229,15 +257,21 @@
               <div class="popover-section">
                 <div class="popover-row">
                   <span class="lbl">{{ $t('document.vectorIndex') }}:</span>
-                  <span class="val">Milvus (IVF_FLAT)</span>
+                  <span class="val">Milvus</span>
                 </div>
                 <div class="popover-row">
-                  <span class="lbl">{{ $t('document.distanceMetric') }}:</span>
-                  <span class="val">Cosine Similarity</span>
+                  <span class="lbl">Chunks:</span>
+                  <span class="val">{{ getDocIndexStatus(selectedDoc)?.chunkCount || 0 }}</span>
                 </div>
                 <div class="popover-row">
                   <span class="lbl">{{ $t('document.groundingStatus') }}:</span>
-                  <span class="val text-success">{{ $t('document.strictAccess') }}</span>
+                  <span class="val" :class="getDocIndexStatus(selectedDoc)?.indexed ? 'text-success' : 'text-red'">
+                    {{ getDocIndexStatus(selectedDoc)?.indexed ? 'Indexed' : 'Not indexed' }}
+                  </span>
+                </div>
+                <div class="popover-row">
+                  <span class="lbl">Last Indexed:</span>
+                  <span class="val">{{ formatDateTime(getDocIndexStatus(selectedDoc)?.lastIndexedAt) }}</span>
                 </div>
               </div>
             </div>
@@ -450,6 +484,51 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- RAG Chunk Inspection Dialog -->
+    <el-dialog
+      v-model="chunkDialogVisible"
+      :title="chunkDialogTitle"
+      width="760px"
+      class="custom-dialog"
+    >
+      <div class="dialog-body">
+        <div v-if="chunkLoading" class="chunk-loading">
+          <RefreshCw :size="16" class="spin" />
+          <span>Loading chunks...</span>
+        </div>
+        <div v-else-if="selectedChunks.length === 0" class="chunk-empty">
+          No chunks indexed for this document.
+        </div>
+        <div v-else class="chunk-list">
+          <div v-for="chunk in selectedChunks" :key="chunk.chunkId" class="chunk-item">
+            <div class="chunk-meta">
+              <span>#{{ chunk.chunkIndex }}</span>
+              <span>chunkId={{ chunk.chunkId }}</span>
+              <span>tokens={{ chunk.tokenCount || 0 }}</span>
+              <span>level={{ chunk.securityLevel || 1 }}</span>
+            </div>
+            <div class="chunk-vector">{{ chunk.vectorId }}</div>
+            <p class="chunk-text">{{ chunk.chunkText }}</p>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="chunkDialogVisible = false" class="dialog-btn-cancel">{{ $t('common.cancel') }}</el-button>
+          <el-button
+            v-if="chunkDoc"
+            type="primary"
+            @click="handleReindexDoc(chunkDoc)"
+            :loading="isIndexingDoc(chunkDoc.id)"
+            class="dialog-btn-confirm"
+          >
+            Reindex
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -467,6 +546,13 @@ import {
 } from 'lucide-vue-next'
 import { getDeptDocuments, createDocument, updateDocument, deleteDocument, getDepartmentsList } from '@/api/department'
 import { sendNotification, getUsers } from '@/api/notification'
+import {
+  getRagDocumentChunks,
+  getRagDocumentIndexStatus,
+  indexRagDocument,
+  type RagDocumentChunkDetail,
+  type RagDocumentIndexStatus
+} from '@/api/rag'
 import { marked } from 'marked'
 
 // Configure marked with a custom heading renderer to inject IDs for TOC anchoring
@@ -503,6 +589,12 @@ const activeTab = ref('system')
 const searchQuery = ref('')
 const selectedDoc = ref<any>(null)
 const readerVisible = ref(false)
+const ragIndexStatusMap = ref<Record<number, RagDocumentIndexStatus>>({})
+const indexingDocIds = ref<Set<number>>(new Set())
+const chunkDialogVisible = ref(false)
+const chunkLoading = ref(false)
+const chunkDoc = ref<any>(null)
+const selectedChunks = ref<RagDocumentChunkDetail[]>([])
 
 const dialogVisible = ref(false)
 const requestDoc = ref<any>(null)
@@ -536,6 +628,10 @@ const isAdminOrDeptAdmin = computed(() => {
 
 const manageDialogTitle = computed(() => {
   return manageForm.value.id ? t('document.editDoc') : t('document.createDoc')
+})
+
+const chunkDialogTitle = computed(() => {
+  return chunkDoc.value ? `RAG Chunks - ${chunkDoc.value.title}` : 'RAG Chunks'
 })
 
 // Document management authorization scoping check
@@ -622,6 +718,7 @@ const fetchDocuments = async () => {
   try {
     const res: any = await getDeptDocuments()
     documents.value = res || []
+    await fetchRagIndexStatus()
 
     // Maintain selection if already in reader mode
     if (selectedDoc.value) {
@@ -635,6 +732,19 @@ const fetchDocuments = async () => {
     ElMessage.error(t('document.loadError'))
   } finally {
     loading.value = false
+  }
+}
+
+const fetchRagIndexStatus = async () => {
+  try {
+    const statuses = await getRagDocumentIndexStatus()
+    ragIndexStatusMap.value = (statuses || []).reduce((acc: Record<number, RagDocumentIndexStatus>, item: RagDocumentIndexStatus) => {
+      acc[item.documentId] = item
+      return acc
+    }, {})
+  } catch (error) {
+    console.warn('Failed to load RAG index status:', error)
+    ragIndexStatusMap.value = {}
   }
 }
 
@@ -663,6 +773,37 @@ const formatDate = (dateStr: string) => {
     month: 'short',
     day: 'numeric'
   })
+}
+
+const formatDateTime = (dateStr?: string) => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const getDocIndexStatus = (doc: any) => {
+  if (!doc?.id) return undefined
+  return ragIndexStatusMap.value[doc.id]
+}
+
+const isIndexingDoc = (documentId: number) => {
+  return indexingDocIds.value.has(documentId)
+}
+
+const setIndexingDoc = (documentId: number, indexing: boolean) => {
+  const next = new Set(indexingDocIds.value)
+  if (indexing) {
+    next.add(documentId)
+  } else {
+    next.delete(documentId)
+  }
+  indexingDocIds.value = next
 }
 
 const scrollToHeading = (id: string) => {
@@ -774,12 +915,54 @@ const handleManageSubmit = async () => {
       ElMessage.success(t('document.createSuccess'))
     }
     manageDialogVisible.value = false
-    fetchDocuments()
+    await fetchDocuments()
   } catch (error: any) {
     console.error('Failed to save document:', error)
     ElMessage.error(error.message || t('document.saveError'))
   } finally {
     manageSubmitLoading.value = false
+  }
+}
+
+const handleReindexDoc = async (doc: any) => {
+  if (!doc?.id) return
+  setIndexingDoc(doc.id, true)
+  try {
+    const result = await indexRagDocument(doc.id)
+    if (result.status === 'SUCCESS') {
+      ElMessage.success(result.message || 'RAG index updated.')
+    } else {
+      ElMessage.warning(result.message || 'RAG index task did not complete successfully.')
+    }
+    await fetchRagIndexStatus()
+    if (chunkDialogVisible.value && chunkDoc.value?.id === doc.id) {
+      await loadDocumentChunks(doc)
+    }
+  } catch (error: any) {
+    console.error('Failed to reindex document:', error)
+    ElMessage.error(error.message || 'Failed to reindex document.')
+  } finally {
+    setIndexingDoc(doc.id, false)
+  }
+}
+
+const openChunksDialog = async (doc: any) => {
+  chunkDoc.value = doc
+  chunkDialogVisible.value = true
+  await loadDocumentChunks(doc)
+}
+
+const loadDocumentChunks = async (doc: any) => {
+  if (!doc?.id) return
+  chunkLoading.value = true
+  try {
+    selectedChunks.value = await getRagDocumentChunks(doc.id)
+  } catch (error: any) {
+    console.error('Failed to load document chunks:', error)
+    selectedChunks.value = []
+    ElMessage.error(error.message || 'Failed to load document chunks.')
+  } finally {
+    chunkLoading.value = false
   }
 }
 
@@ -797,7 +980,7 @@ const handleDeleteDoc = (doc: any) => {
     try {
       await deleteDocument(doc.id)
       ElMessage.success(t('document.deleteSuccess'))
-      fetchDocuments()
+      await fetchDocuments()
     } catch (error: any) {
       console.error('Failed to delete document:', error)
       ElMessage.error(error.message || t('document.deleteError'))
@@ -1790,6 +1973,83 @@ watch(
 .icon-action-btn.delete:hover {
   background: #ffe4e6 !important;
   color: #e11d48 !important;
+}
+
+.icon-action-btn.index:hover,
+.icon-action-btn.chunks:hover {
+  background: #e0f2fe !important;
+  color: #0369a1 !important;
+}
+
+.rag-index-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rag-index-badge.indexed {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.chunk-loading,
+.chunk-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 120px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.chunk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.chunk-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.chunk-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chunk-vector {
+  margin-bottom: 8px;
+  color: #64748b;
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.chunk-text {
+  margin: 0;
+  color: #1f2937;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 
 .markdown-editor :deep(.el-textarea__inner) {

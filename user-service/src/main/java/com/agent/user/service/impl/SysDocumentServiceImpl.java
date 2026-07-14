@@ -7,6 +7,7 @@ import com.agent.user.entity.SysNotification;
 import com.agent.user.mapper.SysDocumentMapper;
 import com.agent.user.mapper.UserMapper;
 import com.agent.user.mapper.SysNotificationMapper;
+import com.agent.user.service.RagIndexSyncClient;
 import com.agent.user.service.SysDocumentService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,6 +36,9 @@ public class SysDocumentServiceImpl implements SysDocumentService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private RagIndexSyncClient ragIndexSyncClient;
 
     @Override
     public List<DocumentResponse> listDocumentsForUser(Long userId) {
@@ -139,6 +143,7 @@ public class SysDocumentServiceImpl implements SysDocumentService {
         
         document.setCreateTime(LocalDateTime.now());
         documentMapper.insert(document);
+        ragIndexSyncClient.indexDocumentAfterCommit(document.getId());
     }
 
     @Override
@@ -176,6 +181,7 @@ public class SysDocumentServiceImpl implements SysDocumentService {
         existing.setDeptId(document.getDeptId());
         
         documentMapper.updateById(existing);
+        ragIndexSyncClient.indexDocumentAfterCommit(existing.getId());
     }
 
     @Override
@@ -209,5 +215,6 @@ public class SysDocumentServiceImpl implements SysDocumentService {
         }
         
         documentMapper.deleteById(id);
+        ragIndexSyncClient.deleteDocumentIndexAfterCommit(id);
     }
 }
