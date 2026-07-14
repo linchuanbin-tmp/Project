@@ -86,6 +86,13 @@ try {
     } else {
         Write-WarnLine "Embedding provider is mock; retrieval flow is verified, semantic quality is not final."
     }
+    Assert-Condition ($health.llmProvider -in @("mock", "http")) "LLM provider is recognized: $($health.llmProvider)." "LLM provider is unsupported: $($health.llmProvider)."
+    if ($health.llmProvider -eq "http") {
+        Assert-Condition ($health.llmBaseUrlConfigured -eq $true) "HTTP LLM base URL is configured." "HTTP LLM provider requires RAG_LLM_BASE_URL."
+        Assert-Condition ([string]::IsNullOrWhiteSpace($health.llmModel) -eq $false) "HTTP LLM model is configured: $($health.llmModel)." "HTTP LLM provider requires RAG_LLM_MODEL."
+    } else {
+        Write-WarnLine "LLM provider is mock; generation flow is verified, answer quality is not final."
+    }
 } catch {
     Write-Fail "Health check failed: $($_.Exception.Message)"
 }

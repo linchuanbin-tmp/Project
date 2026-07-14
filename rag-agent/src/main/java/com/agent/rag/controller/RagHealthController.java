@@ -46,6 +46,15 @@ public class RagHealthController {
     @Value("${rag.llm.model:}")
     private String llmModel;
 
+    @Value("${rag.llm.timeout-ms:30000}")
+    private int llmTimeoutMs;
+
+    @Value("${rag.llm.temperature:0.2}")
+    private double llmTemperature;
+
+    @Value("${rag.llm.max-tokens:1200}")
+    private int llmMaxTokens;
+
     @Value("${rag.vector-store.milvus.collection-name:rag_document_chunks}")
     private String milvusCollection;
 
@@ -80,6 +89,9 @@ public class RagHealthController {
         health.put("llmBaseUrlConfigured", StringUtils.hasText(llmBaseUrl));
         health.put("llmApiKeyConfigured", StringUtils.hasText(llmApiKey) && !"your_rag_llm_api_key".equals(llmApiKey));
         health.put("llmModel", llmModel);
+        health.put("llmTimeoutMs", llmTimeoutMs);
+        health.put("llmTemperature", llmTemperature);
+        health.put("llmMaxTokens", llmMaxTokens);
         health.put("chunkSizeTokens", chunkSizeTokens);
         health.put("chunkOverlapTokens", chunkOverlapTokens);
         return health;

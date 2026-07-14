@@ -83,3 +83,12 @@
 - [x] Add clear embedding errors for missing endpoint, empty vector, non-numeric values, HTTP failures, timeouts, and dimension mismatch.
 - [x] Expose embedding, LLM, vector store, chunking, and Milvus configuration in `/rag/health`.
 - [x] Document how to switch from mock embedding to a real embedding service.
+
+## Milestone 11: LLM Provider Hardening
+
+- [x] Add LLM timeout, temperature, and max token configuration.
+- [x] Support OpenAI-like and simple local LLM response shapes.
+- [x] Add clear LLM errors for missing base URL/model, HTTP failures, timeouts, empty responses, and empty answer content.
+- [x] Return `LLM_FALLBACK` with citations and chunks when retrieval succeeds but generation fails.
+- [x] Use an ASCII permission-safe prompt that explicitly forbids blocked document leakage.
+- [x] Document how to switch from mock LLM to a real LLM service.

@@ -41,6 +41,9 @@ embeddingModel
 embeddingTimeoutMs
 llmProvider
 llmApiKeyConfigured
+llmTimeoutMs
+llmTemperature
+llmMaxTokens
 milvusCollection
 vectorMetric
 vectorIndex
@@ -266,3 +269,80 @@ If `RAG_EMBEDDING_PROVIDER=http` but no endpoint is configured, RAG Agent will f
 ```text
 RAG embedding endpoint is not configured.
 ```
+
+## 9. Switching To Real LLM
+
+The default local setup uses mock LLM so the full RAG pipeline can run without paid or private model credentials. To switch to a real OpenAI-compatible chat completion service, update `.env`:
+
+```text
+RAG_LLM_PROVIDER=http
+RAG_LLM_API_KEY=your_real_api_key
+RAG_LLM_BASE_URL=https://your-provider.example.com/v1
+RAG_LLM_MODEL=your-chat-model
+RAG_LLM_TIMEOUT_MS=30000
+RAG_LLM_TEMPERATURE=0.2
+RAG_LLM_MAX_TOKENS=1200
+```
+
+`RAG_LLM_API_KEY` is optional for local services that do not require authentication. If it is set, RAG Agent sends it as a Bearer token.
+
+RAG Agent sends a chat-completions style request:
+
+```json
+{
+  "model": "your-chat-model",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are an enterprise RAG assistant. Answer only from the supplied context and cite sources."
+    },
+    {
+      "role": "user",
+      "content": "permission-safe RAG prompt"
+    }
+  ],
+  "temperature": 0.2,
+  "max_tokens": 1200
+}
+```
+
+Supported response shapes include OpenAI-like responses:
+
+```json
+{
+  "choices": [
+    {
+      "message": {
+        "content": "answer text"
+      }
+    }
+  ]
+}
+```
+
+and simpler local responses:
+
+```json
+{
+  "answer": "answer text"
+}
+```
+
+or:
+
+```json
+{
+  "text": "answer text"
+}
+```
+
+If LLM generation fails after retrieval succeeds, RAG Agent returns:
+
+```text
+status = LLM_FALLBACK
+answer = retrieved permission-safe snippets
+citations = still returned
+chunks = still returned
+```
+
+This lets the frontend still show grounded retrieval evidence while making the generation problem clear.

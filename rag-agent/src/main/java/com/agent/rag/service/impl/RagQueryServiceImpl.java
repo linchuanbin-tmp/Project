@@ -31,6 +31,7 @@ public class RagQueryServiceImpl implements RagQueryService {
 
     private static final String STATUS_SUCCESS = "SUCCESS";
     private static final String STATUS_NO_CONTEXT = "NO_CONTEXT";
+    private static final String STATUS_LLM_FALLBACK = "LLM_FALLBACK";
     private static final String STATUS_FAIL = "FAIL";
 
     private final RagPermissionService ragPermissionService;
@@ -73,7 +74,13 @@ public class RagQueryServiceImpl implements RagQueryService {
             }
 
             List<RagCitation> citations = toCitations(filteredChunks);
-            answer = ragLlmClient.generate(buildPrompt(request.getQuestion(), filteredChunks));
+            try {
+                answer = ragLlmClient.generate(buildSafePrompt(request.getQuestion(), filteredChunks));
+            } catch (Exception llmException) {
+                status = STATUS_LLM_FALLBACK;
+                message = "LLM generation failed; returning permission-safe retrieval context only: " + llmException.getMessage();
+                answer = buildFallbackAnswer(filteredChunks, llmException.getMessage());
+            }
             return buildResponse(
                     traceId,
                     status,
@@ -151,6 +158,46 @@ public class RagQueryServiceImpl implements RagQueryService {
         return prompt.toString();
     }
 
+    private String buildSafePrompt(String question, List<VectorSearchResult> chunks) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("You are an internal enterprise RAG assistant. Follow these rules strictly:\n");
+        prompt.append("1. Answer only from the supplied permission-safe context. Do not invent facts outside the context.\n");
+        prompt.append("2. If the context is insufficient, clearly say that the answer cannot be confirmed from accessible documents.\n");
+        prompt.append("3. Cite the source number after relevant claims, for example [1].\n");
+        prompt.append("4. Never mention or infer content from blocked or inaccessible documents.\n\n");
+        prompt.append("User question:\n").append(question).append("\n\n");
+        prompt.append("Permission-safe context:\n");
+
+        int index = 1;
+        for (VectorSearchResult chunk : chunks) {
+            prompt.append("[").append(index).append("] ");
+            prompt.append("documentId=").append(chunk.getDocumentId());
+            prompt.append(", chunkId=").append(chunk.getChunkId());
+            prompt.append(", chunkIndex=").append(chunk.getChunkIndex());
+            prompt.append(", securityLevel=").append(chunk.getSecurityLevel());
+            prompt.append("\n");
+            prompt.append(chunk.getChunkText()).append("\n\n");
+            index++;
+        }
+        return prompt.toString();
+    }
+
+    private String buildFallbackAnswer(List<VectorSearchResult> chunks, String reason) {
+        StringBuilder answer = new StringBuilder();
+        answer.append("LLM generation is currently unavailable, so only retrieved permission-safe context is returned.\n");
+        answer.append("Reason: ").append(reason).append("\n\n");
+        int index = 1;
+        for (VectorSearchResult chunk : chunks) {
+            answer.append("[").append(index).append("] ");
+            answer.append("documentId=").append(chunk.getDocumentId());
+            answer.append(", chunkId=").append(chunk.getChunkId());
+            answer.append(", chunkIndex=").append(chunk.getChunkIndex()).append("\n");
+            answer.append(snippet(chunk.getChunkText())).append("\n\n");
+            index++;
+        }
+        return answer.toString().trim();
+    }
+
     private List<RagCitation> toCitations(List<VectorSearchResult> chunks) {
         return chunks.stream()
                 .map(chunk -> RagCitation.builder()
@@ -211,7 +258,7 @@ public class RagQueryServiceImpl implements RagQueryService {
         log.setTopK(topK);
         log.setLatencyMs(latencyMs(startedAt));
         log.setStatus(status);
-        log.setErrorMsg(STATUS_FAIL.equals(status) ? errorMessage : null);
+        log.setErrorMsg((STATUS_FAIL.equals(status) || STATUS_LLM_FALLBACK.equals(status)) ? errorMessage : null);
         log.setCreateTime(LocalDateTime.now());
         ragQueryLogMapper.insert(log);
     }

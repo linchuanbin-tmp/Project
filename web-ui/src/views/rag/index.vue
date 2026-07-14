@@ -542,6 +542,7 @@ const statusTagType = (status?: string) => {
   if (status === 'SUCCESS') return 'success'
   if (status === 'FAIL') return 'danger'
   if (status === 'RUNNING') return 'warning'
+  if (status === 'LLM_FALLBACK') return 'warning'
   if (status === 'NO_CONTEXT') return 'info'
   return ''
 }
