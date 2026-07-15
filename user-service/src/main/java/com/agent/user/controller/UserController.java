@@ -3,6 +3,7 @@ package com.agent.user.controller;
 import com.agent.user.dto.*;
 import com.agent.user.entity.User;
 import com.agent.user.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -38,13 +39,30 @@ public class UserController {
     }
 
     @PostMapping("/send-code")
-    public Result<String> sendVerificationCode(@Valid @RequestBody SendCodeRequest request) {
+    public Result<String> sendVerificationCode(@Valid @RequestBody SendCodeRequest request,
+                                               HttpServletRequest servletRequest) {
         try {
-            userService.sendVerificationCode(request.getEmail());
+            String clientIp = getClientIp(servletRequest);
+            userService.sendVerificationCode(request.getEmail(), clientIp);
             return Result.success("Verification code sent");
         } catch (RuntimeException e) {
             return Result.error(400, e.getMessage());
         }
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        // X-Forwarded-For may contain multiple IPs, take the first
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip != null ? ip : "unknown";
     }
 
     @PostMapping("/register")

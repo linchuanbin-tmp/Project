@@ -36,23 +36,70 @@ public class EmailService {
             headers.setBearerAuth(resendApiKey);
 
             String htmlContent = """
-                    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-                        <div style="background: #111827; padding: 24px; border-radius: 12px 12px 0 0;">
-                            <h1 style="color: #fff; margin: 0; font-size: 20px;">BankAgent</h1>
-                        </div>
-                        <div style="background: #fff; padding: 32px 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-                            <h2 style="color: #111827; font-size: 18px; margin: 0 0 8px;">Verification Code</h2>
-                            <p style="color: #6b7280; font-size: 14px; margin: 0 0 24px;">
-                                Use the code below to complete your action. This code is valid for <strong>5 minutes</strong>.
-                            </p>
-                            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 24px;">
-                                <span style="font-size: 32px; font-weight: 700; color: #111827; letter-spacing: 8px;">%s</span>
-                            </div>
-                            <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-                                If you did not request this code, please ignore this email.
-                            </p>
-                        </div>
-                    </div>
+                    <!DOCTYPE html>
+                    <html>
+                    <head><meta charset="utf-8"></head>
+                    <body style="margin:0;padding:24px 16px;">
+                    <table width="100%%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td>
+                          <table width="100%%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;max-width:440px;margin:0 auto;">
+                            <tr>
+                              <td style="padding:40px 32px 36px;">
+                                <table width="100%%" cellpadding="0" cellspacing="0">
+                                  <!-- Brand -->
+                                  <tr>
+                                    <td style="color:#64748b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:15px;font-weight:500;letter-spacing:0.5px;padding-bottom:32px;">BankAgent</td>
+                                  </tr>
+                                  <!-- Title -->
+                                  <tr>
+                                    <td style="color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:26px;font-weight:700;line-height:1.2;padding-bottom:12px;">Your verification code</td>
+                                  </tr>
+                                  <!-- Description -->
+                                  <tr>
+                                    <td style="color:#64748b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.6;padding-bottom:32px;">
+                                      Use the code below to complete your action. This code is valid for <strong style="color:#334155;">5 minutes</strong>.
+                                    </td>
+                                  </tr>
+                                  <!-- Code box -->
+                                  <tr>
+                                    <td align="center" style="padding-bottom:32px;">
+                                      <table cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;width:100%%;">
+                                        <tr>
+                                          <td align="center" style="padding:28px 24px;">
+                                            <span style="font-family:'SF Mono','Fira Code','Fira Mono','Cascadia Code','Consolas','Monaco','Courier New',monospace;font-size:38px;font-weight:700;color:#0f172a;letter-spacing:14px;line-height:1;">%s</span>
+                                          </td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                  <!-- Footnote -->
+                                  <tr>
+                                    <td style="color:#475569;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;line-height:1.5;padding-bottom:28px;">
+                                      If you did not request this code, please ignore this email.
+                                    </td>
+                                  </tr>
+                                  <!-- Divider -->
+                                  <tr>
+                                    <td style="padding-bottom:20px;">
+                                      <table width="100%%" cellpadding="0" cellspacing="0">
+                                        <tr><td style="border-top:1px solid #f1f5f9;"></td></tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                  <!-- Footer -->
+                                  <tr>
+                                    <td style="color:#94a3b8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:12px;">BankAgent Team &copy; 2026</td>
+                                  </tr>
+                                </table>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                    </body>
+                    </html>
                     """.formatted(code);
 
             ResendEmailRequest request = new ResendEmailRequest();

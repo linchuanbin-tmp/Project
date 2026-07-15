@@ -39,9 +39,13 @@ public class UserServiceImpl implements UserService {
     private static final String REDIS_KEY_SESSION_TIMEOUT = "sys:config:session_timeout";
     private static final String EMAIL_CODE_PREFIX          = "email:code:";
     private static final String EMAIL_CODE_LIMIT_PREFIX    = "email:code:limit:";
+    private static final String EMAIL_IP_LIMIT_PREFIX      = "email:ip:limit:";
+    private static final String EMAIL_DAILY_LIMIT_PREFIX   = "email:daily:limit:";
     private static final long   DEFAULT_SESSION_TIMEOUT   = 30L;
     private static final long   CODE_TTL_MINUTES           = 5L;
     private static final long   CODE_LIMIT_SECONDS         = 60L;
+    private static final int    MAX_PER_IP_PER_HOUR        = 5;
+    private static final int    MAX_PER_EMAIL_PER_DAY      = 10;
 
     @Override
     public LoginResponse login(LoginRequest request) {
@@ -141,18 +145,42 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void sendVerificationCode(String email) {
-        // 限流检查：60秒内不允许重复发送
+    public void sendVerificationCode(String email, String clientIp) {
+        // 1. Per-email rate limit: max 1 request per 60 seconds
         String limitKey = EMAIL_CODE_LIMIT_PREFIX + email;
-        String existingLimit = redisTemplate.opsForValue().get(limitKey);
-        if (existingLimit != null) {
-            throw new RuntimeException("发送过于频繁，请60秒后再试");
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(limitKey))) {
+            throw new RuntimeException("Please wait 60 seconds before requesting another code");
         }
 
-        // 生成6位随机验证码
+        // 2. IP-level rate limit: max N requests per hour per IP
+        String ipLimitKey = EMAIL_IP_LIMIT_PREFIX + clientIp;
+        Long ipCount = redisTemplate.opsForValue().increment(ipLimitKey);
+        // Set TTL on first request from this IP
+        if (ipCount != null && ipCount == 1) {
+            redisTemplate.expire(ipLimitKey, 1, TimeUnit.HOURS);
+        }
+        if (ipCount != null && ipCount > MAX_PER_IP_PER_HOUR) {
+            throw new RuntimeException("Too many requests from this IP, please try again later");
+        }
+
+        // 3. Per-email daily limit: max N requests per email per day
+        String dailyLimitKey = EMAIL_DAILY_LIMIT_PREFIX + email;
+        Long dailyCount = redisTemplate.opsForValue().increment(dailyLimitKey);
+        // Set TTL to end of current day on first request
+        if (dailyCount != null && dailyCount == 1) {
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            java.time.LocalDateTime midnight = now.toLocalDate().plusDays(1).atStartOfDay();
+            long secondsUntilMidnight = java.time.Duration.between(now, midnight).getSeconds();
+            redisTemplate.expire(dailyLimitKey, secondsUntilMidnight, TimeUnit.SECONDS);
+        }
+        if (dailyCount != null && dailyCount > MAX_PER_EMAIL_PER_DAY) {
+            throw new RuntimeException("This email has reached the daily verification limit, please try again tomorrow");
+        }
+
+        // Generate 6-digit verification code
         String code = String.format("%06d", (int)(Math.random() * 1000000));
 
-        // 存入 Redis：有效期5分钟
+        // Store code in Redis with 5-minute TTL
         redisTemplate.opsForValue().set(
                 EMAIL_CODE_PREFIX + email,
                 code,
@@ -160,7 +188,7 @@ public class UserServiceImpl implements UserService {
                 TimeUnit.MINUTES
         );
 
-        // 设置发送频率限制：60秒
+        // Set per-email rate limit: 60 seconds
         redisTemplate.opsForValue().set(
                 limitKey,
                 "1",
@@ -168,7 +196,7 @@ public class UserServiceImpl implements UserService {
                 TimeUnit.SECONDS
         );
 
-        // 发送邮件
+        // Send the email
         emailService.sendVerificationCode(email, code);
     }
 

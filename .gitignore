@@ -65,3 +65,4 @@ docs/*
 !docs/RAG_TODO.md
 !docs/RAG_AGENT_RUNBOOK.md
 !docs/file-upload-storage-design.md
+!docs/email-verification-design.md
