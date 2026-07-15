@@ -5,6 +5,11 @@ spring:
   application:
     name: rag-agent
 
+  servlet:
+    multipart:
+      max-file-size: ${RAG_UPLOAD_MAX_FILE_SIZE:50MB}
+      max-request-size: ${RAG_UPLOAD_MAX_REQUEST_SIZE:200MB}
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/agent_platform?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
@@ -29,6 +34,13 @@ mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
 
 rag:
+  storage:
+    provider: ${RAG_STORAGE_PROVIDER:minio}
+    minio:
+      endpoint: ${RAG_MINIO_ENDPOINT:http://localhost:9000}
+      access-key: ${MINIO_ROOT_USER:minioadmin}
+      secret-key: ${MINIO_ROOT_PASSWORD:minioadmin}
+      bucket: ${RAG_DOCUMENT_BUCKET:rag-documents}
   index:
     chunk-size-tokens: ${RAG_CHUNK_SIZE_TOKENS:700}
     chunk-overlap-tokens: ${RAG_CHUNK_OVERLAP_TOKENS:100}

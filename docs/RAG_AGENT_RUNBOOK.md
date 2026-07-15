@@ -291,6 +291,13 @@ python rag-worker\app.py
 
 The first startup downloads `BAAI/bge-m3` and caches it under the Hugging Face cache. BGE-M3 returns 1024-dimensional vectors.
 
+Notes:
+
+- Keep the worker terminal open while using RAG.
+- `GET /health` does not load the model. The model loads lazily on the first `/embed` request.
+- `HF_TOKEN` is optional. Set it only if Hugging Face rate limits or slows downloads.
+- Windows symlink cache warnings from `huggingface_hub` are harmless; caching still works, but may use more disk space.
+
 Use this local Java configuration:
 
 ```text
@@ -403,3 +410,81 @@ chunks = still returned
 ```
 
 This lets the frontend still show grounded retrieval evidence while making the generation problem clear.
+
+## 10. Knowledge Base And Upload Storage
+
+The first knowledge-base storage layer is now split into three places:
+
+- MySQL `rag_knowledge_base`: knowledge base metadata, owner, department scope, default security level, document/chunk counters.
+- MySQL `rag_source_document`: uploaded source document metadata, file hash, MinIO object key, parser status, index status, and optional parsed text cache.
+- MinIO `rag-documents`: original uploaded files, including PDF, Word, PowerPoint, text, and other binary files.
+
+Current upload behavior:
+
+- Plain text-like files (`txt`, `md`, `csv`, `json`, `yaml`, `sql`, `log`, or `text/*`) are parsed immediately as UTF-8 text.
+- Parsed text files are also mirrored into `sys_document`, so the existing `/rag/index/document/{documentId}` flow can index them without a large migration.
+- PDF, Word, and PowerPoint files are stored in MinIO and recorded in `rag_source_document` with `parser_status=PARSE_PENDING` and `index_status=PARSE_PENDING`.
+- The next parser step should extract text from PDF/DOCX/PPTX, fill `parsed_text`, create or update the linked `sys_document`, then trigger chunking and vector indexing.
+
+Useful local configuration:
+
+```text
+RAG_STORAGE_PROVIDER=minio
+RAG_MINIO_ENDPOINT=http://localhost:9000
+RAG_DOCUMENT_BUCKET=rag-documents
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin
+```
+
+Use Docker Compose configuration when `rag-agent` runs inside Docker:
+
+```text
+RAG_STORAGE_PROVIDER=minio
+RAG_MINIO_ENDPOINT=http://minio:9000
+RAG_DOCUMENT_BUCKET=rag-documents
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin
+```
+
+Core APIs:
+
+```http
+GET    /rag/kb
+POST   /rag/kb
+PUT    /rag/kb/{kbId}
+DELETE /rag/kb/{kbId}
+GET    /rag/kb/{kbId}/documents
+POST   /rag/kb/{kbId}/documents/upload
+DELETE /rag/kb/{kbId}/documents/{documentId}
+```
+
+Create a knowledge base:
+
+```powershell
+$kbBody = @{
+  name = "Credit Knowledge Base"
+  description = "Credit department policy and operating documents"
+  deptId = 1
+  visibility = "DEPARTMENT"
+  securityLevel = 2
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Uri "http://localhost:8085/rag/kb" `
+  -Method Post `
+  -Headers @{
+    "Content-Type" = "application/json"
+    "X-User-Name" = "admin"
+  } `
+  -Body $kbBody
+```
+
+Upload documents:
+
+```powershell
+curl.exe -X POST "http://localhost:8085/rag/kb/1/documents/upload" `
+  -H "X-User-Name: admin" `
+  -F "files=@docs/RAG_AGENT_RUNBOOK.md" `
+  -F "deptId=1" `
+  -F "securityLevel=2"
+```
