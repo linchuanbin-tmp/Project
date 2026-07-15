@@ -43,7 +43,7 @@ watch(
   background: #f0f2f5;
   overflow: hidden;
   position: relative;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif;
 }
 
 /* Subtle ambient orbs (replaces the per-page radial gradients) */

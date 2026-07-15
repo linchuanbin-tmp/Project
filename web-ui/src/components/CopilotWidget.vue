@@ -68,6 +68,17 @@
                   <div v-if="msg.metadata.hasConflict !== undefined" class="conflict-result">
                     <div class="conflict-alert" :class="msg.metadata.hasConflict ? 'warning' : 'success'">{{ msg.metadata.message }}</div>
                   </div>
+                  <div v-if="msg.metadata.answer !== undefined" class="rag-summary-card">
+                    <div class="rag-summary-stats">
+                      <span v-if="msg.metadata.citations && msg.metadata.citations.length > 0" class="rag-stat">
+                        {{ msg.metadata.citations.length }} citations
+                      </span>
+                      <span v-if="msg.metadata.blockedDocumentIds && msg.metadata.blockedDocumentIds.length > 0" class="rag-stat rag-stat-blocked">
+                        {{ msg.metadata.blockedDocumentIds.length }} blocked
+                      </span>
+                    </div>
+                    <button class="rag-view-detail-btn" @click="openRagDetail">{{ t('copilot.viewDetails') }}</button>
+                  </div>
                 </div>
 
                 <div class="message-time" :class="msg.role">{{ formatTime(msg.timestamp) }}</div>
@@ -322,6 +333,15 @@ const handleTaskCompleted = async (dbTaskId: number | null, queryText: string, t
       : `很抱歉，在指定时间段内未找到符合条件的会议室。您可以在左侧面板手动调整筛选。`
   } else if (parsedOutput.hasConflict !== undefined) {
     contentMessage = `日程冲突检测完成：${parsedOutput.message || (parsedOutput.hasConflict ? '发现冲突日程。' : '未发现时间冲突。')}。`
+  } else if (parsedOutput.answer !== undefined) {
+    // RAG result — show answer as content, store full result, then redirect to RAG page
+    contentMessage = parsedOutput.answer
+    localStorage.setItem('copilot_pending_rag_result', JSON.stringify({
+      query: queryText,
+      result: parsedOutput,
+      timestamp: Date.now()
+    }))
+    router.push('/app/rag')
   } else {
     contentMessage = t('tool.ai.complete')
   }
@@ -335,6 +355,10 @@ const handleTaskCompleted = async (dbTaskId: number | null, queryText: string, t
   isExecuting.value = false
   stopThinkingTimer()
   scrollToBottom()
+}
+
+const openRagDetail = () => {
+  router.push('/app/rag')
 }
 
 const runAgentWebSocket = async (queryText: string, taskType: string = 'TOOL') => {
@@ -503,20 +527,18 @@ const submitQuery = async () => {
         await router.push('/app/code')
       }
     } else {
-      isExecuting.value = false
-      stopThinkingTimer()
-      messages.value.push({ role: 'assistant', content: t('copilot.routingToDocs'), timestamp: Date.now() })
+      // RAG — submit to task-service, get answer inline via WebSocket
+      messages.value.push({ role: 'assistant', content: t('copilot.processingRag'), timestamp: Date.now() })
       saveHistory(); scrollToBottom()
-      await router.push({ path: '/app/rag', query: { query: queryToSend } })
+      runAgentWebSocket(queryToSend, 'RAG')
     }
   } catch (e) {
     console.error('Copilot classification error:', e)
     isExecuting.value = false
     stopThinkingTimer()
     sessionContextQuery.value = ''
-    messages.value.push({ role: 'assistant', content: t('copilot.routingFailedFallback'), timestamp: Date.now() })
+    messages.value.push({ role: 'assistant', content: t('copilot.ragError'), timestamp: Date.now() })
     saveHistory(); scrollToBottom()
-    await router.push({ path: '/app/rag', query: { query } })
   }
 }
 
@@ -554,7 +576,7 @@ onUnmounted(() => {
   bottom: 24px;
   right: 24px;
   z-index: 2000;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif;
 }
 
 /* ── Morphing shell ──────────────────────────── */
@@ -585,7 +607,6 @@ onUnmounted(() => {
   background: #ffffff;
   border: 1px solid #f1f5f9;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.02);
-  transition: box-shadow 0.6s ease;
 }
 
 .copilot-container.open .copilot-shell.executing {
@@ -842,6 +863,45 @@ onUnmounted(() => {
 .conflict-alert.warning { background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
 .conflict-alert.success { background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
 
+/* ── RAG Summary Card ───────────────────────── */
+.rag-summary-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.rag-summary-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+}
+
+.rag-stat {
+  color: #94a3b8;
+}
+
+.rag-stat-blocked {
+  color: #f59e0b;
+}
+
+.rag-view-detail-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 3px 0;
+  font-size: 12px;
+  color: #4f46e5;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  font-weight: 500;
+}
+
+.rag-view-detail-btn:hover {
+  opacity: 0.7;
+}
+
 .thinking-row {
   display: flex;
   align-items: center;
@@ -1012,7 +1072,7 @@ onUnmounted(() => {
   font-size: 13.5px;
   color: #111827;
   resize: none;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif;
   line-height: 1.5;
   padding: 0;
 }

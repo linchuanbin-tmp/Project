@@ -680,7 +680,7 @@ onMounted(async () => {
 
 <style scoped>
 .resource-management {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif;
   max-width: 1200px;
   padding: 16px 0;
 }

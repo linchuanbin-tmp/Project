@@ -308,7 +308,7 @@ const handleCommand = (command: string) => {
 <style scoped>
 .main-layout {
   height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif;
 }
 
 /* ── 侧边栏 ───────────────────────────────────── */
@@ -800,7 +800,7 @@ const handleCommand = (command: string) => {
   border-radius: 8px !important;
   padding: 8px 12px !important;
   line-height: 1.4 !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif !important;
 }
 
 .el-dropdown-menu__item:hover {

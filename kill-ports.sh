@@ -12,7 +12,8 @@
 # 8084: Code Agent
 # 8085: RAG Agent
 # 8090: Code Agent Python (infer_server)
-PORTS=(3000 8080 8081 8082 8083 8084 8085 8090)
+# 8091: RAG Worker (embedding)
+PORTS=(3000 8080 8081 8082 8083 8084 8085 8090 8091)
 
 echo "🔍 正在检查本地开发端口占用情况..."
 
@@ -33,7 +34,7 @@ for PORT in "${PORTS[@]}"; do
 done
 
 # 停止本地 docker compose 基础设施
-echo "🐳 正在停止本地 Docker 数据库与缓存容器 (MySQL + Redis)..."
-docker compose stop mysql redis 2>/dev/null
+echo "🐳 正在停止本地 Docker 容器 (MySQL + Redis + Milvus + MinIO + RAG Worker)..."
+docker compose stop mysql redis milvus minio rag-worker 2>/dev/null
 
-echo "🎉 所有端口冲突已清理完毕！您可以重新运行 bash dev.sh 启动开发环境了。"
+echo "🎉 所有端口冲突已清理完毕！您可以重新运行 bash mydev.sh 启动开发环境了。"

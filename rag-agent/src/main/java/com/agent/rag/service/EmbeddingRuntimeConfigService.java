@@ -126,20 +126,27 @@ public class EmbeddingRuntimeConfigService {
         }
 
         String previous = getActiveProfileId();
-        upsertConfig(ACTIVE_PROFILE_KEY, normalized, "Active RAG embedding profile");
-        upsertConfig(indexStatusKey(normalized), STATUS_REBUILD_REQUIRED,
-                "RAG embedding index status for " + normalized);
-        log.info("Activated RAG embedding profile: {} (previous: {})", normalized, previous);
-
         boolean changed = !Objects.equals(previous, normalized);
+
+        if (changed) {
+            // Only persist the switch and reset index status when the profile actually changes.
+            // Clicking Save on the same profile should be a no-op that preserves the current index status.
+            upsertConfig(ACTIVE_PROFILE_KEY, normalized, "Active RAG embedding profile");
+            upsertConfig(indexStatusKey(normalized), STATUS_REBUILD_REQUIRED,
+                    "RAG embedding index status for " + normalized);
+        }
+        log.info("Activated RAG embedding profile: {} (previous: {}, changed: {})", normalized, previous, changed);
+
+        String status = changed ? STATUS_REBUILD_REQUIRED : getIndexStatus(normalized);
+        boolean rebuildRequired = !STATUS_READY.equalsIgnoreCase(status);
         return EmbeddingProfileActivationResponse.builder()
                 .activeProfileId(normalized)
                 .previousProfileId(previous)
-                .indexStatus(STATUS_REBUILD_REQUIRED)
-                .rebuildRequired(true)
+                .indexStatus(status)
+                .rebuildRequired(rebuildRequired)
                 .message(changed
                         ? "Embedding profile activated. Rebuild the RAG index before querying."
-                        : "Embedding profile remains active. Rebuild is still required for this profile.")
+                        : "Embedding profile unchanged. Index status: " + status + ".")
                 .build();
     }
 

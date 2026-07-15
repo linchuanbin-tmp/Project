@@ -45,3 +45,8 @@ export const handleAction = (data: {
 export const getUsers = () => {
     return request.get('/user/list')
 }
+
+// Fetch all administrators (any authenticated user can call)
+export const getAdmins = () => {
+    return request.get('/user/admins')
+}

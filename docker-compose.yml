@@ -214,8 +214,6 @@ services:
         condition: service_healthy
 
   rag-worker:
-    profiles:
-      - rag-worker
     build:
       context: .
       dockerfile: rag-worker/Dockerfile
@@ -322,6 +320,8 @@ services:
       redis:
         condition: service_healthy
       milvus:
+        condition: service_healthy
+      rag-worker:
         condition: service_healthy
 
   gateway-service:

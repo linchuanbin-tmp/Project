@@ -55,8 +55,7 @@
                     <FileText v-else-if="isDocx(doc)" :size="18" />
                     <MonitorPlay v-else :size="18" />
                   </div>
-                  <div class="header-right-side" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
-                    <span class="security-badge global">{{ $t('document.global') }}</span>
+                  <div class="header-right-side">
                     <el-tooltip :content="$t('document.ragInfoTooltip')" placement="top">
                       <el-button class="icon-action-btn rag-info" :class="{ indexed: getDocIndexStatus(doc)?.indexed }" @click.stop="openRagInfoDialog(doc)">
                         <Database :size="12" />
@@ -77,6 +76,9 @@
                 <div class="card-body">
                   <h3 class="doc-title">{{ doc.title }}</h3>
                   <p class="doc-excerpt">{{ doc.content || $t('document.openAccessDesc') }}</p>
+                </div>
+                <div class="card-footer-tags">
+                  <span class="security-badge global">{{ $t('document.global') }}</span>
                 </div>
                 <div class="card-footer">
                   <span class="doc-date">{{ $t('document.created') }}: {{ formatDate(doc.createTime) }}</span>
@@ -110,15 +112,13 @@
           </template>
 
           <div class="tab-content-inner">
-            <!-- Case: Regular user with no department -->
-            <div v-if="!userStore.userInfo?.deptId && !isAdmin" class="empty-state-box">
-              <Briefcase :size="48" class="empty-icon text-rose" />
-              <h3>{{ $t('document.noDeptAssigned') }}</h3>
-              <p>{{ $t('document.noDeptAssignedDesc') }}</p>
+            <!-- Info banner for users without a department -->
+            <div v-if="!userStore.userInfo?.deptId && !isAdmin" class="no-dept-banner">
+              <ShieldAlert :size="16" />
+              <span>{{ $t('document.noDeptBanner') }}</span>
             </div>
 
-            <template v-else>
-              <div v-if="filteredDeptDocs.length === 0 && !loading" class="empty-state-box">
+            <div v-if="filteredDeptDocs.length === 0 && !loading" class="empty-state-box">
                 <FolderOpen :size="48" class="empty-icon" />
                 <h3>{{ $t('document.emptyDeptLib') }}</h3>
                 <p>{{ $t('document.emptyDeptLibDesc', { dept: userStore.userInfo?.deptName }) }}</p>
@@ -139,12 +139,8 @@
                       <FileText v-else-if="isDocx(doc)" :size="18" />
                       <MonitorPlay v-else :size="18" />
                     </div>
-                    <div class="header-right-side" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
-                      <span class="dept-badge" v-if="doc.deptId">{{ getDeptName(doc.deptId) }}</span>
-                      <span class="security-badge" :class="'level-' + doc.securityLevel">
-                        Level-{{ doc.securityLevel }} ({{ getClearanceLabel(doc.securityLevel) }})
-                      </span>
-                      <el-tooltip :content="$t('document.ragInfoTooltip')" placement="top">
+                    <div class="header-right-side">
+                      <el-tooltip v-if="doc.accessible" :content="$t('document.ragInfoTooltip')" placement="top">
                         <el-button class="icon-action-btn rag-info" :class="{ indexed: getDocIndexStatus(doc)?.indexed }" @click.stop="openRagInfoDialog(doc)">
                           <Database :size="12" />
                         </el-button>
@@ -161,12 +157,18 @@
                       </el-tooltip>
                     </div>
                   </div>
-                  <div class="card-body">
-                    <h3 class="doc-title">{{ doc.title }}</h3>
-                    <p class="doc-excerpt" v-if="doc.accessible">{{ doc.content || '' }}</p>
-                    <p class="doc-excerpt restricted-text" v-else>
-                      {{ $t('document.restrictedAccessDesc', { level: doc.securityLevel }) }}
-                    </p>
+                <div class="card-body">
+                  <h3 class="doc-title">{{ doc.title }}</h3>
+                  <p class="doc-excerpt" v-if="doc.accessible">{{ doc.content || '' }}</p>
+                  <p class="doc-excerpt restricted-text" v-else>
+                    {{ $t('document.restrictedAccessDesc', { level: doc.securityLevel }) }}
+                  </p>
+                </div>
+                  <div class="card-footer-tags">
+                    <span class="dept-badge" v-if="doc.deptId">{{ getDeptName(doc.deptId) }}</span>
+                    <span class="security-badge" :class="'level-' + doc.securityLevel">
+                      Level-{{ doc.securityLevel }} ({{ getClearanceLabel(doc.securityLevel) }})
+                    </span>
                   </div>
                   <div class="card-footer">
                     <span class="doc-date">{{ $t('document.created') }}: {{ formatDate(doc.createTime) }}</span>
@@ -193,7 +195,6 @@
                   </div>
                 </div>
               </div>
-            </template>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -316,7 +317,7 @@
               </div>
               <div class="meta-row">
                 <span class="lbl">{{ $t('document.requiredClearance') }}:</span>
-                <span class="val text-red">Level-{{ selectedDoc.securityLevel }} ({{ getClearanceLabel(selectedDoc.securityLevel) }})</span>
+                <span class="val text-red">L{{ selectedDoc.securityLevel }}</span>
               </div>
               <div class="meta-row">
                 <span class="lbl">{{ $t('document.yourClearance') }}:</span>
@@ -1150,6 +1151,14 @@ const getDeptName = (deptId: number | null | undefined) => {
   return dept?.deptName || ''
 }
 
+const getDeptAbbr = (deptId: number | null | undefined) => {
+  const name = getDeptName(deptId)
+  if (!name) return ''
+  const words = name.replace(/[^\w\u4e00-\u9fff]/g, ' ').split(/\s+/).filter(Boolean)
+  if (words.length >= 2) return words.map(w => w[0]).join('').toUpperCase().slice(0, 4)
+  return name.slice(0, 3).toUpperCase()
+}
+
 const iconBoxClass = (doc: any) => ({
   'system': isMarkdown(doc),
   'pdf-file': isPdf(doc),
@@ -1303,7 +1312,7 @@ watch(
 
 <style scoped>
 .documents-page {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif;
   padding: 16px 0;
   max-width: 1200px;
   margin: 0 auto;
@@ -1588,6 +1597,23 @@ watch(
   white-space: nowrap;
 }
 
+/* Top-right: buttons only */
+.header-right-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Bottom-left: tags row */
+.card-footer-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
 .security-badge.global {
   background: #f0fdfa;
   color: #0d9488;
@@ -1720,6 +1746,27 @@ watch(
   line-height: 1.5;
   margin: 0;
   color: #94a3b8;
+}
+
+/* No-department info banner */
+.no-dept-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #92400e;
+  line-height: 1.5;
+}
+
+.no-dept-banner :deep(svg) {
+  flex-shrink: 0;
+  color: #f59e0b;
 }
 
 /* ── IMMERSIVE FULL-SCREEN ZEN READER OVERLAY ── */

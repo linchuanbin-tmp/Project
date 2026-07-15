@@ -542,7 +542,7 @@ onMounted(() => {
 
 <style scoped>
 .user-management {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif;
   max-width: 1200px;
   padding: 16px 0;
 }
@@ -628,23 +628,31 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   border: 1px solid #e5e7eb;
+  flex-shrink: 0;
 }
 
 .name-details {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .real-name {
   font-size: 14px;
   font-weight: 600;
   color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .username {
   font-size: 12px;
   color: #9ca3af;
   margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dept-text {

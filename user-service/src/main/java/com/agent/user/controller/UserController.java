@@ -163,6 +163,15 @@ public class UserController {
         return Result.success(List.of());
     }
 
+    @GetMapping("/admins")
+    public Result<List<UserResponse>> listAdmins() {
+        List<UserResponse> allUsers = userService.listUsers();
+        List<UserResponse> admins = allUsers.stream()
+                .filter(u -> u.getRoles() != null && u.getRoles().contains("ROLE_ADMIN"))
+                .toList();
+        return Result.success(admins);
+    }
+
     @GetMapping("/dept/list")
     public Result<List<com.agent.user.entity.SysDepartment>> listDepartments() {
         return Result.success(sysDepartmentMapper.selectList(null));

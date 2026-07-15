@@ -417,10 +417,10 @@ public class UserServiceImpl implements UserService {
         }
 
         List<SysRole> roles = sysRoleMapper.selectRolesByUserId(user.getId());
-        List<String> roleNames = roles.stream()
-                .map(SysRole::getRoleName)
+        List<String> roleCodes = roles.stream()
+                .map(SysRole::getRoleCode)
                 .collect(Collectors.toList());
-        response.setRoles(roleNames);
+        response.setRoles(roleCodes);
 
         return response;
     }

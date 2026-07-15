@@ -10,7 +10,7 @@
           <RefreshCw :size="14" :class="{ spin: refreshing }" />
           Refresh
         </el-button>
-        <el-button class="btn-primary" :loading="rebuilding" @click="handleRebuild">
+        <el-button v-if="isAdmin" class="btn-primary" :loading="rebuilding" @click="handleRebuild">
           <RotateCcw :size="14" :class="{ spin: rebuilding }" />
           Rebuild Index
         </el-button>
@@ -19,6 +19,12 @@
 
     <div class="workspace-grid">
       <main class="query-workspace">
+        <!-- No accessible documents banner -->
+        <div v-if="!documentsLoading && !hasAccessibleDocs" class="no-access-banner">
+          <ShieldAlert :size="16" />
+          <span>{{ $t('rag.noAccessibleDocs') }}</span>
+        </div>
+
         <div class="premium-card">
           <div class="card-header-simple">
             <span class="card-title-text">
@@ -325,6 +331,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useUserStore } from '@stores/modules/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Activity,
@@ -360,6 +367,10 @@ import {
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const userStore = useUserStore()
+
+const isAdmin = computed(() => userStore.userInfo?.roles?.includes('ROLE_ADMIN') || false)
+const hasAccessibleDocs = computed(() => accessibleDocuments.value.length > 0)
 
 const question = ref('')
 const topK = ref(5)
@@ -580,6 +591,22 @@ const citationKey = (citation: RagCitation) =>
   `${citation.documentId}-${citation.chunkId}-${citation.chunkIndex}`
 
 onMounted(async () => {
+  // Check for Copilot-passed RAG result first
+  const copilotResult = localStorage.getItem('copilot_pending_rag_result')
+  if (copilotResult) {
+    try {
+      const parsed = JSON.parse(copilotResult)
+      if (parsed.result && parsed.query) {
+        question.value = parsed.query
+        response.value = parsed.result
+        // Clear after reading so it doesn't show on next visit
+        localStorage.removeItem('copilot_pending_rag_result')
+        await refreshWorkspace()
+        return
+      }
+    } catch { /* ignore corrupted data */ }
+  }
+
   const initialQuery = route.query.query
   if (typeof initialQuery === 'string' && initialQuery.trim()) {
     question.value = initialQuery
@@ -671,6 +698,26 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* No accessible documents banner */
+.no-access-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #92400e;
+  line-height: 1.5;
+}
+
+.no-access-banner :deep(svg) {
+  flex-shrink: 0;
+  color: #f59e0b;
 }
 
 /* ── Cards ── */

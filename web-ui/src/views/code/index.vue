@@ -475,7 +475,7 @@ onMounted(async () => {
 .sql-generator-container {
   padding: 16px 0;
   max-width: 1200px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif;
 }
 
 .page-header {

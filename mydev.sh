@@ -45,6 +45,16 @@ else
     echo "   ⚠️  DB migration skipped or failed (MySQL may not be ready yet — will retry on service start)."
 fi
 
+
+# ── RAG 补丁表：rag_knowledge_base / rag_source_document ─────────────
+echo "🛠  Running RAG patch (rag_knowledge_base, rag_source_document)..."
+docker exec -i agent_mysql mysql -uroot -p"${DB_PASSWORD:-123456}" "${DB_NAME:-agent_platform}" 2>/dev/null < "$PROJECT_DIR/docker/init/patch_rag_tables.sql"
+if [ $? -eq 0 ]; then
+    echo "   ✅  RAG patch OK — knowledge base tables are ready."
+else
+    echo "   ⚠️  RAG patch skipped or failed."
+fi
+
 # ── 验证 Redis 连通性 ──────────────────────────────────────────────
 echo "🔍 Verifying Redis connectivity..."
 if docker exec agent_redis redis-cli ping 2>/dev/null | grep -q "PONG"; then
@@ -70,7 +80,7 @@ JDK17="export JAVA_HOME=/Users/mitsuhahi/Library/Java/JavaVirtualMachines/ms-17.
 echo "🔧 启动后端服务..."
 open_new_terminal "Gateway (8080)"      "$JDK17 && cd '$PROJECT_DIR/gateway-service'  && mvn spring-boot:run -DskipTests"
 sleep 1
-open_new_terminal "User Service (8081)" "$JDK17 && cd '$PROJECT_DIR/user-service'     && mvn spring-boot:run -DskipTests"
+open_new_terminal "User Service (8081)" "$JDK17 && export RESEND_API_KEY='${RESEND_API_KEY}' && cd '$PROJECT_DIR/user-service'     && mvn spring-boot:run -DskipTests"
 sleep 1
 open_new_terminal "Task Service (8082)" "$JDK17 && cd '$PROJECT_DIR/task-service'     && mvn spring-boot:run -DskipTests"
 sleep 1
@@ -78,12 +88,17 @@ open_new_terminal "Tool Agent (8083)"   "$JDK17 && cd '$PROJECT_DIR/tool-agent' 
 sleep 1
 open_new_terminal "Code Agent (8084)"   "$JDK17 && cd '$PROJECT_DIR/code-agent'       && mvn spring-boot:run -DskipTests"
 sleep 1
-open_new_terminal "RAG Agent (8085)"    "$JDK17 && export RAG_LLM_PROVIDER='${RAG_LLM_PROVIDER}' && export RAG_LLM_API_KEY='${RAG_LLM_API_KEY}' && export RAG_LLM_BASE_URL='${RAG_LLM_BASE_URL}' && export RAG_LLM_MODEL='${RAG_LLM_MODEL}' && export RAG_EMBEDDING_PROVIDER='${RAG_EMBEDDING_PROVIDER}' && export MILVUS_HOST='${MILVUS_HOST:-localhost}' && export MILVUS_PORT='${MILVUS_PORT:-19530}' && cd '$PROJECT_DIR/rag-agent' && mvn spring-boot:run -DskipTests"
+open_new_terminal "RAG Agent (8085)"    "$JDK17 && export RAG_LLM_PROVIDER='${RAG_LLM_PROVIDER}' && export RAG_LLM_API_KEY='${RAG_LLM_API_KEY}' && export RAG_LLM_BASE_URL='${RAG_LLM_BASE_URL}' && export RAG_LLM_MODEL='${RAG_LLM_MODEL}' && export RAG_EMBEDDING_PROVIDER='${RAG_EMBEDDING_PROVIDER}' && export RAG_EMBEDDING_ENDPOINT='${RAG_EMBEDDING_ENDPOINT:-http://localhost:8091/embed}' && export RAG_EMBEDDING_MODEL='${RAG_EMBEDDING_MODEL:-BAAI/bge-m3}' && export RAG_EMBEDDING_DIM='${RAG_EMBEDDING_DIM:-1024}' && export RAG_EMBEDDING_TIMEOUT_MS='${RAG_EMBEDDING_TIMEOUT_MS:-30000}' && export RAG_MILVUS_COLLECTION='${RAG_MILVUS_COLLECTION:-rag_document_chunks_bge_m3}' && export MILVUS_HOST='${MILVUS_HOST:-localhost}' && export MILVUS_PORT='${MILVUS_PORT:-19530}' && cd '$PROJECT_DIR/rag-agent' && mvn spring-boot:run -DskipTests"
 sleep 1
 open_new_terminal "Code Agent Python (8090)" "export DB_PASSWORD='${DB_PASSWORD:-123456}' && export DB_USER='${DB_USERNAME:-root}' && export DEEPSEEK_API_KEY='${DEEPSEEK_API_KEY}' && export DEEPSEEK_OFFICIAL_API_KEY='${DEEPSEEK_OFFICIAL_API_KEY}' && export DEEPSEEK_BASE_URL='${DEEPSEEK_BASE_URL}' && export DEEPSEEK_MODEL='${DEEPSEEK_MODEL}' && cd '$PROJECT_DIR/code-agent/data' && python3 infer_server.py"
 sleep 1
 
-echo "🎨 启动前端..."
+
+echo "🧠 启动 RAG Worker (embedding, 8091)..."
+open_new_terminal "RAG Worker (8091)"   "bash '$PROJECT_DIR/scripts/start-rag-worker.sh'"
+sleep 1
+
+	echo "🎨 启动前端..."
 open_new_terminal "Web UI (3000)"       "cd '$PROJECT_DIR/web-ui' && npm install && npm run dev"
 
 echo ""

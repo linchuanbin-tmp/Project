@@ -182,6 +182,18 @@
             </template>
           </div>
         </div>
+
+        <!-- Footer actions -->
+        <div class="dialog-footer-actions">
+          <el-button
+            type="warning"
+            :loading="reportingTask"
+            @click="handleReportIssue"
+          >
+            <AlertTriangle :size="14" style="margin-right: 6px;" />
+            {{ $t('task.reportIssue') }}
+          </el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -194,9 +206,11 @@ import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import {
   RefreshCw, ClipboardList, Clock, Zap, ChevronRight,
-  Copy, Code2, Wrench, BookOpen
+  Copy, Code2, Wrench, BookOpen, AlertTriangle
 } from 'lucide-vue-next'
 import { getMyTasks, type TaskRecord } from '@/api/task'
+import { sendNotification, getAdmins } from '@/api/notification'
+import { ElMessageBox } from 'element-plus'
 
 const { t } = useI18n()
 
@@ -205,6 +219,7 @@ const tasks = ref<TaskRecord[]>([])
 const filterStatus = ref('')
 const dialogVisible = ref(false)
 const selectedTask = ref<TaskRecord | null>(null)
+const reportingTask = ref(false)
 
 const statusOptions = computed(() => [
   { value: '', label: t('task.all'), dotClass: '' },
@@ -237,6 +252,73 @@ const applyFilter = () => {
 const openDetail = (task: TaskRecord) => {
   selectedTask.value = task
   dialogVisible.value = true
+}
+
+const handleReportIssue = async () => {
+  if (!selectedTask.value) return
+  let userComment = ''
+  try {
+    const result = await ElMessageBox.prompt(
+      t('task.reportIssueDesc'),
+      t('task.reportIssue'),
+      {
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
+        inputType: 'textarea',
+        inputPlaceholder: t('task.reportIssuePlaceholder'),
+        type: 'warning'
+      }
+    )
+    userComment = result.value?.trim() || ''
+  } catch {
+    return
+  }
+
+  reportingTask.value = true
+  try {
+    const task = selectedTask.value
+    const payload = JSON.stringify({
+      taskId: task.id,
+      taskType: task.taskType,
+      status: task.status,
+      input: task.input,
+      output: task.output,
+      errorMsg: task.errorMsg,
+      elapsedTime: task.elapsedTime,
+      createdAt: task.createdAt,
+      userComment
+    }, null, 2)
+
+    // Get all admins
+    const admins: any = await getAdmins()
+    const adminList = Array.isArray(admins) ? admins : (admins?.data || [])
+    const adminIds = adminList.map((u: any) => u.id).filter(Boolean)
+    if (adminIds.length === 0) {
+      ElMessage.warning(t('task.noAdminAvailable'))
+      return
+    }
+
+    const notifyTitle = `[${task.taskType}] Task #${task.id} reported by user`
+    const commentPreview = userComment ? `Comment: ${userComment.slice(0, 80)}` : task.input?.slice(0, 100)
+    const notifyContent = `User reported issue with ${task.taskType} task #${task.id}. ${commentPreview}`
+    await Promise.all(
+      adminIds.map((id: number) =>
+        sendNotification({
+          receiverId: id,
+          title: notifyTitle,
+          content: notifyContent,
+          notifyType: 'BUG_REPORT',
+          payload
+        })
+      )
+    )
+
+    ElMessage.success(t('task.reportIssueSuccess'))
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('task.reportIssueFailed'))
+  } finally {
+    reportingTask.value = false
+  }
 }
 
 const statusType = (status: string) => {
@@ -686,5 +768,14 @@ onMounted(fetchTasks)
   font-size: 12px !important;
   padding: 0 !important;
   height: auto !important;
+}
+
+/* Report Issue Footer */
+.dialog-footer-actions {
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

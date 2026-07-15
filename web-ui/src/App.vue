@@ -37,8 +37,7 @@ watch(locale, (val) => {
 }
 
 body {
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
-  'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -152,7 +151,7 @@ body {
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08) !important;
   padding: 14px 18px !important;
   width: 320px !important;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif !important;
 }
 
 .el-notification__title {
@@ -211,7 +210,7 @@ body {
   -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08) !important;
   padding: 10px 16px !important;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif !important;
   min-width: unset !important;
   width: 320px !important; /* Match ElNotification width */
 

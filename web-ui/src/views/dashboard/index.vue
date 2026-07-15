@@ -692,7 +692,7 @@ export default { name: 'Dashboard', components: { Sparkline } }
 .dashboard {
   max-width: 1200px;
   padding: 16px 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif;
 }
 
 /* ── Page Header ── */

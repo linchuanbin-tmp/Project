@@ -236,25 +236,62 @@
                     <div v-if="msgItem.notifyType === 'BUG_REPORT' && msgItem.payload && parseSinglePayload(msgItem.payload)" class="payload-container bug-card">
                       <div class="payload-header">
                         <Bug :size="16" />
-                        <span>AI Agent Execution Trace Panel</span>
+                        <span>AI Agent Execution Trace Report</span>
                       </div>
                       <div class="payload-body">
                         <el-collapse class="trace-collapse">
-                          <el-collapse-item title="1. User Prompt" name="1">
-                            <div class="trace-box">{{ parseSinglePayload(msgItem.payload).prompt }}</div>
-                          </el-collapse-item>
-                          <el-collapse-item title="2. RAG Retrieved Documents (Milvus Top-K)" name="2">
-                            <pre class="trace-box pre-wrap">{{ parseSinglePayload(msgItem.payload).milvusTopK || 'No retrieval data.' }}</pre>
-                          </el-collapse-item>
-                          <el-collapse-item title="3. LLM Response Output" name="3">
-                            <pre class="trace-box pre-wrap">{{ parseSinglePayload(msgItem.payload).response || 'No response content.' }}</pre>
-                          </el-collapse-item>
-                          <el-collapse-item title="4. Generated SQL Code" name="4" v-if="parseSinglePayload(msgItem.payload).generatedSql">
-                            <pre class="trace-box sql-font"><code>{{ parseSinglePayload(msgItem.payload).generatedSql }}</code></pre>
-                          </el-collapse-item>
-                          <el-collapse-item title="5. System Error Output" name="5" v-if="parseSinglePayload(msgItem.payload).error">
-                            <pre class="trace-box error-text">{{ parseSinglePayload(msgItem.payload).error }}</pre>
-                          </el-collapse-item>
+                          <!-- Task-based report -->
+                          <template v-if="parseSinglePayload(msgItem.payload).taskId">
+                            <el-collapse-item title="Task Info" name="0">
+                              <div class="trace-meta-row">
+                                <span class="trace-meta-label">Task ID:</span>
+                                <span class="trace-meta-value">{{ parseSinglePayload(msgItem.payload).taskId }}</span>
+                              </div>
+                              <div class="trace-meta-row">
+                                <span class="trace-meta-label">Type:</span>
+                                <span class="trace-meta-value">{{ parseSinglePayload(msgItem.payload).taskType }}</span>
+                              </div>
+                              <div class="trace-meta-row">
+                                <span class="trace-meta-label">Status:</span>
+                                <span class="trace-meta-value">{{ parseSinglePayload(msgItem.payload).status }}</span>
+                              </div>
+                              <div v-if="parseSinglePayload(msgItem.payload).elapsedTime" class="trace-meta-row">
+                                <span class="trace-meta-label">Elapsed:</span>
+                                <span class="trace-meta-value">{{ parseSinglePayload(msgItem.payload).elapsedTime }}ms</span>
+                              </div>
+                              <div v-if="parseSinglePayload(msgItem.payload).createdAt" class="trace-meta-row">
+                                <span class="trace-meta-label">Created:</span>
+                                <span class="trace-meta-value">{{ parseSinglePayload(msgItem.payload).createdAt }}</span>
+                              </div>
+                            </el-collapse-item>
+                            <el-collapse-item title="User Input" name="1">
+                              <div class="trace-box">{{ parseSinglePayload(msgItem.payload).input }}</div>
+                            </el-collapse-item>
+                            <el-collapse-item title="Output / Result" name="2" v-if="parseSinglePayload(msgItem.payload).output">
+                              <pre class="trace-box pre-wrap">{{ formatOutputPreview(parseSinglePayload(msgItem.payload).output) }}</pre>
+                            </el-collapse-item>
+                            <el-collapse-item title="Error Message" name="3" v-if="parseSinglePayload(msgItem.payload).errorMsg">
+                              <pre class="trace-box error-text">{{ parseSinglePayload(msgItem.payload).errorMsg }}</pre>
+                            </el-collapse-item>
+                          </template>
+                          <!-- Legacy mock report -->
+                          <template v-else>
+                            <el-collapse-item title="1. User Prompt" name="1">
+                              <div class="trace-box">{{ parseSinglePayload(msgItem.payload).prompt }}</div>
+                            </el-collapse-item>
+                            <el-collapse-item title="2. RAG Retrieved Documents (Milvus Top-K)" name="2">
+                              <pre class="trace-box pre-wrap">{{ parseSinglePayload(msgItem.payload).milvusTopK || 'No retrieval data.' }}</pre>
+                            </el-collapse-item>
+                            <el-collapse-item title="3. LLM Response Output" name="3">
+                              <pre class="trace-box pre-wrap">{{ parseSinglePayload(msgItem.payload).response || 'No response content.' }}</pre>
+                            </el-collapse-item>
+                            <el-collapse-item title="4. Generated SQL Code" name="4" v-if="parseSinglePayload(msgItem.payload).generatedSql">
+                              <pre class="trace-box sql-font"><code>{{ parseSinglePayload(msgItem.payload).generatedSql }}</code></pre>
+                            </el-collapse-item>
+                            <el-collapse-item title="5. System Error Output" name="5" v-if="parseSinglePayload(msgItem.payload).error">
+                              <pre class="trace-box error-text">{{ parseSinglePayload(msgItem.payload).error }}</pre>
+                            </el-collapse-item>
+                          </template>
                         </el-collapse>
                       </div>
                     </div>
@@ -588,6 +625,14 @@ const parseSinglePayload = (payloadStr: string) => {
   }
 }
 
+const formatOutputPreview = (outputStr: string) => {
+  try {
+    return JSON.stringify(JSON.parse(outputStr), null, 2)
+  } catch {
+    return outputStr
+  }
+}
+
 const replyDialogVisible = ref(false)
 
 const openReplyDialog = () => {
@@ -883,7 +928,7 @@ onMounted(() => {
 .message-center {
   padding: 16px 0;
   max-width: 1200px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', sans-serif;
 }
 
 /* Page Header */
@@ -1655,6 +1700,23 @@ onMounted(() => {
   font-family: Consolas, Monaco, monospace;
   background: #fef2f2;
   border-color: #fee2e2;
+}
+
+/* Task Report Meta Rows */
+.trace-meta-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.trace-meta-label {
+  color: #64748b;
+  width: 80px;
+  flex-shrink: 0;
+}
+.trace-meta-value {
+  color: #1e293b;
+  font-weight: 500;
 }
 
 /* HITL Action Box */
