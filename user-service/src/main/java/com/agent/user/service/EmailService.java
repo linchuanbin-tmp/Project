@@ -1,28 +1,39 @@
 package com.agent.user.service;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    private final RestTemplate restTemplate;
+    private final String resendApiKey;
+    private final String fromAddress;
+
+    private static final String RESEND_API_URL = "https://api.resend.com/emails";
+
+    public EmailService(
+            @Value("${resend.api-key}") String resendApiKey,
+            @Value("${resend.from:BankAgent <noreply@bankagent.online>}") String fromAddress) {
+        this.resendApiKey = resendApiKey;
+        this.fromAddress = fromAddress;
+        this.restTemplate = new RestTemplate();
+    }
 
     public void sendVerificationCode(String toEmail, String code) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setFrom("1564549374@qq.com");
-            helper.setTo(toEmail);
-            helper.setSubject("[BankAgent] Email Verification Code");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(resendApiKey);
 
             String htmlContent = """
                     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
@@ -44,13 +55,27 @@ public class EmailService {
                     </div>
                     """.formatted(code);
 
-            helper.setText(htmlContent, true);
-            mailSender.send(message);
+            ResendEmailRequest request = new ResendEmailRequest();
+            request.setFrom(fromAddress);
+            request.setTo(List.of(toEmail));
+            request.setSubject("[BankAgent] Email Verification Code");
+            request.setHtml(htmlContent);
 
-            log.info("Verification code email sent to {}", toEmail);
-        } catch (MessagingException e) {
+            HttpEntity<ResendEmailRequest> entity = new HttpEntity<>(request, headers);
+            restTemplate.postForEntity(RESEND_API_URL, entity, String.class);
+
+            log.info("Verification code email sent to {} via Resend", toEmail);
+        } catch (Exception e) {
             log.error("Failed to send verification code email to {}: {}", toEmail, e.getMessage());
             throw new RuntimeException("Failed to send email, please try again later");
         }
+    }
+
+    @Data
+    private static class ResendEmailRequest {
+        private String from;
+        private List<String> to;
+        private String subject;
+        private String html;
     }
 }

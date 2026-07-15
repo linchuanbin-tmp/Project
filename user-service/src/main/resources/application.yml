@@ -9,18 +9,6 @@ spring:
       max-file-size: 100MB
       max-request-size: 100MB
 
-  mail:
-    host: smtp.qq.com
-    port: 465
-    username: 1564549374@qq.com
-    password: axoynjmyrdmzgfhd
-    properties:
-      mail.smtp.auth: true
-      mail.smtp.ssl.enable: true
-      mail.smtp.ssl.trust: smtp.qq.com
-      mail.smtp.ssl.protocols: TLSv1.2
-      mail.smtp.socketFactory.class: javax.net.ssl.SSLSocketFactory
-
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 本地开发默认 localhost；Docker 环境由 docker-compose 注入 SPRING_DATASOURCE_URL 覆盖
@@ -61,6 +49,11 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
   mapper-locations: classpath*:/mapper/**/*.xml
+
+# Resend Email Service
+resend:
+  api-key: ${RESEND_API_KEY:}
+  from: ${RESEND_FROM:BankAgent <noreply@bankagent.online>}
 
 # MinIO Object Storage
 minio:
