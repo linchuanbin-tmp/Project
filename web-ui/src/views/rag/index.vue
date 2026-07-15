@@ -590,14 +590,6 @@ onMounted(async () => {
   }
 })
 
-onUnmounted(() => {
-  if (taskRunning.value) {
-    wsClient.close()
-  }
-  if (taskPollTimer.value) {
-    window.clearInterval(taskPollTimer.value)
-  }
-})
 </script>
 
 <style scoped>

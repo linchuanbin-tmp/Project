@@ -69,10 +69,16 @@ public class MinioDocumentStorageService implements DocumentStorageService {
     }
 
     @Override
+    public byte[] readOriginal(String objectKey) {
+        return readOriginal(bucket, objectKey);
+    }
+
+    @Override
     public byte[] readOriginal(String bucket, String objectKey) {
+        String targetBucket = bucket == null || bucket.isBlank() ? this.bucket : bucket;
         try (InputStream inputStream = minioClient.getObject(
                 GetObjectArgs.builder()
-                        .bucket(bucket)
+                        .bucket(targetBucket)
                         .object(objectKey)
                         .build()
         )) {

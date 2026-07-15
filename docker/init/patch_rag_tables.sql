@@ -2,6 +2,55 @@
 -- RAG Agent metadata tables
 -- ------------------------------------------------------------
 
+-- Keep existing MySQL volumes compatible with the file-upload fields added to sys_document.
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'sys_document' AND column_name = 'file_type'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE `sys_document` ADD COLUMN `file_type` varchar(20) DEFAULT ''MARKDOWN'' COMMENT ''MARKDOWN/PDF/DOCX/PPT''',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'sys_document' AND column_name = 'file_size'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE `sys_document` ADD COLUMN `file_size` bigint DEFAULT NULL COMMENT ''Original file size in bytes''',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'sys_document' AND column_name = 'minio_object_key'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE `sys_document` ADD COLUMN `minio_object_key` varchar(500) DEFAULT NULL COMMENT ''MinIO object key for uploaded files''',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'sys_document' AND column_name = 'parse_status'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE `sys_document` ADD COLUMN `parse_status` varchar(20) DEFAULT NULL COMMENT ''PENDING/DONE/FAILED''',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 CREATE TABLE IF NOT EXISTS `rag_knowledge_base` (
   `id`              bigint       NOT NULL AUTO_INCREMENT,
   `name`            varchar(120) NOT NULL COMMENT 'Knowledge base display name',

@@ -6,5 +6,7 @@ public interface DocumentStorageService {
 
     StoredDocument storeOriginal(Long kbId, Long sourceDocumentId, String fileName, String contentType, byte[] content);
 
+    byte[] readOriginal(String objectKey);
+
     byte[] readOriginal(String bucket, String objectKey);
 }

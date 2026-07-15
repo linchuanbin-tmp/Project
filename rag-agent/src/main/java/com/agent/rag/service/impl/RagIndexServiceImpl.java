@@ -1,6 +1,7 @@
 package com.agent.rag.service.impl;
 
 import com.agent.rag.dto.DocumentChunk;
+import com.agent.rag.dto.ParsedDocument;
 import com.agent.rag.dto.RagDocumentChunkDto;
 import com.agent.rag.dto.RagDocumentIndexStatus;
 import com.agent.rag.dto.RagIndexResponse;
@@ -12,6 +13,8 @@ import com.agent.rag.mapper.RagDocumentChunkMapper;
 import com.agent.rag.mapper.RagIndexTaskMapper;
 import com.agent.rag.mapper.SysDocumentMapper;
 import com.agent.rag.service.DocumentChunker;
+import com.agent.rag.service.DocumentParserService;
+import com.agent.rag.service.DocumentStorageService;
 import com.agent.rag.service.EmbeddingClient;
 import com.agent.rag.service.RagIndexService;
 import com.agent.rag.service.VectorStoreService;
@@ -39,11 +42,16 @@ public class RagIndexServiceImpl implements RagIndexService {
     private static final String STATUS_RUNNING = "RUNNING";
     private static final String STATUS_SUCCESS = "SUCCESS";
     private static final String STATUS_FAIL = "FAIL";
+    private static final String PARSE_STATUS_PENDING = "PENDING";
+    private static final String PARSE_STATUS_DONE = "DONE";
+    private static final String PARSE_STATUS_FAILED = "FAILED";
 
     private final SysDocumentMapper sysDocumentMapper;
     private final RagDocumentChunkMapper ragDocumentChunkMapper;
     private final RagIndexTaskMapper ragIndexTaskMapper;
     private final DocumentChunker documentChunker;
+    private final DocumentParserService documentParserService;
+    private final DocumentStorageService documentStorageService;
     private final EmbeddingClient embeddingClient;
     private final VectorStoreService vectorStoreService;
 
@@ -166,6 +174,7 @@ public class RagIndexServiceImpl implements RagIndexService {
     }
 
     private int writeChunks(SysDocument document) {
+        document = ensureDocumentTextReady(document);
         vectorStoreService.deleteByDocumentId(document.getId());
         ragDocumentChunkMapper.hardDeleteByDocumentId(document.getId());
         List<DocumentChunk> chunks = documentChunker.split(document.getContent());
@@ -208,6 +217,54 @@ public class RagIndexServiceImpl implements RagIndexService {
         }
         vectorStoreService.upsert(vectorRecords);
         return chunks.size();
+    }
+
+    private SysDocument ensureDocumentTextReady(SysDocument document) {
+        String content = document.getContent();
+        boolean hasText = content != null && !content.isBlank();
+        boolean hasStoredFile = document.getMinioObjectKey() != null && !document.getMinioObjectKey().isBlank();
+        boolean parsePending = PARSE_STATUS_PENDING.equalsIgnoreCase(document.getParseStatus())
+                || PARSE_STATUS_FAILED.equalsIgnoreCase(document.getParseStatus());
+
+        if (hasText && !parsePending) {
+            return document;
+        }
+        if (!hasStoredFile) {
+            if (hasText) {
+                return document;
+            }
+            throw new IllegalStateException("Document " + document.getId() + " has no text content to index.");
+        }
+
+        ParsedDocument parsedDocument = documentParserService.parse(
+                document.getTitle(),
+                mimeTypeFor(document.getFileType()),
+                documentStorageService.readOriginal(document.getMinioObjectKey())
+        );
+        if (!parsedDocument.isParsed()) {
+            document.setParseStatus(PARSE_STATUS_FAILED);
+            sysDocumentMapper.updateById(document);
+            throw new IllegalStateException("Failed to parse document " + document.getId()
+                    + ": " + parsedDocument.getErrorMessage());
+        }
+
+        document.setContent(parsedDocument.getText());
+        document.setParseStatus(PARSE_STATUS_DONE);
+        sysDocumentMapper.updateById(document);
+        return document;
+    }
+
+    private String mimeTypeFor(String fileType) {
+        if (fileType == null) {
+            return null;
+        }
+        return switch (fileType.toUpperCase()) {
+            case "PDF" -> "application/pdf";
+            case "DOCX" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            case "PPT", "PPTX" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+            case "MARKDOWN" -> "text/markdown";
+            default -> null;
+        };
     }
 
     private String buildVectorId(Long documentId, Integer chunkIndex, String contentHash) {
