@@ -72,6 +72,10 @@ public class SystemConfigController {
 
     private static final String CONFIG_KEY_AI_PROVIDER  = "ai_provider";
     private static final String REDIS_KEY_AI_PROVIDER   = "sys:config:ai_provider";
+
+    private static final String CONFIG_KEY_MAX_UPLOAD_SIZE = "max_upload_size";
+    private static final String REDIS_KEY_MAX_UPLOAD_SIZE  = "sys:config:max_upload_size";
+    private static final long   DEFAULT_MAX_UPLOAD_SIZE    = 100L; // MB
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -324,6 +328,69 @@ public class SystemConfigController {
     private Map<String, Object> sanitizeForClient(Map<String, Object> map) {
         map.remove("apiKeyEncrypted");
         return map;
+    }
+
+    // ── Max Upload Size 配置 ──────────────────────────────────────────
+
+    @GetMapping("/max-upload-size")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Long> getMaxUploadSize() {
+        return Result.success(resolveMaxUploadSize());
+    }
+
+    @PutMapping("/max-upload-size")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<String> updateMaxUploadSize(@RequestBody Map<String, Object> body) {
+        Object raw = body.get("sizeMb");
+        if (raw == null) {
+            return Result.error(400, "Missing 'sizeMb' field.");
+        }
+        long sizeMb;
+        try {
+            sizeMb = Long.parseLong(raw.toString());
+        } catch (NumberFormatException e) {
+            return Result.error(400, "Invalid size — must be a positive integer (MB).");
+        }
+        if (sizeMb < 1 || sizeMb > 1024) {
+            return Result.error(400, "Size must be between 1 and 1024 MB.");
+        }
+
+        SysConfig existing = sysConfigMapper.selectOne(
+                new LambdaQueryWrapper<SysConfig>()
+                        .eq(SysConfig::getParamKey, CONFIG_KEY_MAX_UPLOAD_SIZE)
+        );
+        if (existing == null) {
+            SysConfig cfg = new SysConfig();
+            cfg.setParamKey(CONFIG_KEY_MAX_UPLOAD_SIZE);
+            cfg.setParamValue(String.valueOf(sizeMb));
+            cfg.setDescription("Maximum file upload size in MB");
+            sysConfigMapper.insert(cfg);
+        } else {
+            sysConfigMapper.update(null,
+                    new LambdaUpdateWrapper<SysConfig>()
+                            .eq(SysConfig::getParamKey, CONFIG_KEY_MAX_UPLOAD_SIZE)
+                            .set(SysConfig::getParamValue, String.valueOf(sizeMb))
+            );
+        }
+        stringRedisTemplate.opsForValue().set(REDIS_KEY_MAX_UPLOAD_SIZE, String.valueOf(sizeMb));
+        return Result.success("Max upload size updated to " + sizeMb + " MB.");
+    }
+
+    public long resolveMaxUploadSize() {
+        String cached = stringRedisTemplate.opsForValue().get(REDIS_KEY_MAX_UPLOAD_SIZE);
+        if (cached != null) {
+            try { return Long.parseLong(cached); } catch (NumberFormatException ignored) {}
+        }
+        SysConfig config = sysConfigMapper.selectOne(
+                new LambdaQueryWrapper<SysConfig>()
+                        .eq(SysConfig::getParamKey, CONFIG_KEY_MAX_UPLOAD_SIZE)
+        );
+        long value = DEFAULT_MAX_UPLOAD_SIZE;
+        if (config != null) {
+            try { value = Long.parseLong(config.getParamValue()); } catch (NumberFormatException ignored) {}
+        }
+        stringRedisTemplate.opsForValue().set(REDIS_KEY_MAX_UPLOAD_SIZE, String.valueOf(value));
+        return value;
     }
 
     /**

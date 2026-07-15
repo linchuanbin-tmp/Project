@@ -210,7 +210,11 @@ CREATE TABLE `sys_document` (
   `content`        text         NOT NULL,
   `dept_id`        bigint       DEFAULT NULL,
   `security_level` tinyint      NOT NULL DEFAULT 1 COMMENT '1=Public, 2=Internal, 3=Confidential',
-  `create_time`    datetime     DEFAULT CURRENT_TIMESTAMP,
+  `create_time`       datetime     DEFAULT CURRENT_TIMESTAMP,
+  `file_type`         varchar(20)  DEFAULT 'MARKDOWN' COMMENT 'MARKDOWN/PDF/DOCX/PPT',
+  `file_size`         bigint       DEFAULT NULL COMMENT '原文件大小(bytes), MARKDOWN为NULL',
+  `minio_object_key`  varchar(500) DEFAULT NULL COMMENT 'MinIO object key, MARKDOWN为NULL',
+  `parse_status`      varchar(20)  DEFAULT NULL COMMENT 'PENDING/DONE/FAILED, MARKDOWN为NULL',
   PRIMARY KEY (`id`),
   KEY `idx_dept_id` (`dept_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='部门文档表';

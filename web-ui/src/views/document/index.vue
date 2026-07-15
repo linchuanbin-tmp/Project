@@ -49,45 +49,51 @@
                 class="document-card system-doc"
               >
                 <div class="card-header">
-                  <div class="icon-box system">
-                    <BookOpen :size="18" />
+                  <div class="icon-box" :class="iconBoxClass(doc)">
+                    <BookOpen v-if="isMarkdown(doc)" :size="18" />
+                    <FileText v-else-if="isPdf(doc)" :size="18" />
+                    <FileText v-else-if="isDocx(doc)" :size="18" />
+                    <MonitorPlay v-else :size="18" />
                   </div>
-                  <div class="header-right-side" style="display: flex; align-items: center; gap: 8px;">
-                    <span class="rag-index-badge" :class="{ indexed: getDocIndexStatus(doc)?.indexed }">
-                      <Database :size="12" />
-                      {{ getDocIndexStatus(doc)?.chunkCount || 0 }}
-                    </span>
+                  <div class="header-right-side" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
                     <span class="security-badge global">{{ $t('document.global') }}</span>
-                    <div v-if="canManage(doc)" class="card-mgmt-actions">
-                      <el-button
-                        class="icon-action-btn index"
-                        :loading="isIndexingDoc(doc.id)"
-                        @click.stop="handleReindexDoc(doc)"
-                      >
-                        <RefreshCw :size="12" />
+                    <el-tooltip :content="$t('document.ragInfoTooltip')" placement="top">
+                      <el-button class="icon-action-btn rag-info" :class="{ indexed: getDocIndexStatus(doc)?.indexed }" @click.stop="openRagInfoDialog(doc)">
+                        <Database :size="12" />
                       </el-button>
-                      <el-button class="icon-action-btn chunks" @click.stop="openChunksDialog(doc)">
-                        <Eye :size="12" />
-                      </el-button>
-                      <el-button class="icon-action-btn edit" @click.stop="openEditDialog(doc)">
+                    </el-tooltip>
+                    <el-tooltip v-if="canManage(doc)" :content="$t('document.editDocTooltip')" placement="top">
+                      <el-button v-if="isMarkdown(doc)" class="icon-action-btn edit" @click.stop="openEditDialog(doc)">
                         <Edit :size="12" />
                       </el-button>
+                    </el-tooltip>
+                    <el-tooltip v-if="canManage(doc)" :content="$t('document.deleteDocTooltip')" placement="top">
                       <el-button class="icon-action-btn delete" @click.stop="handleDeleteDoc(doc)">
                         <Trash2 :size="12" />
                       </el-button>
-                    </div>
+                    </el-tooltip>
                   </div>
                 </div>
                 <div class="card-body">
                   <h3 class="doc-title">{{ doc.title }}</h3>
-                  <p class="doc-excerpt">{{ $t('document.openAccessDesc') }}</p>
+                  <p class="doc-excerpt">{{ doc.content || $t('document.openAccessDesc') }}</p>
                 </div>
                 <div class="card-footer">
                   <span class="doc-date">{{ $t('document.created') }}: {{ formatDate(doc.createTime) }}</span>
-                  <el-button class="read-action-btn" @click="enterReadingMode(doc)">
-                    {{ $t('document.readDoc') }}
-                    <ChevronRight :size="14" />
-                  </el-button>
+                  <div style="display: flex; gap: 6px;">
+                    <el-button v-if="isPdf(doc)" class="read-action-btn" @click="previewDocument(doc)">
+                      <Eye :size="14" />
+                      {{ $t('document.previewFile') }}
+                    </el-button>
+                    <el-button v-if="isDocx(doc) || isPpt(doc)" class="read-action-btn" @click="downloadDocument(doc)">
+                      <Download :size="14" />
+                      {{ $t('document.downloadFile') }}
+                    </el-button>
+                    <el-button v-if="isMarkdown(doc)" class="read-action-btn" @click="enterReadingMode(doc)">
+                      {{ $t('document.readDoc') }}
+                      <ChevronRight :size="14" />
+                    </el-button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -104,8 +110,8 @@
           </template>
 
           <div class="tab-content-inner">
-            <!-- Case: No department assigned -->
-            <div v-if="!userStore.userInfo?.deptId" class="empty-state-box">
+            <!-- Case: Regular user with no department -->
+            <div v-if="!userStore.userInfo?.deptId && !isAdmin" class="empty-state-box">
               <Briefcase :size="48" class="empty-icon text-rose" />
               <h3>{{ $t('document.noDeptAssigned') }}</h3>
               <p>{{ $t('document.noDeptAssignedDesc') }}</p>
@@ -126,41 +132,38 @@
                   :class="{ 'restricted-card': !doc.accessible }"
                 >
                   <div class="card-header">
-                    <div class="icon-box" :class="{ 'locked': !doc.accessible }">
+                    <div class="icon-box" :class="iconBoxClass(doc)">
                       <Lock v-if="!doc.accessible" :size="18" />
-                      <FileText v-else :size="18" />
+                      <BookOpen v-else-if="isMarkdown(doc)" :size="18" />
+                      <FileText v-else-if="isPdf(doc)" :size="18" />
+                      <FileText v-else-if="isDocx(doc)" :size="18" />
+                      <MonitorPlay v-else :size="18" />
                     </div>
-                    <div class="header-right-side" style="display: flex; align-items: center; gap: 8px;">
-                      <span class="rag-index-badge" :class="{ indexed: getDocIndexStatus(doc)?.indexed }">
-                        <Database :size="12" />
-                        {{ getDocIndexStatus(doc)?.chunkCount || 0 }}
-                      </span>
+                    <div class="header-right-side" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                      <span class="dept-badge" v-if="doc.deptId">{{ getDeptName(doc.deptId) }}</span>
                       <span class="security-badge" :class="'level-' + doc.securityLevel">
                         Level-{{ doc.securityLevel }} ({{ getClearanceLabel(doc.securityLevel) }})
                       </span>
-                      <div v-if="canManage(doc)" class="card-mgmt-actions">
-                        <el-button
-                          class="icon-action-btn index"
-                          :loading="isIndexingDoc(doc.id)"
-                          @click.stop="handleReindexDoc(doc)"
-                        >
-                          <RefreshCw :size="12" />
+                      <el-tooltip :content="$t('document.ragInfoTooltip')" placement="top">
+                        <el-button class="icon-action-btn rag-info" :class="{ indexed: getDocIndexStatus(doc)?.indexed }" @click.stop="openRagInfoDialog(doc)">
+                          <Database :size="12" />
                         </el-button>
-                        <el-button class="icon-action-btn chunks" @click.stop="openChunksDialog(doc)">
-                          <Eye :size="12" />
-                        </el-button>
-                        <el-button class="icon-action-btn edit" @click.stop="openEditDialog(doc)">
+                      </el-tooltip>
+                      <el-tooltip v-if="canManage(doc)" :content="$t('document.editDocTooltip')" placement="top">
+                        <el-button v-if="isMarkdown(doc)" class="icon-action-btn edit" @click.stop="openEditDialog(doc)">
                           <Edit :size="12" />
                         </el-button>
+                      </el-tooltip>
+                      <el-tooltip v-if="canManage(doc)" :content="$t('document.deleteDocTooltip')" placement="top">
                         <el-button class="icon-action-btn delete" @click.stop="handleDeleteDoc(doc)">
                           <Trash2 :size="12" />
                         </el-button>
-                      </div>
+                      </el-tooltip>
                     </div>
                   </div>
                   <div class="card-body">
                     <h3 class="doc-title">{{ doc.title }}</h3>
-                    <p class="doc-excerpt" v-if="doc.accessible">{{ $t('document.internalAccessDesc') }}</p>
+                    <p class="doc-excerpt" v-if="doc.accessible">{{ doc.content || '' }}</p>
                     <p class="doc-excerpt restricted-text" v-else>
                       {{ $t('document.restrictedAccessDesc', { level: doc.securityLevel }) }}
                     </p>
@@ -168,14 +171,16 @@
                   <div class="card-footer">
                     <span class="doc-date">{{ $t('document.created') }}: {{ formatDate(doc.createTime) }}</span>
 
-                    <el-button
-                      v-if="doc.accessible"
-                      class="read-action-btn"
-                      @click="enterReadingMode(doc)"
-                    >
-                      {{ $t('document.readDoc') }}
-                      <ChevronRight :size="14" />
-                    </el-button>
+                    <div v-if="doc.accessible" style="display: flex; gap: 6px;">
+                      <el-button v-if="!isMarkdown(doc)" class="read-action-btn" @click="downloadDocument(doc)">
+                        <Download :size="14" />
+                        {{ $t('document.downloadFile') }}
+                      </el-button>
+                      <el-button v-if="isMarkdown(doc)" class="read-action-btn" @click="enterReadingMode(doc)">
+                        {{ $t('document.readDoc') }}
+                        <ChevronRight :size="14" />
+                      </el-button>
+                    </div>
                     <el-button
                       v-else
                       type="warning"
@@ -305,6 +310,10 @@
                 <span class="lbl">{{ $t('document.assetTitle') }}:</span>
                 <span class="val">{{ selectedDoc.title }}</span>
               </div>
+              <div class="meta-row" v-if="selectedDoc.deptId">
+                <span class="lbl">{{ $t('document.department') }}:</span>
+                <span class="val">{{ getDeptName(selectedDoc.deptId) }}</span>
+              </div>
               <div class="meta-row">
                 <span class="lbl">{{ $t('document.requiredClearance') }}:</span>
                 <span class="val text-red">Level-{{ selectedDoc.securityLevel }} ({{ getClearanceLabel(selectedDoc.securityLevel) }})</span>
@@ -373,8 +382,11 @@
           <p class="req-title"><strong>{{ requestDoc.title }}</strong></p>
           <p class="req-meta">{{ $t('document.requestClearance', { req: requestDoc.securityLevel, user: userStore.userInfo?.clearanceLevel || 1 }) }}</p>
         </div>
-        <p class="dialog-desc" style="margin-top: 16px;">
-          {{ $t('document.requestRouteTo', { manager: deptManager?.username || 'Department Manager' }) }}
+        <p class="dialog-desc" style="margin-top: 16px;" v-if="deptManager">
+          {{ $t('document.requestRouteTo', { manager: deptManager.username }) }}
+        </p>
+        <p class="dialog-desc" style="margin-top: 16px; color: #dc2626;" v-else>
+          {{ $t('document.noManagerAvailable') }}
         </p>
 
         <el-form label-position="top" style="margin-top: 16px;">
@@ -409,31 +421,79 @@
     <el-dialog
       v-model="manageDialogVisible"
       :title="manageDialogTitle"
-      width="640px"
+      width="800px"
       class="custom-dialog"
       :close-on-click-modal="false"
     >
       <div class="dialog-body">
-        <el-form :model="manageForm" label-position="top">
-          <el-form-item :label="$t('document.docTitle')" required>
-            <el-input
-              v-model="manageForm.title"
-              :placeholder="$t('document.docTitlePlaceholder')"
-              class="custom-input"
-            />
-          </el-form-item>
+        <div class="create-layout">
+          <!-- Left: Settings panel -->
+          <div class="create-left">
+            <!-- File type selector (create mode only) -->
+            <div v-if="!manageForm.id" class="create-section">
+              <div class="section-label">{{ $t('document.docType') }}</div>
+              <div class="type-cards">
+                <div
+                  class="type-card"
+                  :class="{ active: createMode === 'markdown' }"
+                  @click="createMode = 'markdown'"
+                >
+                  <BookOpen :size="20" />
+                  <span class="type-name">Markdown</span>
+                  <span class="type-desc">{{ $t('document.typeMarkdownDesc') }}</span>
+                </div>
+                <div
+                  class="type-card"
+                  :class="{ active: createMode === 'pdf' }"
+                  @click="createMode = 'pdf'"
+                >
+                  <FileText :size="20" />
+                  <span class="type-name">PDF</span>
+                  <span class="type-desc">{{ $t('document.typePdfDesc') }}</span>
+                </div>
+                <div
+                  class="type-card"
+                  :class="{ active: createMode === 'docx' }"
+                  @click="createMode = 'docx'"
+                >
+                  <FileText :size="20" />
+                  <span class="type-name">DOCX</span>
+                  <span class="type-desc">{{ $t('document.typeDocxDesc') }}</span>
+                </div>
+                <div
+                  class="type-card"
+                  :class="{ active: createMode === 'ppt' }"
+                  @click="createMode = 'ppt'"
+                >
+                  <MonitorPlay :size="20" />
+                  <span class="type-name">PPT</span>
+                  <span class="type-desc">{{ $t('document.typePptDesc') }}</span>
+                </div>
+              </div>
+            </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-            <el-form-item :label="$t('document.securityLevel')" required>
+            <!-- Title -->
+            <div class="create-section">
+              <div class="section-label">{{ $t('document.docTitle') }}</div>
+              <el-input
+                v-model="manageForm.title"
+                :placeholder="$t('document.docTitlePlaceholder')"
+                class="custom-input"
+              />
+            </div>
+
+            <!-- Security & Dept -->
+            <div class="create-section">
+              <div class="section-label">{{ $t('document.securityLevel') }}</div>
               <el-select v-model="manageForm.securityLevel" style="width: 100%;">
                 <el-option :label="$t('document.levelPublic')" :value="1" />
                 <el-option :label="$t('document.levelInternal')" :value="2" />
                 <el-option :label="$t('document.levelConfidential')" :value="3" />
               </el-select>
-            </el-form-item>
+            </div>
 
-            <el-form-item :label="$t('document.targetDept')">
-              <!-- For Super Admin, they can select a department or leave it null for Global -->
+            <div class="create-section" v-if="isAdmin || isDeptAdmin">
+              <div class="section-label">{{ $t('document.targetDept') }}</div>
               <el-select
                 v-if="isAdmin"
                 v-model="manageForm.deptId"
@@ -441,33 +501,59 @@
                 clearable
                 style="width: 100%;"
               >
-                <el-option
-                  v-for="dept in departments"
-                  :key="dept.id"
-                  :label="dept.deptName"
-                  :value="dept.id"
-                />
+                <el-option v-for="dept in departments" :key="dept.id" :label="dept.deptName" :value="dept.id" />
               </el-select>
-              <!-- For Department Admin, it is pre-filled and locked -->
-              <el-input
-                v-else
-                :value="userStore.userInfo?.deptName || $t('document.yourDept')"
-                disabled
-                class="custom-input"
-              />
-            </el-form-item>
+              <el-input v-else :value="userStore.userInfo?.deptName || $t('document.yourDept')" disabled class="custom-input" />
+            </div>
+
+            <!-- File info (for file types) -->
+            <div v-if="selectedFile && !manageForm.id" class="create-section">
+              <div class="section-label">{{ $t('document.fileSizeLabel') }}</div>
+              <div class="file-meta">{{ selectedFile.name }}</div>
+              <div class="file-meta-size">{{ formatFileSize(selectedFile.size) }}</div>
+            </div>
           </div>
 
-          <el-form-item :label="$t('document.docContent')" required>
-            <el-input
-              v-model="manageForm.content"
-              type="textarea"
-              :rows="12"
-              :placeholder="$t('document.docContentPlaceholder')"
-              class="custom-textarea markdown-editor"
-            />
-          </el-form-item>
-        </el-form>
+          <!-- Right: Content editor / Upload area -->
+          <div class="create-right">
+            <!-- Markdown mode -->
+            <template v-if="createMode === 'markdown' || manageForm.id">
+              <el-input
+                v-model="manageForm.content"
+                type="textarea"
+                :rows="18"
+                :placeholder="$t('document.docContentPlaceholder')"
+                class="custom-textarea markdown-editor content-editor"
+              />
+            </template>
+
+            <!-- File upload mode -->
+            <template v-else>
+              <div class="file-drop-zone" @click="triggerFileInput" @dragover.prevent @drop.prevent="onFileDrop">
+                <input ref="fileInputRef" type="file" :accept="fileAccept" style="display: none" @change="onFileSelected" />
+                <template v-if="selectedFile">
+                  <div class="file-preview-card">
+                    <div class="file-preview-icon">
+                      <FileText v-if="createMode === 'pdf'" :size="40" />
+                      <FileText v-else-if="createMode === 'docx'" :size="40" />
+                      <MonitorPlay v-else :size="40" />
+                    </div>
+                    <div class="file-preview-name">{{ selectedFile.name }}</div>
+                    <div class="file-preview-size">{{ formatFileSize(selectedFile.size) }}</div>
+                    <el-button size="small" class="file-change-btn" @click.stop="clearFile">
+                      {{ $t('document.changeFile') }}
+                    </el-button>
+                  </div>
+                </template>
+                <template v-else>
+                  <Upload :size="40" class="drop-icon" />
+                  <div class="drop-text">{{ $t('document.dropFileHere') }}</div>
+                  <div class="drop-hint">PDF, DOCX, PPT — Max 50MB</div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
       </div>
 
       <template #footer>
@@ -485,14 +571,33 @@
       </template>
     </el-dialog>
 
-    <!-- RAG Chunk Inspection Dialog -->
+    <!-- RAG Index Info Dialog -->
     <el-dialog
-      v-model="chunkDialogVisible"
-      :title="chunkDialogTitle"
+      v-model="ragInfoDialogVisible"
+      :title="$t('document.ragInfoTitle') + ' - ' + (ragInfoDoc?.title || '')"
       width="760px"
       class="custom-dialog"
     >
       <div class="dialog-body">
+        <!-- Index Status Summary -->
+        <div class="rag-info-summary">
+          <div class="rag-info-item">
+            <span class="rag-info-label">{{ $t('document.ragIndexStatus') }}</span>
+            <span class="rag-info-value" :class="getDocIndexStatus(ragInfoDoc)?.indexed ? 'text-success' : 'text-red'">
+              {{ getDocIndexStatus(ragInfoDoc)?.indexed ? $t('document.ragIndexed') : $t('document.ragNotIndexed') }}
+            </span>
+          </div>
+          <div class="rag-info-item">
+            <span class="rag-info-label">{{ $t('document.ragChunkCount') }}</span>
+            <span class="rag-info-value">{{ getDocIndexStatus(ragInfoDoc)?.chunkCount || 0 }}</span>
+          </div>
+          <div class="rag-info-item">
+            <span class="rag-info-label">{{ $t('document.ragLastIndexed') }}</span>
+            <span class="rag-info-value">{{ formatDateTime(getDocIndexStatus(ragInfoDoc)?.lastIndexedAt) }}</span>
+          </div>
+        </div>
+
+        <!-- Chunk List -->
         <div v-if="chunkLoading" class="chunk-loading">
           <RefreshCw :size="16" class="spin" />
           <span>Loading chunks...</span>
@@ -516,15 +621,15 @@
 
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="chunkDialogVisible = false" class="dialog-btn-cancel">{{ $t('common.cancel') }}</el-button>
+          <el-button @click="ragInfoDialogVisible = false" class="dialog-btn-cancel">{{ $t('common.cancel') }}</el-button>
           <el-button
-            v-if="chunkDoc"
+            v-if="ragInfoDoc && canManage(ragInfoDoc)"
             type="primary"
-            @click="handleReindexDoc(chunkDoc)"
-            :loading="isIndexingDoc(chunkDoc.id)"
+            @click="handleReindexDoc(ragInfoDoc)"
+            :loading="isIndexingDoc(ragInfoDoc.id)"
             class="dialog-btn-confirm"
           >
-            Reindex
+            {{ $t('document.ragReindex') }}
           </el-button>
         </span>
       </template>
@@ -539,12 +644,12 @@ import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  FileText, Lock, Eye,
+  FileText, Lock,
   FolderOpen, RefreshCw, ShieldAlert, Briefcase, BookOpen,
   Search, ChevronRight, ShieldCheck, Database, X, ChevronLeft, ChevronDown,
-  Plus, Edit, Trash2
+  Plus, Edit, Trash2, Upload, Download, MonitorPlay
 } from 'lucide-vue-next'
-import { getDeptDocuments, createDocument, updateDocument, deleteDocument, getDepartmentsList } from '@/api/department'
+import { getDeptDocuments, createDocument, updateDocument, deleteDocument, getDepartmentsList, uploadDocument, getDocumentDownloadUrl } from '@/api/department'
 import { sendNotification, getUsers } from '@/api/notification'
 import {
   getRagDocumentChunks,
@@ -591,9 +696,9 @@ const selectedDoc = ref<any>(null)
 const readerVisible = ref(false)
 const ragIndexStatusMap = ref<Record<number, RagDocumentIndexStatus>>({})
 const indexingDocIds = ref<Set<number>>(new Set())
-const chunkDialogVisible = ref(false)
+const ragInfoDialogVisible = ref(false)
 const chunkLoading = ref(false)
-const chunkDoc = ref<any>(null)
+const ragInfoDoc = ref<any>(null)
 const selectedChunks = ref<RagDocumentChunkDetail[]>([])
 
 const dialogVisible = ref(false)
@@ -613,6 +718,19 @@ const manageForm = ref({
   deptId: null as number | null
 })
 
+const createMode = ref<'markdown' | 'pdf' | 'docx' | 'ppt'>('markdown')
+const selectedFile = ref<File | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const fileAccept = computed(() => {
+  switch (createMode.value) {
+    case 'pdf': return '.pdf'
+    case 'docx': return '.docx'
+    case 'ppt': return '.pptx,.ppt'
+    default: return ''
+  }
+})
+
 // Role check computed properties
 const isAdmin = computed(() => {
   return userStore.userInfo?.roles?.includes('ROLE_ADMIN') || false
@@ -628,10 +746,6 @@ const isAdminOrDeptAdmin = computed(() => {
 
 const manageDialogTitle = computed(() => {
   return manageForm.value.id ? t('document.editDoc') : t('document.createDoc')
-})
-
-const chunkDialogTitle = computed(() => {
-  return chunkDoc.value ? `RAG Chunks - ${chunkDoc.value.title}` : 'RAG Chunks'
 })
 
 // Document management authorization scoping check
@@ -666,8 +780,23 @@ const filteredDeptDocs = computed(() => {
 
 // Find Department Administrator to route notification
 const deptManager = computed(() => {
-  return deptMembers.value.find(m => m.roles?.includes('ROLE_DEPT_ADMIN') || m.roles?.includes('ROLE_ADMIN'))
+  // Find the manager of the requested document's department
+  if (!requestDoc.value) return null
+  const docDeptId = requestDoc.value.deptId
+
+  if (docDeptId) {
+    // Document belongs to a department — find its admin
+    const deptAdmin = deptMembers.value.find(
+      m => m.deptId === docDeptId && (m.roles?.includes('ROLE_DEPT_ADMIN') || m.roles?.includes('ROLE_ADMIN'))
+    )
+    if (deptAdmin) return deptAdmin
+  }
+
+  // Fallback: any system admin
+  return deptMembers.value.find(m => m.roles?.includes('ROLE_ADMIN')) || null
 })
+
+const noManagerAvailable = computed(() => !deptManager.value)
 
 // Render selected document markdown to HTML
 const parsedMarkdown = computed(() => {
@@ -748,14 +877,12 @@ const fetchRagIndexStatus = async () => {
   }
 }
 
-const fetchDeptMembers = async () => {
-  if (!userStore.userInfo?.deptId) return
+const fetchAllUsers = async () => {
   try {
     const allUsers: any = await getUsers()
-    // Filter users belonging to the same department
-    deptMembers.value = (allUsers || []).filter((u: any) => u.deptId === userStore.userInfo?.deptId)
+    deptMembers.value = allUsers || []
   } catch (error) {
-    console.error('Failed to load department members:', error)
+    console.error('Failed to load users:', error)
   }
 }
 
@@ -821,8 +948,14 @@ const openRequestDialog = (doc: any) => {
 
 const handleRequestSubmit = async () => {
   if (!requestDoc.value) return
-
-  const managerId = deptManager.value ? deptManager.value.id : 2
+  if (!deptManager.value) {
+    ElMessage.warning(t('document.noManagerAvailable'))
+    return
+  }
+  if (!requestReason.value.trim()) {
+    ElMessage.warning(t('document.reasonRequired'))
+    return
+  }
 
   submitLoading.value = true
   try {
@@ -834,7 +967,7 @@ const handleRequestSubmit = async () => {
     })
 
     await sendNotification({
-      receiverId: managerId,
+      receiverId: deptManager.value.id,
       title: `RAG Permission Escalation Request`,
       content: `Employee @${userStore.userInfo?.username} requests temporary access to "${requestDoc.value.title}" (Security: Level-${requestDoc.value.securityLevel}).`,
       notifyType: 'RAG_APPLY',
@@ -853,7 +986,6 @@ const handleRequestSubmit = async () => {
 
 // Fetch departments for Super Admin target selection
 const fetchDepartments = async () => {
-  if (!isAdmin.value) return
   try {
     const res: any = await getDepartmentsList()
     departments.value = res || []
@@ -871,6 +1003,8 @@ const openCreateDialog = () => {
     securityLevel: 1,
     deptId: isDeptAdmin.value ? userStore.userInfo?.deptId : null
   }
+  createMode.value = 'markdown'
+  selectedFile.value = null
   manageDialogVisible.value = true
 }
 
@@ -882,7 +1016,45 @@ const openEditDialog = (doc: any) => {
     securityLevel: doc.securityLevel || 1,
     deptId: doc.deptId
   }
+  createMode.value = 'markdown'
+  selectedFile.value = null
   manageDialogVisible.value = true
+}
+
+const triggerFileInput = () => {
+  fileInputRef.value?.click()
+}
+
+const onFileSelected = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  selectedFile.value = file
+  // Auto-fill title from filename
+  if (!manageForm.value.title.trim()) {
+    const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '')
+    manageForm.value.title = nameWithoutExt
+  }
+}
+
+const clearFile = () => {
+  selectedFile.value = null
+  if (fileInputRef.value) fileInputRef.value.value = ''
+}
+
+const onFileDrop = (e: DragEvent) => {
+  const file = e.dataTransfer?.files?.[0]
+  if (!file) return
+  selectedFile.value = file
+  if (!manageForm.value.title.trim()) {
+    manageForm.value.title = file.name.replace(/\.[^/.]+$/, '')
+  }
+}
+
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / 1048576).toFixed(1) + ' MB'
 }
 
 const handleManageSubmit = async () => {
@@ -890,6 +1062,34 @@ const handleManageSubmit = async () => {
     ElMessage.warning(t('document.titleRequired'))
     return
   }
+
+  // File upload mode
+  if (!manageForm.value.id && createMode.value !== 'markdown') {
+    if (!selectedFile.value) {
+      ElMessage.warning(t('document.contentRequired'))
+      return
+    }
+    manageSubmitLoading.value = true
+    try {
+      await uploadDocument(
+        selectedFile.value,
+        manageForm.value.title,
+        manageForm.value.securityLevel,
+        manageForm.value.deptId
+      )
+      ElMessage.success(t('document.createSuccess'))
+      manageDialogVisible.value = false
+      await fetchDocuments()
+    } catch (error: any) {
+      console.error('Failed to upload document:', error)
+      ElMessage.error(error.message || t('document.saveError'))
+    } finally {
+      manageSubmitLoading.value = false
+    }
+    return
+  }
+
+  // Markdown text mode
   if (!manageForm.value.content.trim()) {
     ElMessage.warning(t('document.contentRequired'))
     return
@@ -924,6 +1124,68 @@ const handleManageSubmit = async () => {
   }
 }
 
+// File type helpers
+const isMarkdown = (doc: any) => !doc.fileType || doc.fileType === 'MARKDOWN'
+const isPdf = (doc: any) => doc.fileType === 'PDF'
+const isDocx = (doc: any) => doc.fileType === 'DOCX'
+const isPpt = (doc: any) => doc.fileType === 'PPT'
+
+const getDeptName = (deptId: number | null | undefined) => {
+  if (!deptId) return ''
+  const dept = departments.value.find((d: any) => d.id === deptId)
+  return dept?.deptName || ''
+}
+
+const iconBoxClass = (doc: any) => ({
+  'system': isMarkdown(doc),
+  'pdf-file': isPdf(doc),
+  'docx-file': isDocx(doc),
+  'ppt-file': isPpt(doc),
+  'locked': !doc.accessible && !isMarkdown(doc)
+})
+
+const previewDocument = async (doc: any) => {
+  try {
+    const token = userStore.token
+    const response = await fetch(`/api/user/document/download/${doc.id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!response.ok) {
+      const text = await response.text()
+      throw new Error(text || 'Preview failed')
+    }
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+  } catch (error: any) {
+    ElMessage.error(error.message || 'Failed to preview document')
+  }
+}
+
+const downloadDocument = async (doc: any) => {
+  try {
+    const token = userStore.token
+    const response = await fetch(`/api/user/document/download/${doc.id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!response.ok) {
+      const text = await response.text()
+      throw new Error(text || 'Download failed')
+    }
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = doc.title || `document-${doc.id}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (error: any) {
+    ElMessage.error(error.message || 'Failed to download document')
+  }
+}
+
 const handleReindexDoc = async (doc: any) => {
   if (!doc?.id) return
   setIndexingDoc(doc.id, true)
@@ -935,7 +1197,7 @@ const handleReindexDoc = async (doc: any) => {
       ElMessage.warning(result.message || 'RAG index task did not complete successfully.')
     }
     await fetchRagIndexStatus()
-    if (chunkDialogVisible.value && chunkDoc.value?.id === doc.id) {
+    if (ragInfoDialogVisible.value && ragInfoDoc.value?.id === doc.id) {
       await loadDocumentChunks(doc)
     }
   } catch (error: any) {
@@ -946,9 +1208,9 @@ const handleReindexDoc = async (doc: any) => {
   }
 }
 
-const openChunksDialog = async (doc: any) => {
-  chunkDoc.value = doc
-  chunkDialogVisible.value = true
+const openRagInfoDialog = async (doc: any) => {
+  ragInfoDoc.value = doc
+  ragInfoDialogVisible.value = true
   await loadDocumentChunks(doc)
 }
 
@@ -990,7 +1252,7 @@ const handleDeleteDoc = (doc: any) => {
 
 onMounted(async () => {
   await fetchDocuments()
-  fetchDeptMembers()
+  fetchAllUsers()
   fetchDepartments()
   // Auto-open reader if navigated with document ID from RAG page
   const docId = route.query.id
@@ -1267,6 +1529,21 @@ watch(
   color: #e11d48;
 }
 
+.icon-box.pdf-file {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.icon-box.docx-file {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.icon-box.ppt-file {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
 .security-badge {
   font-size: 10px;
   font-weight: 700;
@@ -1274,6 +1551,17 @@ watch(
   border-radius: 20px;
   letter-spacing: 0.3px;
   display: inline-block;
+  white-space: nowrap;
+}
+
+.dept-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: #f0fdfa;
+  color: #0d9488;
+  white-space: nowrap;
 }
 
 .security-badge.global {
@@ -1312,8 +1600,9 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
+  min-height: 21px;
 }
 
 .doc-excerpt {
@@ -1952,12 +2241,6 @@ watch(
 }
 
 /* Card Management Actions Stylings */
-.card-mgmt-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .icon-action-btn {
   background: transparent !important;
   border: none !important;
@@ -1983,29 +2266,56 @@ watch(
   color: #e11d48 !important;
 }
 
-.icon-action-btn.index:hover,
-.icon-action-btn.chunks:hover {
+.icon-action-btn.rag-info {
+  color: #94a3b8 !important;
+}
+.icon-action-btn.rag-info:hover {
   background: #e0f2fe !important;
   color: #0369a1 !important;
 }
-
-.rag-index-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 7px;
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
+.icon-action-btn.rag-info.indexed {
+  color: #15803d !important;
+}
+.icon-action-btn.rag-info.indexed:hover {
+  background: #dcfce7 !important;
+  color: #15803d !important;
 }
 
-.rag-index-badge.indexed {
-  background: #dcfce7;
-  color: #15803d;
+/* RAG Info Dialog Summary */
+.rag-info-summary {
+  display: flex;
+  gap: 40px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.rag-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rag-info-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.rag-info-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.rag-info-value.text-success {
+  color: #16a34a;
+}
+
+.rag-info-value.text-red {
+  color: #dc2626;
 }
 
 .chunk-loading,
@@ -2065,6 +2375,111 @@ watch(
   font-size: 13.5px;
   line-height: 1.5;
 }
+
+/* Create dialog layout */
+.create-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 24px;
+  min-height: 420px;
+}
+
+.create-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-right: 20px;
+  border-right: 1px solid #f1f5f9;
+}
+
+.create-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.3px;
+}
+
+/* Type selector cards */
+.type-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.type-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #94a3b8;
+  text-align: center;
+}
+.type-card:hover { border-color: #c9cdd4; color: #64748b; }
+.type-card.active {
+  border-color: #111827;
+  background: #111827;
+  color: #fff;
+}
+.type-card .type-name { font-size: 11px; font-weight: 700; }
+.type-card .type-desc { font-size: 9px; opacity: 0.6; display: none; }
+
+.create-right {
+  display: flex;
+  flex-direction: column;
+}
+
+.content-editor :deep(.el-textarea__inner) {
+  min-height: 380px !important;
+  resize: none;
+}
+
+/* File drop zone */
+.file-drop-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  min-height: 380px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fafafa;
+}
+.file-drop-zone:hover {
+  border-color: #111827;
+  background: #f5f5f5;
+}
+
+.drop-icon { color: #c9cdd4; margin-bottom: 12px; }
+.drop-text { font-size: 14px; font-weight: 600; color: #64748b; margin-bottom: 4px; }
+.drop-hint { font-size: 11px; color: #c9cdd4; }
+
+.file-preview-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.file-preview-icon { color: #4f46e5; }
+.file-preview-name { font-size: 14px; font-weight: 600; color: #1e293b; }
+.file-preview-size { font-size: 12px; color: #94a3b8; }
+.file-change-btn { margin-top: 8px; }
+
+.file-meta { font-size: 12px; color: #64748b; word-break: break-all; }
+.file-meta-size { font-size: 11px; color: #94a3b8; }
 
 .custom-input :deep(.el-input__wrapper) {
   border-radius: 10px;

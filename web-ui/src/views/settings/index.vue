@@ -54,6 +54,32 @@
               </button>
             </div>
           </div>
+
+          <div class="settings-item">
+            <div class="item-left">
+              <div class="item-icon-wrap">
+                <HardDrive :size="17" :stroke-width="1.7" />
+              </div>
+              <div class="item-text">
+                <span class="item-title">{{ $t('settings.maxUploadSize') }}</span>
+                <span class="item-desc">{{ $t('settings.maxUploadSizeDesc') }}</span>
+              </div>
+            </div>
+            <div class="session-timeout-ctrl">
+              <el-input-number
+                v-model="maxUploadSizeMb"
+                :min="1"
+                :max="1024"
+                :step="10"
+                controls-position="right"
+                style="width: 120px;"
+              />
+              <span class="timeout-unit">MB</span>
+              <button class="edit-btn" :disabled="maxUploadSizeSaving" @click="handleSaveMaxUploadSize">
+                {{ maxUploadSizeSaving ? $t('common.saving') : $t('common.save') }}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -484,7 +510,7 @@ import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe, AlertCircle, Info, Timer, Cpu, Loader } from 'lucide-vue-next'
+import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe, AlertCircle, Info, Timer, Cpu, Loader, HardDrive } from 'lucide-vue-next'
 import request from '@utils/request'
 
 const { t, locale } = useI18n()
@@ -690,7 +716,30 @@ const handleSaveSessionTimeout = async () => {
   }
 }
 
-onMounted(() => { loadSessionTimeout(); loadAiProvider() })
+const maxUploadSizeMb = ref(100)
+const maxUploadSizeSaving = ref(false)
+
+const loadMaxUploadSize = async () => {
+  if (!isAdmin.value) return
+  try {
+    const res: any = await request.get('/user/config/max-upload-size')
+    if (res != null) maxUploadSizeMb.value = Number(res)
+  } catch (_) {}
+}
+
+const handleSaveMaxUploadSize = async () => {
+  maxUploadSizeSaving.value = true
+  try {
+    await request.put('/user/config/max-upload-size', { sizeMb: maxUploadSizeMb.value })
+    ElMessage.success(t('settings.maxUploadSizeSaved'))
+  } catch (_) {
+    ElMessage.error(t('settings.maxUploadSizeFailed'))
+  } finally {
+    maxUploadSizeSaving.value = false
+  }
+}
+
+onMounted(() => { loadSessionTimeout(); loadAiProvider(); loadMaxUploadSize() })
 
 // ── Profile Dialog ────────────────────────────────
 const profileDialogVisible = ref(false)

@@ -194,10 +194,10 @@
                 <BookOpen :size="16" />
                 <div>
                   <h3>{{ doc.title || `Document ${doc.documentId}` }}</h3>
-                  <p>
+                  <div class="doc-tags-row">
                     <span class="level-tag" :class="levelClass(doc.securityLevel)">Level {{ doc.securityLevel || 1 }}</span>
-                    <span class="reason-tag">{{ doc.accessReason }}</span>
-                  </p>
+                    <span class="reason-tag" :class="reasonClass(doc.accessReason)">{{ reasonLabel(doc.accessReason) }}</span>
+                  </div>
                 </div>
               </div>
               <el-button :loading="indexingDocId === doc.documentId" size="small" @click.stop="handleIndexDocument(doc.documentId)">
@@ -275,6 +275,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   BookOpen,
@@ -306,6 +307,7 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const question = ref('')
 const topK = ref(5)
@@ -486,6 +488,22 @@ const levelClass = (level?: number) => {
   if (level === 3) return 'confidential'
   if (level === 2) return 'internal'
   return 'public'
+}
+
+const reasonLabel = (reason?: string) => {
+  if (!reason) return ''
+  const key = `rag.accessReasons.${reason}`
+  const translated = t(key)
+  return translated === key ? reason : translated
+}
+
+const reasonClass = (reason?: string) => {
+  if (!reason) return ''
+  if (reason === 'ROLE_ADMIN') return 'admin'
+  if (reason === 'RAG_APPLY_APPROVED') return 'approved'
+  if (reason === 'GLOBAL_CLEARANCE') return 'global'
+  if (reason === 'DEPARTMENT_CLEARANCE') return 'dept'
+  return ''
 }
 
 const formatTime = (value?: string) => {
@@ -829,6 +847,15 @@ onUnmounted(() => {
 .document-main h3 { margin: 0 0 3px; font-size: 12.5px; font-weight: 600; color: #1e293b; }
 .document-main p { margin: 0; font-size: 11px; color: #94a3b8; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
+/* Document tag row */
+.doc-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
 /* Level tags */
 .level-tag {
   display: inline-block;
@@ -836,6 +863,7 @@ onUnmounted(() => {
   border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
+  white-space: nowrap;
 }
 .level-tag.public { background: #f0fdf4; color: #15803d; }
 .level-tag.internal { background: #fffbeb; color: #b45309; }
@@ -849,7 +877,12 @@ onUnmounted(() => {
   font-weight: 500;
   background: #f1f5f9;
   color: #64748b;
+  white-space: nowrap;
 }
+.reason-tag.admin { background: #f3e8ff; color: #7c3aed; }
+.reason-tag.approved { background: #fef3c7; color: #b45309; }
+.reason-tag.global { background: #f0fdf4; color: #15803d; }
+.reason-tag.dept { background: #dbeafe; color: #1d4ed8; }
 
 .view-all-link {
   display: block;
