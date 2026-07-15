@@ -1,10 +1,11 @@
 package com.agent.rag.service.impl;
 
 import com.agent.rag.dto.EmbeddingReadiness;
+import com.agent.rag.dto.EmbeddingRuntimeConfig;
 import com.agent.rag.service.EmbeddingClient;
+import com.agent.rag.service.EmbeddingRuntimeConfigService;
 import com.fasterxml.jackson.databind.JsonNode;
-import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -22,103 +23,81 @@ import java.util.Map;
 import java.util.Random;
 
 @Service
+@RequiredArgsConstructor
 public class HttpEmbeddingClient implements EmbeddingClient {
 
-    private RestTemplate restTemplate;
+    private static final String DASHSCOPE_ENDPOINT =
+            "https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding/text-embedding";
+    private static final String DASHSCOPE_DEFAULT_MODEL = "text-embedding-v4";
 
-    @Value("${rag.embedding.provider:mock}")
-    private String provider;
-
-    @Value("${rag.embedding.endpoint:}")
-    private String endpoint;
-
-    @Value("${rag.embedding.api-key:}")
-    private String apiKey;
-
-    @Value("${rag.embedding.model:}")
-    private String model;
-
-    @Value("${rag.embedding.dimension:768}")
-    private int dimension;
-
-    @Value("${rag.embedding.timeout-ms:10000}")
-    private int timeoutMs;
-
-    @PostConstruct
-    public void init() {
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        int safeTimeout = timeoutMs > 0 ? timeoutMs : 10000;
-        requestFactory.setConnectTimeout(safeTimeout);
-        requestFactory.setReadTimeout(safeTimeout);
-        this.restTemplate = new RestTemplate(requestFactory);
-    }
+    private final EmbeddingRuntimeConfigService configService;
 
     @Override
     public List<Float> embed(String text) {
-        if ("mock".equalsIgnoreCase(provider)) {
-            return mockEmbedding(text);
+        EmbeddingRuntimeConfig config = configService.getCurrentConfig();
+        if ("mock".equalsIgnoreCase(config.getProvider())) {
+            return mockEmbedding(text, config.getDimension());
         }
-        if (!"http".equalsIgnoreCase(provider)) {
-            throw new IllegalStateException("Unsupported embedding provider: " + provider);
+        if (!isHttpProvider(config) && !isDashScopeProvider(config)) {
+            throw new IllegalStateException("Unsupported embedding provider: " + config.getProvider());
         }
-        if (!StringUtils.hasText(endpoint)) {
-            throw new IllegalStateException("RAG embedding endpoint is not configured.");
+        if (isHttpProvider(config) && !StringUtils.hasText(config.getEndpoint())) {
+            throw new IllegalStateException("Local embedding endpoint is not configured.");
         }
-
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("input", text);
-        payload.put("text", text);
-        if (StringUtils.hasText(model)) {
-            payload.put("model", model);
+        if (isDashScopeProvider(config) && !StringUtils.hasText(config.getApiKey())) {
+            throw new IllegalStateException("DashScope embedding API key is not configured.");
         }
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        if (StringUtils.hasText(apiKey)) {
-            headers.setBearerAuth(apiKey);
+        if (StringUtils.hasText(config.getApiKey())) {
+            headers.setBearerAuth(config.getApiKey());
         }
-        JsonNode response = callEmbeddingService(payload, headers);
+        JsonNode response = callEmbeddingService(config, buildPayload(text, config), headers);
         List<Float> embedding = extractEmbedding(response);
-        validateDimension(embedding);
+        validateDimension(embedding, config);
         return embedding;
     }
 
     @Override
     public EmbeddingReadiness checkReadiness() {
-        boolean endpointConfigured = StringUtils.hasText(endpoint);
-        boolean apiKeyConfigured = StringUtils.hasText(apiKey);
+        EmbeddingRuntimeConfig config = configService.getCurrentConfig();
+        boolean endpointConfigured = StringUtils.hasText(config.getEndpoint()) || isDashScopeProvider(config);
+        boolean apiKeyConfigured = StringUtils.hasText(config.getApiKey());
 
-        if (!"mock".equalsIgnoreCase(provider) && !"http".equalsIgnoreCase(provider)) {
-            return readiness(false, false, null,
-                    "Unsupported embedding provider: " + provider,
-                    endpointConfigured,
-                    apiKeyConfigured);
+        if (!"mock".equalsIgnoreCase(config.getProvider())
+                && !isHttpProvider(config) && !isDashScopeProvider(config)) {
+            return readiness(config, false, false, null,
+                    "Unsupported embedding provider: " + config.getProvider(),
+                    endpointConfigured, apiKeyConfigured);
         }
-
-        if ("http".equalsIgnoreCase(provider) && !endpointConfigured) {
-            return readiness(false, false, null,
-                    "RAG embedding endpoint is not configured.",
-                    false,
-                    apiKeyConfigured);
+        if (isHttpProvider(config) && !StringUtils.hasText(config.getEndpoint())) {
+            return readiness(config, false, false, null,
+                    "Local embedding endpoint is not configured.", false, apiKeyConfigured);
+        }
+        if (isDashScopeProvider(config) && !apiKeyConfigured) {
+            return readiness(config, false, false, null,
+                    "DashScope embedding API key is not configured.", true, false);
         }
 
         try {
             List<Float> probe = embed("RAG embedding readiness probe.");
-            return readiness(true, true, probe.size(),
-                    "Embedding provider is ready.",
-                    endpointConfigured,
-                    apiKeyConfigured);
+            return readiness(config, true, true, probe.size(),
+                    "Embedding provider is ready.", endpointConfigured, apiKeyConfigured);
         } catch (Exception e) {
-            return readiness(false, true, null,
-                    e.getMessage(),
-                    endpointConfigured,
-                    apiKeyConfigured);
+            return readiness(config, false, true, null,
+                    e.getMessage(), endpointConfigured, apiKeyConfigured);
         }
     }
 
-    private JsonNode callEmbeddingService(Map<String, Object> payload, HttpHeaders headers) {
+    private JsonNode callEmbeddingService(
+            EmbeddingRuntimeConfig config,
+            Map<String, Object> payload,
+            HttpHeaders headers
+    ) {
         try {
-            return restTemplate.postForObject(endpoint, new HttpEntity<>(payload, headers), JsonNode.class);
+            return restTemplate(config.getTimeoutMs()).postForObject(
+                    resolveEndpoint(config), new HttpEntity<>(payload, headers), JsonNode.class);
         } catch (HttpStatusCodeException e) {
             String body = StringUtils.hasText(e.getResponseBodyAsString())
                     ? ": " + e.getResponseBodyAsString()
@@ -127,10 +106,39 @@ public class HttpEmbeddingClient implements EmbeddingClient {
                     + e.getStatusCode().value() + body, e);
         } catch (ResourceAccessException e) {
             throw new IllegalStateException("Embedding service is unreachable or timed out after "
-                    + timeoutMs + "ms: " + e.getMessage(), e);
+                    + config.getTimeoutMs() + "ms: " + e.getMessage(), e);
         } catch (Exception e) {
             throw new IllegalStateException("Embedding service request failed: " + e.getMessage(), e);
         }
+    }
+
+    private RestTemplate restTemplate(int timeoutMs) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        int safeTimeout = timeoutMs > 0 ? timeoutMs : 10000;
+        requestFactory.setConnectTimeout(safeTimeout);
+        requestFactory.setReadTimeout(safeTimeout);
+        return new RestTemplate(requestFactory);
+    }
+
+    private Map<String, Object> buildPayload(String text, EmbeddingRuntimeConfig config) {
+        String safeText = text == null ? "" : text;
+        if (isDashScopeProvider(config)) {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("model", resolveModel(config));
+            payload.put("input", Map.of("texts", List.of(safeText)));
+            if (config.getDimension() > 0) {
+                payload.put("parameters", Map.of("dimension", config.getDimension()));
+            }
+            return payload;
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("input", safeText);
+        payload.put("text", safeText);
+        if (StringUtils.hasText(config.getModel())) {
+            payload.put("model", config.getModel());
+        }
+        return payload;
     }
 
     private List<Float> extractEmbedding(JsonNode node) {
@@ -141,7 +149,6 @@ public class HttpEmbeddingClient implements EmbeddingClient {
         if (embeddingNode == null || !embeddingNode.isArray()) {
             throw new IllegalStateException("Embedding response does not contain an embedding array.");
         }
-
         List<Float> values = new ArrayList<>();
         for (JsonNode value : embeddingNode) {
             if (!value.isNumber()) {
@@ -159,59 +166,30 @@ public class HttpEmbeddingClient implements EmbeddingClient {
         if (node == null || node.isNull()) {
             return null;
         }
-        if (node.isArray() && node.size() > 0 && node.get(0).isNumber()) {
+        if (node.isArray() && !node.isEmpty() && node.get(0).isNumber()) {
             return node;
         }
-        if (node.has("embedding")) {
-            JsonNode direct = findEmbeddingArray(node.get("embedding"));
-            if (direct != null) {
-                return direct;
-            }
-        }
-        if (node.has("vector")) {
-            JsonNode direct = findEmbeddingArray(node.get("vector"));
-            if (direct != null) {
-                return direct;
-            }
-        }
-        if (node.has("embeddings")) {
-            JsonNode direct = findEmbeddingArray(node.get("embeddings"));
-            if (direct != null) {
-                return direct;
-            }
-        }
-        if (node.has("vectors")) {
-            JsonNode direct = findEmbeddingArray(node.get("vectors"));
-            if (direct != null) {
-                return direct;
-            }
-        }
-        if (node.has("data")) {
-            JsonNode direct = findEmbeddingArray(node.get("data"));
-            if (direct != null) {
-                return direct;
-            }
-        }
-        if (node.isArray()) {
-            for (JsonNode item : node) {
-                JsonNode direct = findEmbeddingArray(item);
-                if (direct != null) {
-                    return direct;
+        if (node.isContainerNode()) {
+            for (JsonNode child : node) {
+                JsonNode found = findEmbeddingArray(child);
+                if (found != null) {
+                    return found;
                 }
             }
         }
         return null;
     }
 
-    private void validateDimension(List<Float> embedding) {
-        if (dimension > 0 && embedding.size() != dimension) {
-            throw new IllegalStateException("Embedding dimension mismatch: expected RAG_EMBEDDING_DIM="
-                    + dimension + ", got " + embedding.size()
-                    + ". Update RAG_EMBEDDING_DIM or rebuild the Milvus collection with the correct dimension.");
+    private void validateDimension(List<Float> embedding, EmbeddingRuntimeConfig config) {
+        if (config.getDimension() > 0 && embedding.size() != config.getDimension()) {
+            throw new IllegalStateException("Embedding dimension mismatch: expected "
+                    + config.getDimension() + ", got " + embedding.size()
+                    + ". Rebuild the active Milvus collection with the matching embedding profile.");
         }
     }
 
     private EmbeddingReadiness readiness(
+            EmbeddingRuntimeConfig config,
             boolean ready,
             boolean probed,
             Integer actualDimension,
@@ -220,20 +198,43 @@ public class HttpEmbeddingClient implements EmbeddingClient {
             boolean apiKeyConfigured
     ) {
         return EmbeddingReadiness.builder()
-                .provider(provider)
+                .provider(config.getProfile())
                 .ready(ready)
                 .probed(probed)
                 .message(message)
-                .dimension(dimension)
+                .dimension(config.getDimension())
                 .actualDimension(actualDimension)
-                .model(model)
+                .model(resolveModel(config))
                 .endpointConfigured(endpointConfigured)
                 .apiKeyConfigured(apiKeyConfigured)
-                .timeoutMs(timeoutMs)
+                .timeoutMs(config.getTimeoutMs())
                 .build();
     }
 
-    private List<Float> mockEmbedding(String text) {
+    private boolean isHttpProvider(EmbeddingRuntimeConfig config) {
+        return "http".equalsIgnoreCase(config.getProvider());
+    }
+
+    private boolean isDashScopeProvider(EmbeddingRuntimeConfig config) {
+        return "qwen".equalsIgnoreCase(config.getProvider())
+                || "dashscope".equalsIgnoreCase(config.getProvider());
+    }
+
+    private String resolveEndpoint(EmbeddingRuntimeConfig config) {
+        if (isDashScopeProvider(config) && !StringUtils.hasText(config.getEndpoint())) {
+            return DASHSCOPE_ENDPOINT;
+        }
+        return config.getEndpoint();
+    }
+
+    private String resolveModel(EmbeddingRuntimeConfig config) {
+        if (isDashScopeProvider(config) && !StringUtils.hasText(config.getModel())) {
+            return DASHSCOPE_DEFAULT_MODEL;
+        }
+        return config.getModel();
+    }
+
+    private List<Float> mockEmbedding(String text, int dimension) {
         if (dimension <= 0) {
             throw new IllegalStateException("RAG embedding dimension must be greater than 0.");
         }

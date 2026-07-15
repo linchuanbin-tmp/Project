@@ -1,7 +1,9 @@
 package com.agent.rag.controller;
 
 import com.agent.rag.dto.EmbeddingReadiness;
+import com.agent.rag.dto.EmbeddingRuntimeConfig;
 import com.agent.rag.service.EmbeddingClient;
+import com.agent.rag.service.EmbeddingRuntimeConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,27 +20,10 @@ import java.util.Map;
 public class RagHealthController {
 
     private final EmbeddingClient embeddingClient;
+    private final EmbeddingRuntimeConfigService embeddingConfigService;
 
     @Value("${rag.vector-store.provider:milvus}")
     private String vectorStoreProvider;
-
-    @Value("${rag.embedding.provider:mock}")
-    private String embeddingProvider;
-
-    @Value("${rag.embedding.endpoint:}")
-    private String embeddingEndpoint;
-
-    @Value("${rag.embedding.api-key:}")
-    private String embeddingApiKey;
-
-    @Value("${rag.embedding.model:}")
-    private String embeddingModel;
-
-    @Value("${rag.embedding.dimension:768}")
-    private int embeddingDimension;
-
-    @Value("${rag.embedding.timeout-ms:10000}")
-    private int embeddingTimeoutMs;
 
     @Value("${rag.llm.provider:mock}")
     private String llmProvider;
@@ -61,9 +46,6 @@ public class RagHealthController {
     @Value("${rag.llm.max-tokens:1200}")
     private int llmMaxTokens;
 
-    @Value("${rag.vector-store.milvus.collection-name:rag_document_chunks}")
-    private String milvusCollection;
-
     @Value("${rag.vector-store.milvus.metric-type:COSINE}")
     private String vectorMetric;
 
@@ -79,19 +61,22 @@ public class RagHealthController {
     @GetMapping("/health")
     public Map<String, Object> health() {
         EmbeddingReadiness embeddingReadiness = embeddingClient.checkReadiness();
+        EmbeddingRuntimeConfig embeddingConfig = embeddingConfigService.getCurrentConfig();
         Map<String, Object> health = new LinkedHashMap<>();
         health.put("status", "UP");
         health.put("service", "rag-agent");
         health.put("vectorStore", vectorStoreProvider);
-        health.put("milvusCollection", milvusCollection);
+        health.put("milvusCollection", embeddingConfig.getCollectionName());
+        health.put("embeddingProfile", embeddingConfig.getProfile());
+        health.put("embeddingIndexStatus", embeddingConfigService.getActiveIndexStatus());
         health.put("vectorMetric", vectorMetric);
         health.put("vectorIndex", vectorIndex);
-        health.put("embeddingProvider", embeddingProvider);
-        health.put("embeddingDim", embeddingDimension);
-        health.put("embeddingTimeoutMs", embeddingTimeoutMs);
-        health.put("embeddingEndpointConfigured", StringUtils.hasText(embeddingEndpoint));
-        health.put("embeddingApiKeyConfigured", StringUtils.hasText(embeddingApiKey));
-        health.put("embeddingModel", embeddingModel);
+        health.put("embeddingProvider", embeddingReadiness.getProvider());
+        health.put("embeddingDim", embeddingReadiness.getDimension());
+        health.put("embeddingTimeoutMs", embeddingReadiness.getTimeoutMs());
+        health.put("embeddingEndpointConfigured", embeddingReadiness.getEndpointConfigured());
+        health.put("embeddingApiKeyConfigured", embeddingReadiness.getApiKeyConfigured());
+        health.put("embeddingModel", embeddingReadiness.getModel());
         health.put("embeddingReady", embeddingReadiness.getReady());
         health.put("embeddingProbed", embeddingReadiness.getProbed());
         health.put("embeddingActualDim", embeddingReadiness.getActualDimension());

@@ -16,6 +16,7 @@ import com.agent.rag.service.DocumentChunker;
 import com.agent.rag.service.DocumentParserService;
 import com.agent.rag.service.DocumentStorageService;
 import com.agent.rag.service.EmbeddingClient;
+import com.agent.rag.service.EmbeddingRuntimeConfigService;
 import com.agent.rag.service.RagIndexService;
 import com.agent.rag.service.VectorStoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -55,6 +56,7 @@ public class RagIndexServiceImpl implements RagIndexService {
     private final DocumentStorageService documentStorageService;
     private final EmbeddingClient embeddingClient;
     private final VectorStoreService vectorStoreService;
+    private final EmbeddingRuntimeConfigService embeddingConfigService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -73,14 +75,20 @@ public class RagIndexServiceImpl implements RagIndexService {
     public RagIndexResponse rebuildAll() {
         RagIndexTask task = createTask(null, TASK_REBUILD_ALL);
         try {
-            List<SysDocument> documents = sysDocumentMapper.selectList(null);
-            int totalChunks = 0;
-            for (SysDocument document : documents) {
-                totalChunks += writeChunks(document);
-            }
-            markTask(task, STATUS_SUCCESS, "Rebuilt " + documents.size() + " document(s), " + totalChunks + " chunk(s).");
+            embeddingConfigService.markActiveIndexRebuilding();
+            int totalChunks = embeddingConfigService.withCurrentProfile(() -> {
+                List<SysDocument> documents = sysDocumentMapper.selectList(null);
+                int chunks = 0;
+                for (SysDocument document : documents) {
+                    chunks += writeChunks(document);
+                }
+                markTask(task, STATUS_SUCCESS, "Rebuilt " + documents.size() + " document(s), " + chunks + " chunk(s).");
+                return chunks;
+            });
+            embeddingConfigService.markActiveIndexReady();
             return response(task, totalChunks);
         } catch (Exception e) {
+            embeddingConfigService.markActiveIndexFailed(e.getMessage());
             markTask(task, STATUS_FAIL, e.getMessage());
             return response(task, 0);
         }
@@ -173,12 +181,13 @@ public class RagIndexServiceImpl implements RagIndexService {
     private RagIndexResponse processDocument(Long documentId, String taskType, boolean forceParse) {
         RagIndexTask task = createTask(documentId, taskType);
         try {
-            SysDocument document = sysDocumentMapper.selectById(documentId);
-            if (document == null) {
-                throw new RuntimeException("Document not found: " + documentId);
-            }
-
-            int chunkCount = writeChunks(document, forceParse);
+            int chunkCount = embeddingConfigService.withCurrentProfile(() -> {
+                SysDocument document = sysDocumentMapper.selectById(documentId);
+                if (document == null) {
+                    throw new RuntimeException("Document not found: " + documentId);
+                }
+                return writeChunks(document, forceParse);
+            });
             markTask(task, STATUS_SUCCESS, "Indexed " + chunkCount + " chunk(s).");
             return response(task, chunkCount);
         } catch (Exception e) {

@@ -1,6 +1,6 @@
 <template>
   <div class="settings-page">
-    <!-- Header — 与其他页面保持一致 -->
+    <!-- Header - keep consistent with other pages -->
     <div class="page-header">
       <div class="header-left">
         <h1 class="page-title">{{ $t('settings.title') }}</h1>
@@ -27,6 +27,20 @@
               </div>
             </div>
             <button class="edit-btn" @click="openAiProviderDialog">{{ $t('common.edit') }}</button>
+          </div>
+
+          <!-- RAG Embedding Provider -->
+          <div class="settings-item">
+            <div class="item-left">
+              <div class="item-icon-wrap">
+                <Database :size="17" :stroke-width="1.7" />
+              </div>
+              <div class="item-text">
+                <span class="item-title">{{ $t('settings.embeddingProvider') }}</span>
+                <span class="item-desc">{{ currentEmbeddingProviderLabel }}</span>
+              </div>
+            </div>
+            <button class="edit-btn" @click="openEmbeddingDialog">{{ $t('common.edit') }}</button>
           </div>
 
           <div class="settings-item">
@@ -177,7 +191,7 @@
 
     </div>
 
-    <!-- ── Profile Dialog ──────────────────────────── -->
+    <!-- Profile Dialog -->
     <el-dialog
       v-model="profileDialogVisible"
       :title="$t('settings.profile')"
@@ -239,7 +253,7 @@
       </template>
     </el-dialog>
 
-    <!-- ── Password Dialog ────────────────────────── -->
+    <!-- Password Dialog -->
     <el-dialog
       v-model="passwordDialogVisible"
       :title="$t('settings.changePassword')"
@@ -303,7 +317,7 @@
       </template>
     </el-dialog>
 
-    <!-- ── Report Issue Dialog ────────────────────── -->
+    <!-- Report Issue Dialog -->
     <el-dialog
       v-model="reportDialogVisible"
       :title="$t('settings.reportIssue')"
@@ -360,7 +374,7 @@
       </template>
     </el-dialog>
 
-    <!-- ── About Dialog ───────────────────────────── -->
+    <!-- About Dialog -->
     <el-dialog
       v-model="aboutDialogVisible"
       :title="$t('settings.aboutSystemTitle')"
@@ -402,7 +416,7 @@
       </template>
     </el-dialog>
 
-    <!-- ── AI Provider Dialog ──────────────────────── -->
+    <!-- AI Provider Dialog -->
     <el-dialog
       v-model="aiDialogVisible"
       :title="$t('settings.aiProviderDialogTitle')"
@@ -501,6 +515,76 @@
       </template>
     </el-dialog>
 
+    <el-dialog
+      v-model="embeddingDialogVisible"
+      :title="$t('settings.embeddingDialogTitle')"
+      width="680px"
+      :close-on-click-modal="false"
+      class="settings-dialog ai-provider-dialog"
+    >
+      <div class="embedding-provider-grid">
+        <button
+          v-for="profile in EMBEDDING_PROFILES"
+          :key="profile.id"
+          type="button"
+          class="embedding-profile-option"
+          :class="{ selected: embeddingProviderDraft === profile.id }"
+          @click="embeddingProviderDraft = profile.id"
+        >
+          <component :is="isQwenEmbeddingProfile(profile.id) ? Cloud : HardDrive" :size="18" />
+          <span class="embedding-profile-copy">
+            <strong>{{ profile.label }}</strong>
+            <small>{{ embeddingProfileDescription(profile) }}</small>
+          </span>
+          <Check v-if="embeddingProviderDraft === profile.id" :size="17" />
+        </button>
+      </div>
+
+      <div class="embedding-config-summary">
+        <div>
+          <span>Model</span>
+          <strong>{{ selectedEmbeddingProfile.model }}</strong>
+        </div>
+        <div>
+          <span>Dimension</span>
+          <strong>{{ selectedEmbeddingProfile.dimension }}</strong>
+        </div>
+        <div>
+          <span>Milvus</span>
+          <strong>{{ selectedEmbeddingProfile.collectionName }}</strong>
+        </div>
+      </div>
+
+      <div class="embedding-test-row">
+        <div class="embedding-test-copy">
+          <strong>{{ $t('settings.testConnection') }}</strong>
+          <span>{{ $t('settings.embeddingTestHint') }}</span>
+        </div>
+        <el-button :loading="embeddingTesting" @click="testEmbeddingConnection">
+          {{ embeddingTesting ? $t('settings.testing') : $t('settings.testConnectionBtn') }}
+        </el-button>
+      </div>
+      <div
+        v-if="embeddingTestResult"
+        class="ai-test-result embedding-test-result"
+        :class="embeddingTestResultClass"
+      >
+        {{ embeddingTestResult }}
+      </div>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="embeddingDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+          <el-button :loading="embeddingRebuilding" @click="handleRebuildEmbeddingIndex">
+            {{ embeddingRebuilding ? $t('settings.embeddingRebuilding') : $t('settings.embeddingRebuildIndex') }}
+          </el-button>
+          <el-button type="primary" :loading="embeddingSaving" @click="handleSaveEmbeddingProvider">
+            {{ embeddingSaving ? $t('common.saving') : $t('common.save') }}
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -508,10 +592,17 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe, AlertCircle, Info, Timer, Cpu, Loader, HardDrive } from 'lucide-vue-next'
+import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe, AlertCircle, Info, Timer, Cpu, Loader, HardDrive, Database, Cloud } from 'lucide-vue-next'
 import request from '@utils/request'
+import {
+  activateRagEmbeddingProfile,
+  getRagEmbeddingProfiles,
+  rebuildRagIndex,
+  testRagEmbeddingProfile,
+  type RagEmbeddingProfile,
+} from '@api/rag'
 
 const { t, locale } = useI18n()
 const currentLocale = ref(locale.value)
@@ -522,7 +613,7 @@ const handleLocaleChange = (lang: string) => {
   ElMessage.success(
     lang === 'en'
       ? 'Language switched successfully!'
-      : lang === 'zh-TW'
+    : lang === 'zh-TW'
         ? '語言切換成功！'
         : '语言切换成功！'
   )
@@ -545,7 +636,7 @@ const avatarLetter = computed(() => {
   return name.charAt(0).toUpperCase()
 })
 
-// ── AI Model Provider ───────────────────────────────────
+// AI Model Provider
 const AI_PROVIDERS_BASE = [
   { key: 'xunfei',       i18nKey: 'settings.aiProviderXunfei',     baseUrl: 'https://maas-api.cn-huabei-1.xf-yun.com/v2', model: 'xopdeepseekv32' },
   { key: 'deepseek',     i18nKey: 'settings.aiProviderDeepseek',   baseUrl: 'https://api.deepseek.com',                   model: 'deepseek-chat' },
@@ -622,15 +713,15 @@ const testAiConnection = async () => {
       apiKey: aiProviderApiKey.value || undefined,
     })
     if (res && res.ok) {
-      aiTestResult.value = `✓ Success — ${res.reply || 'connected'}`
+      aiTestResult.value = `Success - ${res.reply || 'connected'}`
       aiTestResultClass.value = 'success'
     } else {
-      aiTestResult.value = `✗ Failed — ${res?.error || 'no response'}`
+      aiTestResult.value = `Failed - ${res?.error || 'no response'}`
       aiTestResultClass.value = 'error'
     }
   } catch (e: any) {
     const msg = e?.response?.data?.message || e?.message || 'connection error'
-    aiTestResult.value = `✗ Failed — ${msg}`
+    aiTestResult.value = `Failed - ${msg}`
     aiTestResultClass.value = 'error'
   } finally {
     aiTesting.value = false
@@ -692,7 +783,146 @@ const handleSaveAiProvider = async () => {
   }
 }
 
-// ── Admin: Session Timeout ─────────────────────────────────
+const fallbackEmbeddingProfiles: RagEmbeddingProfile[] = [
+  {
+    id: 'local-bge-m3',
+    label: 'Local BGE-M3',
+    provider: 'http',
+    model: 'BAAI/bge-m3',
+    dimension: 1024,
+    collectionName: 'rag_document_chunks_bge_m3',
+  },
+  {
+    id: 'qwen-v4',
+    label: 'Qwen text-embedding-v4',
+    provider: 'qwen',
+    model: 'text-embedding-v4',
+    dimension: 1024,
+    collectionName: 'rag_document_chunks_qwen_v4_1024',
+  },
+]
+
+const EMBEDDING_PROFILES = ref<RagEmbeddingProfile[]>(fallbackEmbeddingProfiles)
+const embeddingProvider = ref('local-bge-m3')
+const embeddingProviderDraft = ref('local-bge-m3')
+const embeddingDialogVisible = ref(false)
+const embeddingTesting = ref(false)
+const embeddingSaving = ref(false)
+const embeddingRebuilding = ref(false)
+const embeddingTestResult = ref('')
+const embeddingTestResultClass = ref('')
+
+const selectedEmbeddingProfile = computed(() =>
+  EMBEDDING_PROFILES.value.find(profile => profile.id === embeddingProviderDraft.value) || EMBEDDING_PROFILES.value[0]
+)
+
+const currentEmbeddingProviderLabel = computed(() => {
+  const profile = EMBEDDING_PROFILES.value.find(item => item.id === embeddingProvider.value) || EMBEDDING_PROFILES.value[0]
+  const status = profile.indexStatus ? ` | ${profile.indexStatus}` : ''
+  return `${profile.label} - ${profile.model}${status}`
+})
+
+const loadEmbeddingProvider = async () => {
+  if (!isAdmin.value) return
+  try {
+    const profiles = await getRagEmbeddingProfiles()
+    if (Array.isArray(profiles) && profiles.length > 0) {
+      EMBEDDING_PROFILES.value = profiles
+      const active = profiles.find(profile => profile.active) || profiles[0]
+      embeddingProvider.value = active.id
+      embeddingProviderDraft.value = active.id
+    }
+  } catch (_) {}
+}
+
+const openEmbeddingDialog = () => {
+  embeddingProviderDraft.value = embeddingProvider.value
+  embeddingTestResult.value = ''
+  embeddingTestResultClass.value = ''
+  embeddingDialogVisible.value = true
+}
+
+const isQwenEmbeddingProfile = (profileId?: string) => {
+  return profileId === 'qwen-v4' || profileId === 'qwen'
+}
+
+const embeddingProfileDescription = (profile: RagEmbeddingProfile) => {
+  const configured = profile.provider === 'qwen'
+    ? (profile.apiKeyConfigured ? 'API Key configured' : 'API Key missing')
+    : (profile.endpointConfigured ? 'Local worker endpoint configured' : 'Local worker endpoint missing')
+  const status = profile.indexStatus ? ` | ${profile.indexStatus}` : ''
+  return `${configured}${status}`
+}
+
+const testEmbeddingConnection = async () => {
+  embeddingTesting.value = true
+  embeddingTestResult.value = ''
+  try {
+    const result = await testRagEmbeddingProfile(embeddingProviderDraft.value)
+    if (result?.ready) {
+      embeddingTestResult.value = `${t('settings.embeddingTestSuccess')} (${result.actualDimension || result.dimension} dim)`
+      embeddingTestResultClass.value = 'success'
+    } else {
+      embeddingTestResult.value = result?.message || t('settings.embeddingTestFailed')
+      embeddingTestResultClass.value = 'error'
+    }
+  } catch (error: any) {
+    embeddingTestResult.value = error?.message || t('settings.embeddingTestFailed')
+    embeddingTestResultClass.value = 'error'
+  } finally {
+    embeddingTesting.value = false
+  }
+}
+
+const handleSaveEmbeddingProvider = async () => {
+  const providerChanged = embeddingProviderDraft.value !== embeddingProvider.value
+  if (providerChanged) {
+    try {
+      await ElMessageBox.confirm(
+        t('settings.embeddingRebuildWarning'),
+        t('settings.embeddingSwitchConfirmTitle'),
+        { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
+      )
+    } catch (_) {
+      return
+    }
+  }
+
+  embeddingSaving.value = true
+  try {
+    const result = await activateRagEmbeddingProfile(embeddingProviderDraft.value)
+    embeddingProvider.value = embeddingProviderDraft.value
+    embeddingDialogVisible.value = false
+    ElMessage.success(t('settings.embeddingProviderSaved'))
+    if (result?.rebuildRequired) {
+      ElMessage.warning(t('settings.embeddingRebuildRequired'))
+    }
+    await loadEmbeddingProvider()
+  } catch (_) {
+    ElMessage.error(t('settings.embeddingProviderFailed'))
+  } finally {
+    embeddingSaving.value = false
+  }
+}
+
+const handleRebuildEmbeddingIndex = async () => {
+  embeddingRebuilding.value = true
+  try {
+    const result = await rebuildRagIndex()
+    if (result?.status === 'SUCCESS') {
+      ElMessage.success(t('settings.embeddingRebuildSuccess'))
+    } else {
+      ElMessage.warning(result?.message || t('settings.embeddingRebuildRequired'))
+    }
+    await loadEmbeddingProvider()
+  } catch (_) {
+    ElMessage.error(t('settings.embeddingRebuildFailed'))
+  } finally {
+    embeddingRebuilding.value = false
+  }
+}
+
+// Admin: Session Timeout
 const sessionTimeoutMinutes = ref(30)
 const sessionTimeoutSaving  = ref(false)
 
@@ -739,9 +969,9 @@ const handleSaveMaxUploadSize = async () => {
   }
 }
 
-onMounted(() => { loadSessionTimeout(); loadAiProvider(); loadMaxUploadSize() })
+onMounted(() => { loadSessionTimeout(); loadAiProvider(); loadEmbeddingProvider(); loadMaxUploadSize() })
 
-// ── Profile Dialog ────────────────────────────────
+// Profile Dialog
 const profileDialogVisible = ref(false)
 const profileFormRef = ref<FormInstance>()
 const profileLoading = ref(false)
@@ -774,7 +1004,7 @@ const handleSaveProfile = async () => {
   })
 }
 
-// ── Password Dialog ────────────────────────────────
+// Password Dialog
 const passwordDialogVisible = ref(false)
 const passwordFormRef = ref<FormInstance>()
 const passwordLoading = ref(false)
@@ -908,7 +1138,7 @@ const openAboutDialog = () => {
 </script>
 
 <style scoped>
-/* ── Header (与其他页面完全一致) ─────────────────── */
+/* Header */
 .settings-page {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   max-width: 1200px;
@@ -936,7 +1166,7 @@ const openAboutDialog = () => {
   margin: 0;
 }
 
-/* ── Settings Sections ───────────────────────────── */
+/* Settings Sections */
 .settings-sections {
   display: flex;
   flex-direction: column;
@@ -1042,7 +1272,7 @@ const openAboutDialog = () => {
   box-shadow: 0 0 0 2px #111827 !important;
 }
 
-/* ── Dialog form ─────────────────────────────────── */
+/* Dialog form */
 .dialog-avatar-row {
   display: flex;
   align-items: center;
@@ -1352,7 +1582,119 @@ const openAboutDialog = () => {
   flex-wrap: wrap;
 }
 
-/* ── Admin category visual distinction ───────────── */
+.embedding-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.embedding-profile-option {
+  min-height: 88px;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  text-align: left;
+  cursor: pointer;
+}
+
+.embedding-profile-option:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.embedding-profile-option.selected {
+  border-color: #6366f1;
+  background: #f5f3ff;
+  color: #4338ca;
+}
+
+.embedding-profile-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.embedding-profile-copy strong {
+  font-size: 13.5px;
+  color: #111827;
+}
+
+.embedding-profile-copy small {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.embedding-config-summary {
+  display: grid;
+  grid-template-columns: 1fr 100px 1.25fr;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 13px 14px;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.embedding-config-summary > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.embedding-config-summary span,
+.embedding-test-copy span {
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+
+.embedding-config-summary strong {
+  overflow-wrap: anywhere;
+  font-size: 12.5px;
+  color: #334155;
+}
+
+.embedding-test-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #eef2f7;
+}
+
+.embedding-test-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.embedding-test-copy strong {
+  font-size: 13px;
+  color: #334155;
+}
+
+.embedding-test-result {
+  margin-top: 10px;
+}
+
+@media (max-width: 720px) {
+  .embedding-provider-grid,
+  .embedding-config-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Admin category visual distinction */
 .admin-category {
   position: relative;
 }
@@ -1372,7 +1714,7 @@ const openAboutDialog = () => {
   border-bottom-color: #ede4ff;
 }
 
-/* ── AI Provider Dialog ──────────────────────────── */
+/* AI Provider Dialog */
 .ai-dialog-layout {
   display: flex;
   gap: 20px;
@@ -1491,7 +1833,7 @@ const openAboutDialog = () => {
 }
 .ai-test-result.success { background: #f0fdf4; color: #15803d; }
 .ai-test-result.error   { background: #fef2f2; color: #dc2626; }
-/* ── End AI Provider Dialog ──────────────────────── */
+/* End AI Provider Dialog */
 
 /* Dialog global style overrides */
 .settings-dialog .el-dialog {
@@ -1518,7 +1860,7 @@ const openAboutDialog = () => {
   padding-top: 16px !important;
 }
 
-/* ── AI Provider Dialog ──────────────────────────── */
+/* AI Provider Dialog */
 .ai-dialog-layout {
   display: flex;
   gap: 20px;

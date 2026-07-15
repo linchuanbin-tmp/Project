@@ -270,6 +270,36 @@ If `RAG_EMBEDDING_PROVIDER=http` but no endpoint is configured, RAG Agent will f
 RAG embedding endpoint is not configured.
 ```
 
+### Qwen Cloud / DashScope text-embedding-v4
+
+For Qwen Cloud / DashScope, use the built-in provider instead of the local
+worker:
+
+```text
+RAG_EMBEDDING_PROVIDER=qwen
+RAG_EMBEDDING_ENDPOINT=
+RAG_EMBEDDING_API_KEY=your_dashscope_api_key
+RAG_EMBEDDING_MODEL=text-embedding-v4
+RAG_EMBEDDING_DIM=1024
+RAG_EMBEDDING_TIMEOUT_MS=30000
+RAG_MILVUS_COLLECTION=rag_document_chunks_qwen_v4_1024
+```
+
+`qwen` and `dashscope` are equivalent provider names. If
+`RAG_EMBEDDING_ENDPOINT` is empty, RAG Agent uses the default DashScope text
+embedding endpoint.
+
+`text-embedding-v4` supports custom dimensions. Start with `1024` so it matches
+the local BGE-M3 setup. If you change the dimension, use a new Milvus collection
+name or rebuild the existing collection before indexing documents again.
+
+Verify the Qwen embedding API before starting RAG Agent:
+
+```powershell
+$env:RAG_EMBEDDING_API_KEY="your_dashscope_api_key"
+.\scripts\test-qwen-embedding.ps1
+```
+
 ### Local BGE-M3 Worker
 
 For local development without a third-party embedding API, run the Python worker in `rag-worker`.

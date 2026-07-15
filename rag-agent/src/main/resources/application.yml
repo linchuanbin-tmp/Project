@@ -22,6 +22,12 @@ spring:
       port: ${SPRING_DATA_REDIS_PORT:6379}
       database: 0
 
+user-service:
+  url: ${USER_SERVICE_URI:http://localhost:8081}
+
+app:
+  internal-service-key: ${INTERNAL_SERVICE_KEY:change-me-in-production}
+
 mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
@@ -55,12 +61,27 @@ rag:
       metric-type: ${RAG_VECTOR_METRIC:COSINE}
       index-type: ${RAG_VECTOR_INDEX:HNSW}
   embedding:
+    active-profile: ${RAG_EMBEDDING_ACTIVE_PROFILE:local-bge-m3}
     provider: ${RAG_EMBEDDING_PROVIDER:mock}
     endpoint: ${RAG_EMBEDDING_ENDPOINT:}
     api-key: ${RAG_EMBEDDING_API_KEY:}
     model: ${RAG_EMBEDDING_MODEL:}
     dimension: ${RAG_EMBEDDING_DIM:768}
     timeout-ms: ${RAG_EMBEDDING_TIMEOUT_MS:10000}
+    profiles:
+      local:
+        endpoint: ${RAG_LOCAL_EMBEDDING_ENDPOINT:${RAG_EMBEDDING_ENDPOINT:http://localhost:8091/embed}}
+        model: ${RAG_LOCAL_EMBEDDING_MODEL:BAAI/bge-m3}
+        dimension: ${RAG_LOCAL_EMBEDDING_DIM:1024}
+        timeout-ms: ${RAG_LOCAL_EMBEDDING_TIMEOUT_MS:${RAG_EMBEDDING_TIMEOUT_MS:30000}}
+        collection-name: ${RAG_LOCAL_MILVUS_COLLECTION:rag_document_chunks_bge_m3}
+      qwen:
+        endpoint: ${RAG_QWEN_EMBEDDING_ENDPOINT:}
+        api-key: ${RAG_QWEN_EMBEDDING_API_KEY:${RAG_EMBEDDING_API_KEY:}}
+        model: ${RAG_QWEN_EMBEDDING_MODEL:text-embedding-v4}
+        dimension: ${RAG_QWEN_EMBEDDING_DIM:1024}
+        timeout-ms: ${RAG_QWEN_EMBEDDING_TIMEOUT_MS:${RAG_EMBEDDING_TIMEOUT_MS:30000}}
+        collection-name: ${RAG_QWEN_MILVUS_COLLECTION:rag_document_chunks_qwen_v4_1024}
   llm:
     provider: ${RAG_LLM_PROVIDER:mock}
     api-key: ${RAG_LLM_API_KEY:${DEEPSEEK_API_KEY:}}

@@ -140,6 +140,43 @@ export interface RagHealthResponse {
   chunkOverlapTokens?: number
 }
 
+export interface RagEmbeddingProfile {
+  id: string
+  label: string
+  provider: string
+  endpoint?: string
+  endpointConfigured?: boolean
+  apiKeyConfigured?: boolean
+  model: string
+  dimension: number
+  timeoutMs?: number
+  collectionName: string
+  active?: boolean
+  indexStatus?: string
+  indexMessage?: string
+}
+
+export interface RagEmbeddingActivationResponse {
+  activeProfileId: string
+  previousProfileId?: string
+  indexStatus: string
+  rebuildRequired: boolean
+  message?: string
+}
+
+export interface RagEmbeddingReadiness {
+  provider: string
+  ready: boolean
+  probed: boolean
+  message?: string
+  dimension?: number
+  actualDimension?: number
+  model?: string
+  endpointConfigured?: boolean
+  apiKeyConfigured?: boolean
+  timeoutMs?: number
+}
+
 export const getRagHealth = () =>
   request.get<any, RagHealthResponse>('/rag/health')
 
@@ -172,3 +209,15 @@ export const getRagDocumentChunks = (documentId: number) =>
 
 export const requestRagDocumentAccess = (data: RagAccessRequest) =>
   request.post<any, RagAccessRequestResponse>('/rag/access-request', data)
+
+export const getRagEmbeddingProfiles = () =>
+  request.get<any, RagEmbeddingProfile[]>('/rag/embedding/profiles')
+
+export const getActiveRagEmbeddingProfile = () =>
+  request.get<any, RagEmbeddingProfile>('/rag/embedding/active')
+
+export const testRagEmbeddingProfile = (profileId: string) =>
+  request.post<any, RagEmbeddingReadiness>(`/rag/embedding/profiles/${profileId}/test`)
+
+export const activateRagEmbeddingProfile = (profileId: string) =>
+  request.post<any, RagEmbeddingActivationResponse>(`/rag/embedding/profiles/${profileId}/activate`)

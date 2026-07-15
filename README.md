@@ -318,9 +318,29 @@ RAG_EMBEDDING_DIM=1024
 RAG_EMBEDDING_TIMEOUT_MS=30000
 ```
 
+使用千问云 / DashScope `text-embedding-v4` 时：
+
+```env
+RAG_EMBEDDING_PROVIDER=qwen
+RAG_EMBEDDING_ENDPOINT=
+RAG_EMBEDDING_API_KEY=your_dashscope_api_key
+RAG_EMBEDDING_MODEL=text-embedding-v4
+RAG_EMBEDDING_DIM=1024
+RAG_EMBEDDING_TIMEOUT_MS=30000
+```
+
+拿到 API Key 后可先单独验证千问云 Embedding：
+
+```powershell
+$env:RAG_EMBEDDING_API_KEY="your_dashscope_api_key"
+.\scripts\test-qwen-embedding.ps1
+```
+
 ### 6.2 Embedding Worker
 
-首次使用 Embedding 前，需要准备 Python 虚拟环境并安装依赖：
+只有使用本地 BGE-M3 时才需要启动 Embedding Worker。使用千问云 API 时，不需要启动 `rag-worker`。
+
+首次使用本地 Embedding 前，需要准备 Python 虚拟环境并安装依赖：
 
 ```powershell
 python -m venv .venv-rag

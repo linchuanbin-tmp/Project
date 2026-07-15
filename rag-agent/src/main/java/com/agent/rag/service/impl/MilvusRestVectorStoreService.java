@@ -1,10 +1,13 @@
 package com.agent.rag.service.impl;
 
+import com.agent.rag.dto.EmbeddingRuntimeConfig;
 import com.agent.rag.dto.VectorRecord;
 import com.agent.rag.dto.VectorSearchResult;
+import com.agent.rag.service.EmbeddingRuntimeConfigService;
 import com.agent.rag.service.VectorStoreService;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -18,12 +21,17 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class MilvusRestVectorStoreService implements VectorStoreService {
 
+    private final EmbeddingRuntimeConfigService configService;
     private final RestTemplate restTemplate = new RestTemplate();
+    private final Set<String> initializedCollections = ConcurrentHashMap.newKeySet();
 
     @Value("${rag.vector-store.provider:milvus}")
     private String provider;
@@ -36,12 +44,6 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
 
     @Value("${rag.vector-store.milvus.token:}")
     private String token;
-
-    @Value("${rag.vector-store.milvus.collection-name:rag_document_chunks}")
-    private String collectionName;
-
-    @Value("${rag.vector-store.milvus.dimension:768}")
-    private int dimension;
 
     @Value("${rag.vector-store.milvus.metric-type:COSINE}")
     private String metricType;
@@ -62,16 +64,7 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
 
     @Override
     public void initializeCollection() {
-        if (!isMilvusEnabled()) {
-            return;
-        }
-        if (collectionExists()) {
-            return;
-        }
-
-        JsonNode response = post("/v2/vectordb/collections/create", buildCreateCollectionRequest());
-        ensureSuccess(response, "create Milvus collection");
-        loadCollection();
+        initializeCollection(configService.getCurrentConfig());
     }
 
     @Override
@@ -79,6 +72,8 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
         if (!isMilvusEnabled() || records == null || records.isEmpty()) {
             return;
         }
+        EmbeddingRuntimeConfig config = configService.getCurrentConfig();
+        ensureCollection(config);
 
         List<Map<String, Object>> data = new ArrayList<>();
         for (VectorRecord record : records) {
@@ -86,7 +81,7 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
         }
 
         Map<String, Object> request = new LinkedHashMap<>();
-        request.put("collectionName", collectionName);
+        request.put("collectionName", config.getCollectionName());
         request.put("data", data);
         JsonNode response = post("/v2/vectordb/entities/upsert", request);
         ensureSuccess(response, "upsert vectors into Milvus");
@@ -97,9 +92,11 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
         if (!isMilvusEnabled() || documentId == null) {
             return;
         }
+        EmbeddingRuntimeConfig config = configService.getCurrentConfig();
+        ensureCollection(config);
 
         Map<String, Object> request = new LinkedHashMap<>();
-        request.put("collectionName", collectionName);
+        request.put("collectionName", config.getCollectionName());
         request.put("filter", "document_id == " + documentId);
         JsonNode response = post("/v2/vectordb/entities/delete", request);
         ensureSuccess(response, "delete document vectors from Milvus");
@@ -113,19 +110,16 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
         if (queryEmbedding == null || queryEmbedding.isEmpty()) {
             throw new IllegalArgumentException("Query embedding is empty.");
         }
+        EmbeddingRuntimeConfig config = configService.getCurrentConfig();
+        ensureCollection(config);
 
         Map<String, Object> request = new LinkedHashMap<>();
-        request.put("collectionName", collectionName);
+        request.put("collectionName", config.getCollectionName());
         request.put("data", List.of(queryEmbedding));
         request.put("limit", Math.max(1, topK));
         request.put("outputFields", List.of(
-                "vector_id",
-                "document_id",
-                "chunk_id",
-                "chunk_index",
-                "dept_id",
-                "security_level",
-                "chunk_text"
+                "vector_id", "document_id", "chunk_id", "chunk_index",
+                "dept_id", "security_level", "chunk_text"
         ));
 
         JsonNode response = post("/v2/vectordb/entities/search", request);
@@ -133,28 +127,45 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
         return parseSearchResults(response);
     }
 
-    private boolean collectionExists() {
+    private synchronized void initializeCollection(EmbeddingRuntimeConfig config) {
+        if (!isMilvusEnabled() || initializedCollections.contains(config.getCollectionName())) {
+            return;
+        }
+        if (!collectionExists(config.getCollectionName())) {
+            JsonNode response = post("/v2/vectordb/collections/create", buildCreateCollectionRequest(config));
+            ensureSuccess(response, "create Milvus collection " + config.getCollectionName());
+        }
+        loadCollection(config.getCollectionName());
+        initializedCollections.add(config.getCollectionName());
+    }
+
+    private void ensureCollection(EmbeddingRuntimeConfig config) {
+        if (!initializedCollections.contains(config.getCollectionName())) {
+            initializeCollection(config);
+        }
+    }
+
+    private boolean collectionExists(String collectionName) {
         JsonNode response = post("/v2/vectordb/collections/list", Map.of());
         ensureSuccess(response, "list Milvus collections");
-        return containsCollectionName(response.get("data"));
+        return containsCollectionName(response.get("data"), collectionName);
     }
 
-    private void loadCollection() {
-        Map<String, Object> request = new LinkedHashMap<>();
-        request.put("collectionName", collectionName);
-        JsonNode response = post("/v2/vectordb/collections/load", request);
-        ensureSuccess(response, "load Milvus collection");
+    private void loadCollection(String collectionName) {
+        JsonNode response = post("/v2/vectordb/collections/load",
+                Map.of("collectionName", collectionName));
+        ensureSuccess(response, "load Milvus collection " + collectionName);
     }
 
-    private Map<String, Object> buildCreateCollectionRequest() {
+    private Map<String, Object> buildCreateCollectionRequest(EmbeddingRuntimeConfig config) {
         Map<String, Object> request = new LinkedHashMap<>();
-        request.put("collectionName", collectionName);
-        request.put("schema", buildSchema());
+        request.put("collectionName", config.getCollectionName());
+        request.put("schema", buildSchema(config.getDimension()));
         request.put("indexParams", buildIndexParams());
         return request;
     }
 
-    private Map<String, Object> buildSchema() {
+    private Map<String, Object> buildSchema(int dimension) {
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("autoId", false);
         schema.put("enableDynamicField", false);
@@ -167,7 +178,7 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
                 int64Field("security_level"),
                 varcharField("content_hash", false, 128),
                 varcharField("chunk_text", false, 65535),
-                vectorField()
+                vectorField(dimension)
         ));
         return schema;
     }
@@ -200,7 +211,7 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
         return field;
     }
 
-    private Map<String, Object> vectorField() {
+    private Map<String, Object> vectorField(int dimension) {
         Map<String, Object> field = new LinkedHashMap<>();
         field.put("fieldName", "embedding");
         field.put("dataType", "FloatVector");
@@ -228,7 +239,6 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
         if (data == null || !data.isArray()) {
             return results;
         }
-
         for (JsonNode groupOrItem : data) {
             if (groupOrItem.isArray()) {
                 for (JsonNode item : groupOrItem) {
@@ -255,7 +265,7 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
                 .build();
     }
 
-    private boolean containsCollectionName(JsonNode node) {
+    private boolean containsCollectionName(JsonNode node, String collectionName) {
         if (node == null || node.isNull()) {
             return false;
         }
@@ -264,7 +274,7 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
         }
         if (node.isArray()) {
             for (JsonNode item : node) {
-                if (containsCollectionName(item)) {
+                if (containsCollectionName(item, collectionName)) {
                     return true;
                 }
             }
@@ -274,7 +284,7 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
                 return true;
             }
             if (node.has("collectionNames")) {
-                return containsCollectionName(node.get("collectionNames"));
+                return containsCollectionName(node.get("collectionNames"), collectionName);
             }
         }
         return false;
