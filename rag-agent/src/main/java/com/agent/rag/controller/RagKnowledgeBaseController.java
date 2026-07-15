@@ -76,6 +76,11 @@ public class RagKnowledgeBaseController {
         );
     }
 
+    @PostMapping("/{kbId}/documents/{documentId}/reprocess")
+    public SourceDocumentResponse reprocessDocument(@PathVariable Long kbId, @PathVariable Long documentId) {
+        return knowledgeBaseService.reprocessDocument(kbId, documentId);
+    }
+
     @DeleteMapping("/{kbId}/documents/{documentId}")
     public void deleteDocument(@PathVariable Long kbId, @PathVariable Long documentId) {
         knowledgeBaseService.deleteDocument(kbId, documentId);

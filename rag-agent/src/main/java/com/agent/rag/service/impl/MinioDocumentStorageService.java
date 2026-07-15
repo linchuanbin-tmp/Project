@@ -3,6 +3,7 @@ package com.agent.rag.service.impl;
 import com.agent.rag.dto.StoredDocument;
 import com.agent.rag.service.DocumentStorageService;
 import io.minio.BucketExistsArgs;
+import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -63,6 +65,20 @@ public class MinioDocumentStorageService implements DocumentStorageService {
                     .build();
         } catch (Exception e) {
             throw new IllegalStateException("Failed to store document in MinIO: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public byte[] readOriginal(String bucket, String objectKey) {
+        try (InputStream inputStream = minioClient.getObject(
+                GetObjectArgs.builder()
+                        .bucket(bucket)
+                        .object(objectKey)
+                        .build()
+        )) {
+            return inputStream.readAllBytes();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to read document from MinIO: " + e.getMessage(), e);
         }
     }
 

@@ -28,5 +28,7 @@ public interface RagKnowledgeBaseService {
             String username
     );
 
+    SourceDocumentResponse reprocessDocument(Long kbId, Long documentId);
+
     void deleteDocument(Long kbId, Long documentId);
 }

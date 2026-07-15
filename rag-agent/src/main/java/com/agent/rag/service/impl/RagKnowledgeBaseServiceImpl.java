@@ -3,6 +3,8 @@ package com.agent.rag.service.impl;
 import com.agent.rag.dto.DocumentUploadResponse;
 import com.agent.rag.dto.KnowledgeBaseRequest;
 import com.agent.rag.dto.KnowledgeBaseResponse;
+import com.agent.rag.dto.ParsedDocument;
+import com.agent.rag.dto.RagIndexResponse;
 import com.agent.rag.dto.SourceDocumentResponse;
 import com.agent.rag.dto.StoredDocument;
 import com.agent.rag.entity.RagKnowledgeBase;
@@ -11,7 +13,9 @@ import com.agent.rag.entity.SysDocument;
 import com.agent.rag.mapper.RagKnowledgeBaseMapper;
 import com.agent.rag.mapper.RagSourceDocumentMapper;
 import com.agent.rag.mapper.SysDocumentMapper;
+import com.agent.rag.service.DocumentParserService;
 import com.agent.rag.service.DocumentStorageService;
+import com.agent.rag.service.RagIndexService;
 import com.agent.rag.service.RagKnowledgeBaseService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -36,13 +39,19 @@ public class RagKnowledgeBaseServiceImpl implements RagKnowledgeBaseService {
     private static final String DEFAULT_VISIBILITY = "DEPARTMENT";
     private static final String PARSER_STATUS_PARSED = "PARSED";
     private static final String PARSER_STATUS_PENDING = "PARSE_PENDING";
+    private static final String PARSER_STATUS_FAIL = "PARSE_FAIL";
     private static final String INDEX_STATUS_PENDING = "PENDING";
+    private static final String INDEX_STATUS_INDEXED = "INDEXED";
+    private static final String INDEX_STATUS_FAIL = "INDEX_FAIL";
     private static final String INDEX_STATUS_PARSE_PENDING = "PARSE_PENDING";
+    private static final String INDEX_TASK_SUCCESS = "SUCCESS";
 
     private final RagKnowledgeBaseMapper knowledgeBaseMapper;
     private final RagSourceDocumentMapper sourceDocumentMapper;
     private final SysDocumentMapper sysDocumentMapper;
     private final DocumentStorageService documentStorageService;
+    private final DocumentParserService documentParserService;
+    private final RagIndexService ragIndexService;
 
     @Override
     public List<KnowledgeBaseResponse> listKnowledgeBases() {
@@ -136,10 +145,7 @@ public class RagKnowledgeBaseServiceImpl implements RagKnowledgeBaseService {
         }
 
         if (!responses.isEmpty()) {
-            knowledgeBase.setDocumentCount((knowledgeBase.getDocumentCount() == null ? 0 : knowledgeBase.getDocumentCount())
-                    + responses.size());
-            knowledgeBase.setUpdateTime(LocalDateTime.now());
-            knowledgeBaseMapper.updateById(knowledgeBase);
+            refreshKnowledgeBaseChunkCount(kbId);
         }
 
         return DocumentUploadResponse.builder()
@@ -151,16 +157,31 @@ public class RagKnowledgeBaseServiceImpl implements RagKnowledgeBaseService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public SourceDocumentResponse reprocessDocument(Long kbId, Long documentId) {
+        requireKnowledgeBase(kbId);
+        RagSourceDocument document = requireSourceDocument(kbId, documentId);
+        if (document.getStorageBucket() == null || document.getStorageObjectKey() == null) {
+            throw new IllegalStateException("Source document has no stored original file: " + documentId);
+        }
+        byte[] content = documentStorageService.readOriginal(
+                document.getStorageBucket(),
+                document.getStorageObjectKey()
+        );
+        document.setParserStatus(PARSER_STATUS_PENDING);
+        document.setIndexStatus(INDEX_STATUS_PARSE_PENDING);
+        document.setErrorMessage(null);
+        parseAndIndex(document, content);
+        document.setUpdateTime(LocalDateTime.now());
+        sourceDocumentMapper.updateById(document);
+        refreshKnowledgeBaseChunkCount(kbId);
+        return toSourceDocumentResponse(document);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteDocument(Long kbId, Long documentId) {
         requireKnowledgeBase(kbId);
-        RagSourceDocument document = sourceDocumentMapper.selectOne(
-                new LambdaQueryWrapper<RagSourceDocument>()
-                        .eq(RagSourceDocument::getKbId, kbId)
-                        .eq(RagSourceDocument::getId, documentId)
-        );
-        if (document == null || STATUS_DELETED.equals(document.getStatus())) {
-            throw new IllegalArgumentException("Source document not found: " + documentId);
-        }
+        RagSourceDocument document = requireSourceDocument(kbId, documentId);
         document.setStatus(STATUS_DELETED);
         document.setUpdateTime(LocalDateTime.now());
         sourceDocumentMapper.updateById(document);
@@ -177,8 +198,6 @@ public class RagKnowledgeBaseServiceImpl implements RagKnowledgeBaseService {
             byte[] content = file.getBytes();
             String originalFileName = normalizeFileName(file.getOriginalFilename());
             String fileType = detectFileType(originalFileName);
-            String parsedText = parsePlainTextIfSupported(fileType, file.getContentType(), content);
-            boolean parsed = parsedText != null && !parsedText.isBlank();
             LocalDateTime now = LocalDateTime.now();
 
             RagSourceDocument source = new RagSourceDocument();
@@ -190,10 +209,9 @@ public class RagKnowledgeBaseServiceImpl implements RagKnowledgeBaseService {
             source.setFileSize(file.getSize());
             source.setStorageProvider("minio");
             source.setContentHash(sha256(content));
-            source.setParsedText(parsed ? parsedText : null);
             source.setStatus(STATUS_ACTIVE);
-            source.setParserStatus(parsed ? PARSER_STATUS_PARSED : PARSER_STATUS_PENDING);
-            source.setIndexStatus(parsed ? INDEX_STATUS_PENDING : INDEX_STATUS_PARSE_PENDING);
+            source.setParserStatus(PARSER_STATUS_PENDING);
+            source.setIndexStatus(INDEX_STATUS_PARSE_PENDING);
             source.setChunkCount(0);
             source.setSecurityLevel(defaultSecurityLevel(securityLevel != null
                     ? securityLevel
@@ -215,16 +233,7 @@ public class RagKnowledgeBaseServiceImpl implements RagKnowledgeBaseService {
             source.setStorageBucket(storedDocument.getBucket());
             source.setStorageObjectKey(storedDocument.getObjectKey());
 
-            if (parsed) {
-                SysDocument sysDocument = new SysDocument();
-                sysDocument.setTitle(source.getTitle());
-                sysDocument.setContent(parsedText);
-                sysDocument.setDeptId(source.getDeptId());
-                sysDocument.setSecurityLevel(source.getSecurityLevel());
-                sysDocument.setCreateTime(now);
-                sysDocumentMapper.insert(sysDocument);
-                source.setSysDocumentId(sysDocument.getId());
-            }
+            parseAndIndex(source, content);
 
             source.setUpdateTime(LocalDateTime.now());
             sourceDocumentMapper.updateById(source);
@@ -280,19 +289,101 @@ public class RagKnowledgeBaseServiceImpl implements RagKnowledgeBaseService {
         return dotIndex > 0 ? originalFileName.substring(0, dotIndex) : originalFileName;
     }
 
-    private String parsePlainTextIfSupported(String fileType, String contentType, byte[] content) {
-        boolean plainText = contentType != null && contentType.toLowerCase(Locale.ROOT).startsWith("text/");
-        boolean supportedExtension = List.of("txt", "md", "markdown", "csv", "json", "yaml", "yml", "sql", "log")
-                .contains(fileType);
-        if (!plainText && !supportedExtension) {
-            return null;
-        }
-        return new String(content, StandardCharsets.UTF_8);
-    }
-
     private String sha256(byte[] content) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         return HexFormat.of().formatHex(digest.digest(content));
+    }
+
+    private void parseAndIndex(RagSourceDocument source, byte[] content) {
+        ParsedDocument parsedDocument = documentParserService.parse(
+                source.getOriginalFileName(),
+                source.getMimeType(),
+                content
+        );
+        if (!parsedDocument.isParsed()) {
+            source.setParserStatus(PARSER_STATUS_FAIL);
+            source.setIndexStatus(INDEX_STATUS_PARSE_PENDING);
+            source.setErrorMessage(limitMessage(parsedDocument.getErrorMessage()));
+            return;
+        }
+
+        source.setParsedText(parsedDocument.getText());
+        source.setParserStatus(PARSER_STATUS_PARSED);
+        source.setIndexStatus(INDEX_STATUS_PENDING);
+        source.setErrorMessage(null);
+
+        SysDocument sysDocument = upsertSysDocument(source, parsedDocument.getText());
+        source.setSysDocumentId(sysDocument.getId());
+
+        RagIndexResponse indexResponse = ragIndexService.indexDocument(sysDocument.getId());
+        source.setChunkCount(indexResponse.getChunkCount() != null ? indexResponse.getChunkCount() : 0);
+        if (INDEX_TASK_SUCCESS.equals(indexResponse.getStatus())) {
+            source.setIndexStatus(INDEX_STATUS_INDEXED);
+            source.setErrorMessage(null);
+        } else {
+            source.setIndexStatus(INDEX_STATUS_FAIL);
+            source.setErrorMessage(limitMessage(indexResponse.getMessage()));
+        }
+    }
+
+    private RagSourceDocument requireSourceDocument(Long kbId, Long documentId) {
+        RagSourceDocument document = sourceDocumentMapper.selectOne(
+                new LambdaQueryWrapper<RagSourceDocument>()
+                        .eq(RagSourceDocument::getKbId, kbId)
+                        .eq(RagSourceDocument::getId, documentId)
+        );
+        if (document == null || STATUS_DELETED.equals(document.getStatus())) {
+            throw new IllegalArgumentException("Source document not found: " + documentId);
+        }
+        return document;
+    }
+
+    private SysDocument upsertSysDocument(RagSourceDocument source, String parsedText) {
+        SysDocument sysDocument = source.getSysDocumentId() != null
+                ? sysDocumentMapper.selectById(source.getSysDocumentId())
+                : null;
+        if (sysDocument == null) {
+            sysDocument = new SysDocument();
+            sysDocument.setCreateTime(LocalDateTime.now());
+        }
+        sysDocument.setTitle(source.getTitle());
+        sysDocument.setContent(parsedText);
+        sysDocument.setDeptId(source.getDeptId());
+        sysDocument.setSecurityLevel(source.getSecurityLevel());
+        if (sysDocument.getId() == null) {
+            sysDocumentMapper.insert(sysDocument);
+        } else {
+            sysDocumentMapper.updateById(sysDocument);
+        }
+        return sysDocument;
+    }
+
+    private void refreshKnowledgeBaseChunkCount(Long kbId) {
+        RagKnowledgeBase knowledgeBase = knowledgeBaseMapper.selectById(kbId);
+        if (knowledgeBase == null) {
+            return;
+        }
+        List<RagSourceDocument> documents = sourceDocumentMapper.selectList(
+                new LambdaQueryWrapper<RagSourceDocument>()
+                        .eq(RagSourceDocument::getKbId, kbId)
+                        .eq(RagSourceDocument::getStatus, STATUS_ACTIVE)
+        );
+        int chunkCount = documents.stream()
+                .map(RagSourceDocument::getChunkCount)
+                .filter(count -> count != null)
+                .mapToInt(Integer::intValue)
+                .sum();
+        knowledgeBase.setDocumentCount(documents.size());
+        knowledgeBase.setChunkCount(chunkCount);
+        knowledgeBase.setUpdateTime(LocalDateTime.now());
+        knowledgeBaseMapper.updateById(knowledgeBase);
+    }
+
+    private String limitMessage(String message) {
+        if (message == null) {
+            return null;
+        }
+        return message.length() <= 1000 ? message : message.substring(0, 1000);
     }
 
     private KnowledgeBaseResponse toKnowledgeBaseResponse(RagKnowledgeBase entity) {

@@ -421,10 +421,14 @@ The first knowledge-base storage layer is now split into three places:
 
 Current upload behavior:
 
-- Plain text-like files (`txt`, `md`, `csv`, `json`, `yaml`, `sql`, `log`, or `text/*`) are parsed immediately as UTF-8 text.
-- Parsed text files are also mirrored into `sys_document`, so the existing `/rag/index/document/{documentId}` flow can index them without a large migration.
-- PDF, Word, and PowerPoint files are stored in MinIO and recorded in `rag_source_document` with `parser_status=PARSE_PENDING` and `index_status=PARSE_PENDING`.
-- The next parser step should extract text from PDF/DOCX/PPTX, fill `parsed_text`, create or update the linked `sys_document`, then trigger chunking and vector indexing.
+- PDF, Word, PowerPoint, plain text, Markdown, CSV, JSON, SQL, and other Tika-supported files are parsed during upload.
+- Original files are always stored in MinIO before parsing, so upload audit data remains available even when parsing or indexing fails.
+- Parsed text is written to `rag_source_document.parsed_text`.
+- Parsed documents are mirrored into `sys_document`, so the existing `/rag/index/document/{documentId}` flow stays compatible during the migration.
+- After parsing, RAG Agent automatically triggers chunking, embedding generation, and Milvus upsert through the existing index service.
+- If parsing fails, the document returns `parser_status=PARSE_FAIL` and `index_status=PARSE_PENDING`.
+- If indexing fails, the document keeps parsed text and returns `parser_status=PARSED` and `index_status=INDEX_FAIL`.
+- Successful documents return `parser_status=PARSED` and `index_status=INDEXED`.
 
 Useful local configuration:
 
@@ -455,6 +459,7 @@ PUT    /rag/kb/{kbId}
 DELETE /rag/kb/{kbId}
 GET    /rag/kb/{kbId}/documents
 POST   /rag/kb/{kbId}/documents/upload
+POST   /rag/kb/{kbId}/documents/{documentId}/reprocess
 DELETE /rag/kb/{kbId}/documents/{documentId}
 ```
 
@@ -488,3 +493,18 @@ curl.exe -X POST "http://localhost:8085/rag/kb/1/documents/upload" `
   -F "deptId=1" `
   -F "securityLevel=2"
 ```
+
+Reprocess a stored document without uploading it again:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:8085/rag/kb/1/documents/1/reprocess" `
+  -Method Post `
+  -Headers @{ "X-User-Name" = "admin" }
+```
+
+Use reprocess when:
+
+- The embedding worker or Milvus was unavailable during upload.
+- A document is stuck in `INDEX_FAIL`.
+- Parser settings or dependencies changed and the original file should be parsed again from MinIO.
