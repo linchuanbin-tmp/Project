@@ -109,6 +109,10 @@ CREATE TABLE IF NOT EXISTS `rag_document_chunk` (
   `chunk_text`     mediumtext   NOT NULL COMMENT 'Chunk body used for retrieval and citations',
   `token_count`    int          DEFAULT 0 COMMENT 'Estimated token count',
   `vector_id`      varchar(128) NOT NULL COMMENT 'Vector primary key in Milvus',
+  `embedding_profile` varchar(64) NOT NULL DEFAULT 'local-bge-m3' COMMENT 'Embedding profile used for this chunk',
+  `embedding_model` varchar(120) DEFAULT NULL COMMENT 'Embedding model name',
+  `vector_collection` varchar(120) DEFAULT NULL COMMENT 'Milvus collection used for this vector',
+  `index_status` varchar(30) NOT NULL DEFAULT 'SUCCESS' COMMENT 'RUNNING, SUCCESS, FAIL',
   `security_level` tinyint      NOT NULL DEFAULT 1 COMMENT 'Copied from sys_document.security_level',
   `dept_id`        bigint       DEFAULT NULL COMMENT 'Copied from sys_document.dept_id',
   `content_hash`   varchar(64)  DEFAULT NULL COMMENT 'Hash of the source chunk content',
@@ -118,9 +122,70 @@ CREATE TABLE IF NOT EXISTS `rag_document_chunk` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_vector_id` (`vector_id`),
   KEY `idx_document_id` (`document_id`),
+  KEY `idx_chunk_profile_document` (`embedding_profile`, `document_id`),
   KEY `idx_dept_security` (`dept_id`, `security_level`),
   KEY `idx_content_hash` (`content_hash`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RAG document chunk metadata';
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'rag_document_chunk' AND column_name = 'embedding_profile'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE `rag_document_chunk` ADD COLUMN `embedding_profile` varchar(64) NOT NULL DEFAULT ''local-bge-m3'' COMMENT ''Embedding profile used for this chunk'' AFTER `vector_id`',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'rag_document_chunk' AND column_name = 'embedding_model'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE `rag_document_chunk` ADD COLUMN `embedding_model` varchar(120) DEFAULT NULL COMMENT ''Embedding model name'' AFTER `embedding_profile`',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'rag_document_chunk' AND column_name = 'vector_collection'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE `rag_document_chunk` ADD COLUMN `vector_collection` varchar(120) DEFAULT NULL COMMENT ''Milvus collection used for this vector'' AFTER `embedding_model`',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'rag_document_chunk' AND column_name = 'index_status'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE `rag_document_chunk` ADD COLUMN `index_status` varchar(30) NOT NULL DEFAULT ''SUCCESS'' COMMENT ''RUNNING, SUCCESS, FAIL'' AFTER `vector_collection`',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @idx_exists := (
+  SELECT COUNT(*) FROM information_schema.statistics
+  WHERE table_schema = DATABASE() AND table_name = 'rag_document_chunk' AND index_name = 'idx_chunk_profile_document'
+);
+SET @ddl := IF(@idx_exists = 0,
+  'ALTER TABLE `rag_document_chunk` ADD KEY `idx_chunk_profile_document` (`embedding_profile`, `document_id`)',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 CREATE TABLE IF NOT EXISTS `rag_query_log` (
   `id`                bigint       NOT NULL AUTO_INCREMENT,
@@ -130,6 +195,9 @@ CREATE TABLE IF NOT EXISTS `rag_query_log` (
   `answer`            mediumtext   DEFAULT NULL,
   `retrieved_doc_ids` varchar(500) DEFAULT NULL,
   `blocked_doc_ids`   varchar(500) DEFAULT NULL,
+  `embedding_profile` varchar(64)  DEFAULT NULL,
+  `embedding_model`   varchar(120) DEFAULT NULL,
+  `vector_collection` varchar(120) DEFAULT NULL,
   `top_k`             int          DEFAULT 5,
   `latency_ms`        int          DEFAULT 0,
   `status`            varchar(30)  NOT NULL DEFAULT 'INIT',
@@ -138,9 +206,58 @@ CREATE TABLE IF NOT EXISTS `rag_query_log` (
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_username` (`username`),
+  KEY `idx_query_embedding_profile` (`embedding_profile`),
   KEY `idx_status` (`status`),
   KEY `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RAG query audit log';
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'rag_query_log' AND column_name = 'embedding_profile'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE `rag_query_log` ADD COLUMN `embedding_profile` varchar(64) DEFAULT NULL AFTER `blocked_doc_ids`',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'rag_query_log' AND column_name = 'embedding_model'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE `rag_query_log` ADD COLUMN `embedding_model` varchar(120) DEFAULT NULL AFTER `embedding_profile`',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'rag_query_log' AND column_name = 'vector_collection'
+);
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE `rag_query_log` ADD COLUMN `vector_collection` varchar(120) DEFAULT NULL AFTER `embedding_model`',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @idx_exists := (
+  SELECT COUNT(*) FROM information_schema.statistics
+  WHERE table_schema = DATABASE() AND table_name = 'rag_query_log' AND index_name = 'idx_query_embedding_profile'
+);
+SET @ddl := IF(@idx_exists = 0,
+  'ALTER TABLE `rag_query_log` ADD KEY `idx_query_embedding_profile` (`embedding_profile`)',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 CREATE TABLE IF NOT EXISTS `rag_index_task` (
   `id`          bigint      NOT NULL AUTO_INCREMENT,

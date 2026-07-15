@@ -9,6 +9,9 @@ import org.apache.ibatis.annotations.Delete;
 @Mapper
 public interface RagDocumentChunkMapper extends BaseMapper<RagDocumentChunk> {
 
-    @Delete("DELETE FROM rag_document_chunk WHERE document_id = #{documentId}")
-    int hardDeleteByDocumentId(@Param("documentId") Long documentId);
+    @Delete("DELETE FROM rag_document_chunk WHERE document_id = #{documentId} AND embedding_profile = #{embeddingProfile}")
+    int hardDeleteByDocumentIdAndProfile(
+            @Param("documentId") Long documentId,
+            @Param("embeddingProfile") String embeddingProfile
+    );
 }

@@ -6,6 +6,7 @@ import com.agent.rag.dto.RagDocumentChunkDto;
 import com.agent.rag.dto.RagDocumentIndexStatus;
 import com.agent.rag.dto.RagIndexResponse;
 import com.agent.rag.dto.VectorRecord;
+import com.agent.rag.dto.EmbeddingRuntimeConfig;
 import com.agent.rag.entity.RagDocumentChunk;
 import com.agent.rag.entity.RagIndexTask;
 import com.agent.rag.entity.SysDocument;
@@ -99,8 +100,11 @@ public class RagIndexServiceImpl implements RagIndexService {
     public RagIndexResponse deleteDocumentIndex(Long documentId) {
         RagIndexTask task = createTask(documentId, TASK_DELETE_DOCUMENT);
         try {
-            vectorStoreService.deleteByDocumentId(documentId);
-            int deleted = ragDocumentChunkMapper.hardDeleteByDocumentId(documentId);
+            int deleted = embeddingConfigService.withCurrentProfile(() -> {
+                EmbeddingRuntimeConfig config = embeddingConfigService.getCurrentConfig();
+                vectorStoreService.deleteByDocumentId(documentId);
+                return ragDocumentChunkMapper.hardDeleteByDocumentIdAndProfile(documentId, config.getProfile());
+            });
             markTask(task, STATUS_SUCCESS, "Deleted " + deleted + " chunk(s).");
             return response(task, deleted);
         } catch (Exception e) {
@@ -121,12 +125,14 @@ public class RagIndexServiceImpl implements RagIndexService {
 
     @Override
     public List<RagDocumentIndexStatus> listDocumentIndexStatus() {
+        EmbeddingRuntimeConfig config = embeddingConfigService.getCurrentConfig();
         List<SysDocument> documents = sysDocumentMapper.selectList(
                 new LambdaQueryWrapper<SysDocument>()
                         .orderByAsc(SysDocument::getId)
         );
         List<RagDocumentChunk> chunks = ragDocumentChunkMapper.selectList(
                 new LambdaQueryWrapper<RagDocumentChunk>()
+                        .eq(RagDocumentChunk::getEmbeddingProfile, config.getProfile())
                         .orderByAsc(RagDocumentChunk::getDocumentId)
                         .orderByAsc(RagDocumentChunk::getChunkIndex)
         );
@@ -161,6 +167,10 @@ public class RagIndexServiceImpl implements RagIndexService {
                     .lastIndexedAt(latestChunk != null ? latestChunk.getUpdateTime() : null)
                     .firstVectorId(firstChunk != null ? firstChunk.getVectorId() : null)
                     .latestContentHash(latestChunk != null ? latestChunk.getContentHash() : null)
+                    .embeddingProfile(config.getProfile())
+                    .embeddingModel(config.getModel())
+                    .vectorCollection(config.getCollectionName())
+                    .indexStatus(embeddingConfigService.getActiveIndexStatus())
                     .build());
         }
         return result;
@@ -168,9 +178,11 @@ public class RagIndexServiceImpl implements RagIndexService {
 
     @Override
     public List<RagDocumentChunkDto> listDocumentChunks(Long documentId) {
+        EmbeddingRuntimeConfig config = embeddingConfigService.getCurrentConfig();
         return ragDocumentChunkMapper.selectList(
                         new LambdaQueryWrapper<RagDocumentChunk>()
                                 .eq(RagDocumentChunk::getDocumentId, documentId)
+                                .eq(RagDocumentChunk::getEmbeddingProfile, config.getProfile())
                                 .orderByAsc(RagDocumentChunk::getChunkIndex)
                 )
                 .stream()
@@ -201,18 +213,24 @@ public class RagIndexServiceImpl implements RagIndexService {
     }
 
     private int writeChunks(SysDocument document, boolean forceParse) {
+        EmbeddingRuntimeConfig config = embeddingConfigService.getCurrentConfig();
         document = ensureDocumentTextReady(document, forceParse);
         vectorStoreService.deleteByDocumentId(document.getId());
-        ragDocumentChunkMapper.hardDeleteByDocumentId(document.getId());
+        ragDocumentChunkMapper.hardDeleteByDocumentIdAndProfile(document.getId(), config.getProfile());
         List<DocumentChunk> chunks = documentChunker.split(document.getContent());
         List<VectorRecord> vectorRecords = new java.util.ArrayList<>();
+        List<RagDocumentChunk> insertedChunks = new java.util.ArrayList<>();
         for (DocumentChunk chunk : chunks) {
             RagDocumentChunk entity = new RagDocumentChunk();
             entity.setDocumentId(document.getId());
             entity.setChunkIndex(chunk.getChunkIndex());
             entity.setChunkText(chunk.getText());
             entity.setTokenCount(chunk.getTokenCount());
-            entity.setVectorId(buildVectorId(document.getId(), chunk.getChunkIndex(), chunk.getContentHash()));
+            entity.setVectorId(buildVectorId(config.getProfile(), document.getId(), chunk.getChunkIndex(), chunk.getContentHash()));
+            entity.setEmbeddingProfile(config.getProfile());
+            entity.setEmbeddingModel(config.getModel());
+            entity.setVectorCollection(config.getCollectionName());
+            entity.setIndexStatus(STATUS_RUNNING);
             entity.setSecurityLevel(document.getSecurityLevel() != null ? document.getSecurityLevel() : 1);
             entity.setDeptId(document.getDeptId());
             entity.setContentHash(chunk.getContentHash());
@@ -220,6 +238,7 @@ public class RagIndexServiceImpl implements RagIndexService {
             entity.setCreateTime(LocalDateTime.now());
             entity.setUpdateTime(LocalDateTime.now());
             ragDocumentChunkMapper.insert(entity);
+            insertedChunks.add(entity);
 
             List<Float> embedding;
             try {
@@ -243,6 +262,10 @@ public class RagIndexServiceImpl implements RagIndexService {
                     .build());
         }
         vectorStoreService.upsert(vectorRecords);
+        for (RagDocumentChunk chunk : insertedChunks) {
+            chunk.setIndexStatus(STATUS_SUCCESS);
+            ragDocumentChunkMapper.updateById(chunk);
+        }
         return chunks.size();
     }
 
@@ -294,11 +317,11 @@ public class RagIndexServiceImpl implements RagIndexService {
         };
     }
 
-    private String buildVectorId(Long documentId, Integer chunkIndex, String contentHash) {
+    private String buildVectorId(String profile, Long documentId, Integer chunkIndex, String contentHash) {
         String hashPrefix = contentHash != null && contentHash.length() >= 12
                 ? contentHash.substring(0, 12)
                 : "nohash";
-        return "doc_" + documentId + "_chunk_" + chunkIndex + "_" + hashPrefix;
+        return profile + "_doc_" + documentId + "_chunk_" + chunkIndex + "_" + hashPrefix;
     }
 
     private RagIndexTask createTask(Long documentId, String taskType) {
@@ -339,6 +362,10 @@ public class RagIndexServiceImpl implements RagIndexService {
                 .chunkText(chunk.getChunkText())
                 .tokenCount(chunk.getTokenCount())
                 .vectorId(chunk.getVectorId())
+                .embeddingProfile(chunk.getEmbeddingProfile())
+                .embeddingModel(chunk.getEmbeddingModel())
+                .vectorCollection(chunk.getVectorCollection())
+                .indexStatus(chunk.getIndexStatus())
                 .securityLevel(chunk.getSecurityLevel())
                 .deptId(chunk.getDeptId())
                 .contentHash(chunk.getContentHash())

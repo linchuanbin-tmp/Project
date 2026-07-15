@@ -88,6 +88,10 @@ export interface RagDocumentIndexStatus {
   lastIndexedAt?: string
   firstVectorId?: string
   latestContentHash?: string
+  embeddingProfile?: string
+  embeddingModel?: string
+  vectorCollection?: string
+  indexStatus?: string
 }
 
 export interface RagDocumentChunkDetail {
@@ -97,6 +101,10 @@ export interface RagDocumentChunkDetail {
   chunkText: string
   tokenCount?: number
   vectorId?: string
+  embeddingProfile?: string
+  embeddingModel?: string
+  vectorCollection?: string
+  indexStatus?: string
   securityLevel?: number
   deptId?: number
   contentHash?: string

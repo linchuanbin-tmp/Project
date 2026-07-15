@@ -26,6 +26,12 @@ public class RagQueryLog {
 
     private String blockedDocIds;
 
+    private String embeddingProfile;
+
+    private String embeddingModel;
+
+    private String vectorCollection;
+
     private Integer topK;
 
     private Integer latencyMs;

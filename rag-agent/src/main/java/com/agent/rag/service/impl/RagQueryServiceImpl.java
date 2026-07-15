@@ -5,8 +5,10 @@ import com.agent.rag.dto.RagPermissionSnapshot;
 import com.agent.rag.dto.RagQueryRequest;
 import com.agent.rag.dto.RagQueryResponse;
 import com.agent.rag.dto.VectorSearchResult;
+import com.agent.rag.dto.EmbeddingRuntimeConfig;
 import com.agent.rag.entity.RagQueryLog;
 import com.agent.rag.mapper.RagQueryLogMapper;
+import com.agent.rag.service.EmbeddingRuntimeConfigService;
 import com.agent.rag.service.RagLlmClient;
 import com.agent.rag.service.RagPermissionService;
 import com.agent.rag.service.RagQueryService;
@@ -38,12 +40,14 @@ public class RagQueryServiceImpl implements RagQueryService {
     private final RagVectorSearchService ragVectorSearchService;
     private final RagLlmClient ragLlmClient;
     private final RagQueryLogMapper ragQueryLogMapper;
+    private final EmbeddingRuntimeConfigService embeddingConfigService;
 
     @Override
     public RagQueryResponse query(RagQueryRequest request, String username, String rolesHeader) {
         Instant startedAt = Instant.now();
         String traceId = UUID.randomUUID().toString();
         int topK = normalizeTopK(request.getTopK());
+        EmbeddingRuntimeConfig embeddingConfig = embeddingConfigService.getCurrentConfig();
 
         RagPermissionSnapshot permission = null;
         List<VectorSearchResult> filteredChunks = List.of();
@@ -61,7 +65,10 @@ public class RagQueryServiceImpl implements RagQueryService {
                 return buildResponse(traceId, status, answer, List.of(), List.of(), List.of(), List.of(), topK, startedAt, message);
             }
 
-            List<VectorSearchResult> candidates = ragVectorSearchService.search(request.getQuestion(), Math.max(topK * 4, topK));
+            List<VectorSearchResult> candidates = embeddingConfigService.withProfile(
+                    embeddingConfig.getProfile(),
+                    () -> ragVectorSearchService.search(request.getQuestion(), Math.max(topK * 4, topK))
+            );
             QueryFilterResult filterResult = filterByPermission(candidates, permission.getAllowedDocumentIds(), topK);
             filteredChunks = filterResult.allowedChunks();
             blockedDocumentIds = filterResult.blockedDocumentIds();
@@ -110,7 +117,8 @@ public class RagQueryServiceImpl implements RagQueryService {
                     message
             );
         } finally {
-            writeLog(request, permission, username, answer, filteredChunks, blockedDocumentIds, topK, startedAt, status, message);
+            writeLog(request, permission, username, answer, filteredChunks, blockedDocumentIds,
+                    embeddingConfig, topK, startedAt, status, message);
         }
     }
 
@@ -243,6 +251,7 @@ public class RagQueryServiceImpl implements RagQueryService {
             String answer,
             List<VectorSearchResult> chunks,
             List<Long> blockedDocumentIds,
+            EmbeddingRuntimeConfig embeddingConfig,
             int topK,
             Instant startedAt,
             String status,
@@ -255,6 +264,9 @@ public class RagQueryServiceImpl implements RagQueryService {
         log.setAnswer(answer);
         log.setRetrievedDocIds(joinIds(retrievedDocumentIds(chunks)));
         log.setBlockedDocIds(joinIds(blockedDocumentIds));
+        log.setEmbeddingProfile(embeddingConfig.getProfile());
+        log.setEmbeddingModel(embeddingConfig.getModel());
+        log.setVectorCollection(embeddingConfig.getCollectionName());
         log.setTopK(topK);
         log.setLatencyMs(latencyMs(startedAt));
         log.setStatus(status);

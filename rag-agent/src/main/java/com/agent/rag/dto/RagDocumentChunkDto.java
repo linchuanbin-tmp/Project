@@ -25,6 +25,14 @@ public class RagDocumentChunkDto {
 
     private String vectorId;
 
+    private String embeddingProfile;
+
+    private String embeddingModel;
+
+    private String vectorCollection;
+
+    private String indexStatus;
+
     private Integer securityLevel;
 
     private Long deptId;

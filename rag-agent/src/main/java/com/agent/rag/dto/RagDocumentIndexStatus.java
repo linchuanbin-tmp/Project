@@ -38,4 +38,12 @@ public class RagDocumentIndexStatus {
     private String firstVectorId;
 
     private String latestContentHash;
+
+    private String embeddingProfile;
+
+    private String embeddingModel;
+
+    private String vectorCollection;
+
+    private String indexStatus;
 }
