@@ -16,17 +16,29 @@ python -m pip install -r rag-worker\requirements.txt
 First startup downloads `BAAI/bge-m3` into the Hugging Face cache. The model
 dimension is `1024`.
 
+Notes:
+
+- Keep the worker terminal open while using RAG.
+- `/health` does not load the model. The model loads lazily on the first
+  `/embed` request.
+- `HF_TOKEN` is optional. Set it only if Hugging Face rate limits or slows
+  downloads.
+- Windows may show a Hugging Face symlink cache warning. It is harmless; caching
+  still works, but may use more disk space.
+
 ## Health Check
 
 ```powershell
 Invoke-RestMethod -Uri "http://localhost:8091/health" -Method Get
 ```
 
+Before the first `/embed`, `modelLoaded` may be `False`. That is expected.
+
 ## Embed Check
 
 ```powershell
 $body = @{
-  input = "这是一个 RAG embedding 测试"
+  input = "This is a RAG embedding test"
   model = "BAAI/bge-m3"
 } | ConvertTo-Json
 

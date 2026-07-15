@@ -67,16 +67,18 @@ def normalize_input(payload: EmbedRequest) -> List[str]:
 
 @app.get("/health")
 def health():
+    loaded = _model is not None
     return {
         "status": "UP",
         "service": "rag-worker",
         "model": _model_name or DEFAULT_MODEL,
-        "modelLoaded": _model is not None,
+        "modelLoaded": loaded,
         "dimension": _dimension,
         "device": DEFAULT_DEVICE or "auto",
         "normalized": NORMALIZE_EMBEDDINGS,
         "allowDownload": ALLOW_DOWNLOAD,
         "maxBatchSize": MAX_BATCH_SIZE,
+        "message": "Model is loaded and ready." if loaded else "Model loads lazily on the first /embed request. First run may download BAAI/bge-m3.",
     }
 
 

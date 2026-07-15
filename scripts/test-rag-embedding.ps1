@@ -17,10 +17,13 @@ function Write-Step {
 Write-Step "1. Worker health"
 $workerHealth = Invoke-RestMethod -Uri "$WorkerBaseUrl/health" -Method Get
 $workerHealth | Format-List
+if ($workerHealth.modelLoaded -ne $true) {
+    Write-Host "[INFO] Worker model is not loaded yet. The embedding probe will trigger lazy loading/download." -ForegroundColor Yellow
+}
 
 Write-Step "2. Worker embedding probe"
 $body = @{
-    input = "这是一个 RAG embedding 测试"
+    input = "This is a RAG embedding test"
     model = $Model
 } | ConvertTo-Json
 
