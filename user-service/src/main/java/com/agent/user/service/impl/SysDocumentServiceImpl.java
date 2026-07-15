@@ -7,13 +7,16 @@ import com.agent.user.entity.SysNotification;
 import com.agent.user.mapper.SysDocumentMapper;
 import com.agent.user.mapper.UserMapper;
 import com.agent.user.mapper.SysNotificationMapper;
+import com.agent.user.service.MinioStorageService;
 import com.agent.user.service.RagIndexSyncClient;
 import com.agent.user.service.SysDocumentService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -40,6 +43,12 @@ public class SysDocumentServiceImpl implements SysDocumentService {
     @Autowired
     private RagIndexSyncClient ragIndexSyncClient;
 
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    @Autowired
+    private MinioStorageService minioStorageService;
+
     @Override
     public List<DocumentResponse> listDocumentsForUser(Long userId) {
         User user = userMapper.selectById(userId);
@@ -50,20 +59,10 @@ public class SysDocumentServiceImpl implements SysDocumentService {
         Long deptId = user.getDeptId();
         Integer userClearance = user.getClearanceLevel() != null ? user.getClearanceLevel() : 1;
         List<String> roles = userService.getRolesByUserId(userId);
-        boolean isAdmin = roles.contains("ROLE_ADMIN");
 
-        // Fetch documents for the user's department or system documents
-        LambdaQueryWrapper<SysDocument> query = new LambdaQueryWrapper<>();
-        if (isAdmin) {
-            // Super Admin can list all documents (both global and department documents)
-            // No restriction on the query wrapper
-        } else if (deptId != null) {
-            query.eq(SysDocument::getDeptId, deptId).or().isNull(SysDocument::getDeptId);
-        } else {
-            query.isNull(SysDocument::getDeptId);
-        }
-
-        List<SysDocument> docs = documentMapper.selectList(query);
+        // Return all documents — everyone sees the full catalog.
+        // Content and accessibility are controlled per-document below.
+        List<SysDocument> docs = documentMapper.selectList(null);
 
         List<DocumentResponse> list = new ArrayList<>();
         for (SysDocument doc : docs) {
@@ -73,6 +72,8 @@ public class SysDocumentServiceImpl implements SysDocumentService {
             resp.setDeptId(doc.getDeptId());
             resp.setSecurityLevel(doc.getSecurityLevel());
             resp.setCreateTime(doc.getCreateTime());
+            resp.setFileType(doc.getFileType() != null ? doc.getFileType() : "MARKDOWN");
+            resp.setFileSize(doc.getFileSize());
 
             // Check if user belongs to the department OR if it is a system/global document
             boolean belongsToDept = doc.getDeptId() == null || (user.getDeptId() != null && user.getDeptId().equals(doc.getDeptId()));
@@ -80,24 +81,33 @@ public class SysDocumentServiceImpl implements SysDocumentService {
             boolean isApproved = false;
 
             if (!hasClearance) {
-                // Check if user has an approved RAG_APPLY notification for this document
-                List<SysNotification> approvedNotifications = notificationMapper.selectList(
-                    new LambdaQueryWrapper<SysNotification>()
-                        .eq(SysNotification::getNotifyType, "RAG_APPLY")
-                        .eq(SysNotification::getSenderId, userId)
-                        .eq(SysNotification::getStatus, 3) // 3 = Approved
-                );
-                for (SysNotification notif : approvedNotifications) {
-                    String payload = notif.getPayload();
-                    if (payload != null && !payload.isEmpty()) {
-                        try {
-                            JsonNode node = objectMapper.readTree(payload);
-                            if (node.has("documentId") && node.get("documentId").asLong() == doc.getId().longValue()) {
-                                isApproved = true;
-                                break;
+                // 先检查 Redis 临时令牌（HITL 审批回调写入，性能优于 DB 扫描）
+                String tempAccessKey = "rag:temp_access:" + userId + ":" + doc.getId();
+                String tempToken = redisTemplate.opsForValue().get(tempAccessKey);
+                if ("approved".equals(tempToken)) {
+                    isApproved = true;
+                } else {
+                    // 回退到 DB 检查：用户是否已获得审批
+                    List<SysNotification> approvedNotifications = notificationMapper.selectList(
+                        new LambdaQueryWrapper<SysNotification>()
+                            .eq(SysNotification::getNotifyType, "RAG_APPLY")
+                            .eq(SysNotification::getSenderId, userId)
+                            .eq(SysNotification::getStatus, 3) // 3 = Approved
+                    );
+                    for (SysNotification notif : approvedNotifications) {
+                        String payload = notif.getPayload();
+                        if (payload != null && !payload.isEmpty()) {
+                            try {
+                                JsonNode node = objectMapper.readTree(payload);
+                                if (node.has("documentId") && node.get("documentId").asLong() == doc.getId().longValue()) {
+                                    isApproved = true;
+                                    // 补充写入 Redis 缓存，避免后续重复 DB 扫描
+                                    redisTemplate.opsForValue().set(tempAccessKey, "approved", 24, java.util.concurrent.TimeUnit.HOURS);
+                                    break;
+                                }
+                            } catch (Exception e) {
+                                // ignore parse errors
                             }
-                        } catch (Exception e) {
-                            // ignore parse errors
                         }
                     }
                 }
@@ -115,6 +125,11 @@ public class SysDocumentServiceImpl implements SysDocumentService {
         }
 
         return list;
+    }
+
+    @Override
+    public SysDocument getDocumentById(Long id) {
+        return documentMapper.selectById(id);
     }
 
     @Override
@@ -215,6 +230,65 @@ public class SysDocumentServiceImpl implements SysDocumentService {
         }
         
         documentMapper.deleteById(id);
+        minioStorageService.delete(existing.getMinioObjectKey());
         ragIndexSyncClient.deleteDocumentIndexAfterCommit(id);
+    }
+
+    /**
+     * Create document from file upload.
+     */
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    public void createDocumentFromFile(
+            String title,
+            MultipartFile file,
+            Integer securityLevel,
+            Long deptId,
+            Long creatorId) {
+
+        User creator = userMapper.selectById(creatorId);
+        if (creator == null) {
+            throw new RuntimeException("Creator user not found");
+        }
+
+        List<String> roles = userService.getRolesByUserId(creatorId);
+        boolean isAdmin = roles.contains("ROLE_ADMIN");
+        boolean isDeptAdmin = roles.contains("ROLE_DEPT_ADMIN");
+
+        if (!isAdmin && !isDeptAdmin) {
+            throw new RuntimeException("Unauthorized operation");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        String fileType = resolveFileType(originalFilename);
+
+        String objectKey = minioStorageService.upload(file);
+
+        SysDocument document = new SysDocument();
+        document.setTitle(title);
+        document.setContent("");
+        document.setSecurityLevel(securityLevel);
+        document.setFileType(fileType);
+        document.setFileSize(file.getSize());
+        document.setMinioObjectKey(objectKey);
+        document.setParseStatus("PENDING");
+
+        if (isAdmin) {
+            document.setDeptId(deptId);
+        } else {
+            document.setDeptId(creator.getDeptId());
+        }
+
+        document.setCreateTime(LocalDateTime.now());
+        documentMapper.insert(document);
+        ragIndexSyncClient.indexDocumentAfterCommit(document.getId());
+    }
+
+    private String resolveFileType(String filename) {
+        if (filename == null) return "MARKDOWN";
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".pdf")) return "PDF";
+        if (lower.endsWith(".docx")) return "DOCX";
+        if (lower.endsWith(".pptx") || lower.endsWith(".ppt")) return "PPT";
+        return "MARKDOWN";
     }
 }

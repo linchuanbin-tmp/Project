@@ -1,7 +1,7 @@
 <template>
   <div class="copilot-container" :class="{ open: isOpen }">
     <!-- Single morphing element -->
-    <div class="copilot-shell" @click="!isOpen && (isOpen = true)">
+    <div class="copilot-shell" :class="{ executing: isExecuting }" @click="!isOpen && (isOpen = true)">
       <!-- Collapsed state: just the icon -->
       <div v-if="!isOpen" class="shell-collapsed">
         <MessageSquare :size="22" />
@@ -74,11 +74,6 @@
               </div>
             </div>
           </div>
-
-          <div v-if="isExecuting" class="thinking-row">
-            <span class="processing-text-inline">{{ progressMessage || 'Processing...' }}</span>
-            <span class="thinking-elapsed">{{ thinkingElapsed }}s</span>
-          </div>
         </div>
 
         <!-- Input Area -->
@@ -86,7 +81,8 @@
           <template v-if="isExecuting">
             <div class="copilot-processing-bar">
               <span class="processing-dot"></span>
-              <span class="processing-text">{{ progressMessage || 'Processing your request...' }}</span>
+              <span class="processing-text">{{ currentThinkingMessage }}</span>
+              <span class="processing-timer">{{ thinkingElapsed.toFixed(1) }}s</span>
             </div>
           </template>
           <template v-else>
@@ -151,8 +147,19 @@ const chatBodyRef = ref<HTMLElement | null>(null)
 
 const isExecuting = ref(false)
 const thinkingElapsed = ref(0)
+let thinkingStartTime = 0
 let thinkingTimer: ReturnType<typeof setInterval> | null = null
-const progressMessage = ref('')
+let thinkingRotateTimer: ReturnType<typeof setInterval> | null = null
+const currentThinkingMessage = ref('')
+
+const thinkingMessages = [
+  'Analyzing your request...',
+  'Identifying intent...',
+  'Routing to the right agent...',
+  'Processing with AI model...',
+  'Gathering results...',
+  'Almost there...',
+]
 
 const showHistory = ref(false)
 const savedSessions = ref<{ key: string; label: string; messages: ChatMessage[] }[]>([])
@@ -225,13 +232,22 @@ const startNewSession = () => {
 const startThinkingTimer = () => {
   if (thinkingTimer) return
   thinkingElapsed.value = 0
-  progressMessage.value = ''
-  thinkingTimer = setInterval(() => { thinkingElapsed.value++ }, 1000)
+  thinkingStartTime = Date.now()
+  currentThinkingMessage.value = thinkingMessages[0]
+  thinkingTimer = setInterval(() => {
+    thinkingElapsed.value = (Date.now() - thinkingStartTime) / 1000
+  }, 100)
+  let idx = 0
+  thinkingRotateTimer = setInterval(() => {
+    idx = (idx + 1) % thinkingMessages.length
+    currentThinkingMessage.value = thinkingMessages[idx]
+  }, 1500)
 }
 
 const stopThinkingTimer = () => {
   if (thinkingTimer) { clearInterval(thinkingTimer); thinkingTimer = null }
-  progressMessage.value = ''
+  if (thinkingRotateTimer) { clearInterval(thinkingRotateTimer); thinkingRotateTimer = null }
+  currentThinkingMessage.value = ''
 }
 
 // Observe isOpen to reset unread badge when widget is opened
@@ -365,7 +381,7 @@ const runAgentWebSocket = async (queryText: string, taskType: string = 'TOOL') =
       scrollToBottom()
       wsClient.close?.()
     } else if (data.message) {
-      progressMessage.value = data.message
+      currentThinkingMessage.value = data.message
     }
   })
 
@@ -569,6 +585,15 @@ onUnmounted(() => {
   background: #ffffff;
   border: 1px solid #f1f5f9;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.02);
+  transition: box-shadow 0.6s ease;
+}
+
+.copilot-container.open .copilot-shell.executing {
+  box-shadow:
+    0 20px 50px rgba(15, 23, 42, 0.08),
+    0 4px 12px rgba(15, 23, 42, 0.02),
+    0 0 60px rgba(59, 130, 246, 0.06),
+    0 0 0 2px rgba(59, 130, 246, 0.04);
 }
 
 /* Collapsed state */
@@ -820,23 +845,22 @@ onUnmounted(() => {
 .thinking-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 24px 8px;
+  gap: 10px;
+  padding: 6px 24px 10px;
 }
 
 .processing-text-inline {
-  font-size: 12px;
-  color: #94a3b8;
+  font-size: 11.5px;
+  color: #9ca3af;
+  font-style: italic;
   flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .thinking-elapsed {
   font-size: 11px;
-  color: #94a3b8;
+  color: #cbd5e1;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Input Area ───────────────────────────────── */
@@ -844,6 +868,38 @@ onUnmounted(() => {
   padding: 12px 20px 20px;
   background: #ffffff;
   flex-shrink: 0;
+  position: relative;
+}
+
+/* Water ripple radiating from input during execution */
+.copilot-shell.executing .copilot-input-area::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: radial-gradient(
+    ellipse 60% 80% at 50% 100%,
+    rgba(59, 130, 246, 0.07) 0%,
+    rgba(99, 102, 241, 0.04) 25%,
+    rgba(59, 130, 246, 0.02) 50%,
+    transparent 70%
+  );
+  animation: water-rise 2.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes water-rise {
+  0%, 100% {
+    transform: scaleY(0.8);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scaleY(1.4);
+    opacity: 1;
+  }
 }
 
 /* Processing bar (replaces input during execution) */
@@ -851,66 +907,68 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  padding: 14px 16px;
+  background: #fafcff;
+  border: 1px solid #e8ecf4;
   border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.copilot-processing-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(59, 130, 246, 0.04) 25%,
+    rgba(99, 102, 241, 0.06) 50%,
+    rgba(59, 130, 246, 0.04) 75%,
+    transparent 100%
+  );
+  animation: shimmer-sweep 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .processing-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
+  background: #3b82f6;
   border-radius: 50%;
-  background: #4f46e5;
-  animation: processing-pulse 1.2s ease-in-out infinite;
+  animation: processing-pulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.25);
 }
 
 @keyframes processing-pulse {
-  0%, 100% { opacity: 0.3; transform: scale(0.8); }
-  50%      { opacity: 1;   transform: scale(1.1); }
+  0%, 100% { opacity: 0.5; transform: scale(0.9); box-shadow: 0 0 4px rgba(59, 130, 246, 0.15); }
+  50% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 12px rgba(59, 130, 246, 0.35); }
 }
 
 .processing-text {
+  font-size: 12.5px;
+  color: #4b5563;
   flex: 1;
-  font-size: 13px;
-  color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.processing-timer {
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 500;
+  flex-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
 /* ── Input area restored ── */
 
-.copilot-input-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  padding: 10px 8px 10px 16px;
-  transition: border-color 0.2s;
-}
 
-.copilot-input-row:focus-within { border-color: #111827; }
-
-.copilot-textarea {
-  flex: 1;
-  border: none;
-  resize: none;
-  font-family: inherit;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #0f172a;
-  outline: none;
-  padding: 0;
-  background: transparent;
-  align-self: center;
-}
-
-.copilot-textarea::placeholder { color: #94a3b8; }
-
-/* Send button — same round shape as collapsed FAB */
 .copilot-send-btn {
   width: 38px;
   height: 38px;
@@ -928,6 +986,48 @@ onUnmounted(() => {
 
 .copilot-send-btn:hover { background-color: #1f2937; transform: scale(1.06); }
 .copilot-send-btn:disabled { background-color: #e2e8f0; color: #94a3b8; cursor: not-allowed; transform: none; }
+
+/* Input row subtle focus animation */
+.copilot-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 8px 8px 8px 18px;
+  transition: border-color 0.2s, box-shadow 0.3s;
+}
+
+.copilot-input-row:focus-within {
+  border-color: #111827;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.06);
+}
+
+.copilot-textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13.5px;
+  color: #111827;
+  resize: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  padding: 0;
+}
+
+.copilot-textarea::placeholder { color: #94a3b8; }
+
+/* Send ripple burst */
+@keyframes send-burst {
+  0% { box-shadow: 0 0 0 0 rgba(17, 24, 39, 0.2); }
+  100% { box-shadow: 0 0 0 12px rgba(17, 24, 39, 0); }
+}
+
+.copilot-send-btn:not(:disabled):active {
+  animation: send-burst 0.4s ease-out;
+}
 
 /* Animations */
 .spin { animation: loading-spin 1.2s linear infinite; }

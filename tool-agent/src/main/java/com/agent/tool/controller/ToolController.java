@@ -293,7 +293,19 @@ public class ToolController {
 
         if (amapService != null) {
             try {
-                return Result.success(amapService.planDrivingRoute(from, to, 0));
+                Map<String, Object> result;
+                switch (mode) {
+                    case "transit":
+                        result = amapService.planTransitRoute(from, to);
+                        break;
+                    case "walking":
+                        result = amapService.planWalkingRoute(from, to);
+                        break;
+                    default:
+                        result = amapService.planDrivingRoute(from, to, 0);
+                        break;
+                }
+                return Result.success(result);
             } catch (Exception e) {
                 log.warn("高德路线规划失败，使用Mock数据", e);
             }
@@ -335,11 +347,13 @@ public class ToolController {
                     username
                 );
             } catch (Exception e) {
-                log.warn("User not found in sys_user for username: {}", username);
+                log.warn("User not found in sys_user for username: {}, skipping notification", username);
+                return;
             }
-            
+
             if (userId == null) {
-                userId = 1L; // Fallback to admin (id = 1)
+                log.warn("User not found for username: {}, skipping notification", username);
+                return;
             }
             
             jdbcTemplate.update(

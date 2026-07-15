@@ -72,6 +72,10 @@ public class SystemConfigController {
 
     private static final String CONFIG_KEY_AI_PROVIDER  = "ai_provider";
     private static final String REDIS_KEY_AI_PROVIDER   = "sys:config:ai_provider";
+
+    private static final String CONFIG_KEY_MAX_UPLOAD_SIZE = "max_upload_size";
+    private static final String REDIS_KEY_MAX_UPLOAD_SIZE  = "sys:config:max_upload_size";
+    private static final long   DEFAULT_MAX_UPLOAD_SIZE    = 100L; // MB
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -80,7 +84,7 @@ public class SystemConfigController {
      * Admin-only.
      */
     @GetMapping("/session-timeout")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<Long> getSessionTimeout() {
         long timeout = resolveTimeout();
         return Result.success(timeout);
@@ -93,7 +97,7 @@ public class SystemConfigController {
      * Body: { "timeout": 45 }
      */
     @PutMapping("/session-timeout")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<String> updateSessionTimeout(@RequestBody Map<String, Object> body) {
         Object raw = body.get("timeout");
         if (raw == null) {
@@ -200,7 +204,7 @@ public class SystemConfigController {
      * apiKey is encrypted before storing.
      */
     @PutMapping("/ai-provider")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<String> updateAiProvider(@RequestBody Map<String, Object> body) {
         String provider = body.get("provider") != null ? body.get("provider").toString() : null;
         String baseUrl  = body.get("baseUrl")  != null ? body.get("baseUrl").toString()  : null;
@@ -326,6 +330,69 @@ public class SystemConfigController {
         return map;
     }
 
+    // ── Max Upload Size 配置 ──────────────────────────────────────────
+
+    @GetMapping("/max-upload-size")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Long> getMaxUploadSize() {
+        return Result.success(resolveMaxUploadSize());
+    }
+
+    @PutMapping("/max-upload-size")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<String> updateMaxUploadSize(@RequestBody Map<String, Object> body) {
+        Object raw = body.get("sizeMb");
+        if (raw == null) {
+            return Result.error(400, "Missing 'sizeMb' field.");
+        }
+        long sizeMb;
+        try {
+            sizeMb = Long.parseLong(raw.toString());
+        } catch (NumberFormatException e) {
+            return Result.error(400, "Invalid size — must be a positive integer (MB).");
+        }
+        if (sizeMb < 1 || sizeMb > 1024) {
+            return Result.error(400, "Size must be between 1 and 1024 MB.");
+        }
+
+        SysConfig existing = sysConfigMapper.selectOne(
+                new LambdaQueryWrapper<SysConfig>()
+                        .eq(SysConfig::getParamKey, CONFIG_KEY_MAX_UPLOAD_SIZE)
+        );
+        if (existing == null) {
+            SysConfig cfg = new SysConfig();
+            cfg.setParamKey(CONFIG_KEY_MAX_UPLOAD_SIZE);
+            cfg.setParamValue(String.valueOf(sizeMb));
+            cfg.setDescription("Maximum file upload size in MB");
+            sysConfigMapper.insert(cfg);
+        } else {
+            sysConfigMapper.update(null,
+                    new LambdaUpdateWrapper<SysConfig>()
+                            .eq(SysConfig::getParamKey, CONFIG_KEY_MAX_UPLOAD_SIZE)
+                            .set(SysConfig::getParamValue, String.valueOf(sizeMb))
+            );
+        }
+        stringRedisTemplate.opsForValue().set(REDIS_KEY_MAX_UPLOAD_SIZE, String.valueOf(sizeMb));
+        return Result.success("Max upload size updated to " + sizeMb + " MB.");
+    }
+
+    public long resolveMaxUploadSize() {
+        String cached = stringRedisTemplate.opsForValue().get(REDIS_KEY_MAX_UPLOAD_SIZE);
+        if (cached != null) {
+            try { return Long.parseLong(cached); } catch (NumberFormatException ignored) {}
+        }
+        SysConfig config = sysConfigMapper.selectOne(
+                new LambdaQueryWrapper<SysConfig>()
+                        .eq(SysConfig::getParamKey, CONFIG_KEY_MAX_UPLOAD_SIZE)
+        );
+        long value = DEFAULT_MAX_UPLOAD_SIZE;
+        if (config != null) {
+            try { value = Long.parseLong(config.getParamValue()); } catch (NumberFormatException ignored) {}
+        }
+        stringRedisTemplate.opsForValue().set(REDIS_KEY_MAX_UPLOAD_SIZE, String.valueOf(value));
+        return value;
+    }
+
     /**
      * Utility for internal use: resolve the decrypted API key at runtime.
      * Falls back to environment variable if no DB config exists.
@@ -349,5 +416,45 @@ public class SystemConfigController {
             return defaultDeepseekApiKey;
         }
         return defaultApiKey;
+    }
+
+    /**
+     * GET /user/config/ai-provider/internal
+     * Internal-only: returns full AI provider config WITH decrypted API key.
+     * Called by other agents (Tool Agent, Code Agent Python, RAG Agent) on startup.
+     * Not exposed through Gateway — only accessible within Docker internal network.
+     */
+    @GetMapping("/ai-provider/internal")
+    public Result<Map<String, Object>> getAiProviderInternal() {
+        Map<String, Object> result = buildAiProviderMap();
+        // Inject the decrypted API key
+        String decryptedKey = resolveApiKey();
+        if (decryptedKey != null && !decryptedKey.isBlank()) {
+            result.put("apiKey", decryptedKey);
+        }
+        return Result.success(result);
+    }
+
+    private Map<String, Object> buildAiProviderMap() {
+        String cached = stringRedisTemplate.opsForValue().get(REDIS_KEY_AI_PROVIDER);
+        Map<String, Object> map = new HashMap<>();
+        if (cached != null) {
+            try { map.putAll(objectMapper.readValue(cached, Map.class)); } catch (JsonProcessingException ignored) {}
+        }
+        if (map.isEmpty()) {
+            SysConfig config = sysConfigMapper.selectOne(
+                    new LambdaQueryWrapper<SysConfig>()
+                            .eq(SysConfig::getParamKey, CONFIG_KEY_AI_PROVIDER)
+            );
+            if (config != null) {
+                try { map.putAll(objectMapper.readValue(config.getParamValue(), Map.class)); } catch (JsonProcessingException ignored) {}
+            }
+        }
+        if (map.isEmpty()) {
+            map.put("provider", "xunfei");
+            map.put("baseUrl", "https://maas-api.cn-huabei-1.xf-yun.com/v2");
+            map.put("model", "xopdeepseekv32");
+        }
+        return map;
     }
 }

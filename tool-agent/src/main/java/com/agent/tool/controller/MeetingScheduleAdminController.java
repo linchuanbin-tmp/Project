@@ -3,6 +3,7 @@ package com.agent.tool.controller;
 import com.agent.tool.dto.Result;
 import com.agent.tool.entity.MeetingSchedule;
 import com.agent.tool.service.MeetingScheduleService;
+import com.agent.tool.util.PermissionUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
@@ -19,17 +20,11 @@ public class MeetingScheduleAdminController {
 
     private final MeetingScheduleService meetingScheduleService;
 
-    private void checkAdminRole(String roles) {
-        if (!StringUtils.hasText(roles) || (!roles.contains("ROLE_ADMIN") && !roles.contains("ADMIN"))) {
-            throw new RuntimeException("Unauthorized: Admin access required");
-        }
-    }
-
     @GetMapping
     public Result<List<MeetingSchedule>> listSchedules(
             @RequestHeader(value = "X-User-Roles", required = false) String roles) {
         try {
-            checkAdminRole(roles);
+            PermissionUtils.requireAdmin(roles);
             return Result.success(meetingScheduleService.list());
         } catch (Exception e) {
             log.error("Failed to list schedules", e);
@@ -42,7 +37,7 @@ public class MeetingScheduleAdminController {
             @RequestHeader(value = "X-User-Roles", required = false) String roles,
             @RequestBody MeetingSchedule schedule) {
         try {
-            checkAdminRole(roles);
+            PermissionUtils.requireAdmin(roles);
             if (!StringUtils.hasText(schedule.getBooker())) {
                 return Result.error("Booker name is required");
             }
@@ -69,7 +64,7 @@ public class MeetingScheduleAdminController {
             @RequestHeader(value = "X-User-Roles", required = false) String roles,
             @RequestBody MeetingSchedule schedule) {
         try {
-            checkAdminRole(roles);
+            PermissionUtils.requireAdmin(roles);
             if (schedule.getId() == null) {
                 return Result.error("Schedule ID is required");
             }
@@ -89,7 +84,7 @@ public class MeetingScheduleAdminController {
             @RequestHeader(value = "X-User-Roles", required = false) String roles,
             @PathVariable Long id) {
         try {
-            checkAdminRole(roles);
+            PermissionUtils.requireAdmin(roles);
             meetingScheduleService.removeById(id);
             return Result.success("Schedule deleted successfully");
         } catch (Exception e) {

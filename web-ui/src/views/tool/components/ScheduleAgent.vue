@@ -611,20 +611,27 @@ defineExpose({ setScheduleData, checkConflict: triggerConflictCheck, conflictRes
 /* Custom Filter Bar in Grid */
 .scheduler-filter-bar {
   display: grid;
-  grid-template-columns: 1fr 1.5fr 1.5fr;
+  grid-template-columns: 1.1fr 1.5fr 1.5fr;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 16px 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-  gap: 20px;
+  gap: 16px;
 }
 .filter-item {
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-  overflow: hidden;
+}
+
+/* All filter bar inputs same height */
+.filter-item :deep(.el-input__wrapper),
+.filter-item :deep(.el-select__wrapper) {
+  height: 32px !important;
+  min-height: 32px !important;
+  box-sizing: border-box !important;
 }
 .filter-label {
   font-size: 12px;

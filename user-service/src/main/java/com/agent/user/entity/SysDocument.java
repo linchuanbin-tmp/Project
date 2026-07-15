@@ -22,4 +22,12 @@ public class SysDocument {
     private Integer securityLevel;
 
     private LocalDateTime createTime;
+
+    private String fileType;
+
+    private Long fileSize;
+
+    private String minioObjectKey;
+
+    private String parseStatus;
 }

@@ -60,6 +60,21 @@ export const createDocument = (data: { title: string; content: string; securityL
     return request.post('/user/document/create', data)
 }
 
+export const uploadDocument = (file: File, title: string, securityLevel: number, deptId: number | null) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (title) formData.append('title', title)
+    formData.append('securityLevel', String(securityLevel))
+    if (deptId !== null && deptId !== undefined) formData.append('deptId', String(deptId))
+    return request.post('/user/document/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    })
+}
+
+export const getDocumentDownloadUrl = (id: number) => {
+    return `/api/user/document/download/${id}`
+}
+
 export const updateDocument = (data: { id: number; title: string; content: string; securityLevel: number; deptId: number | null }) => {
     return request.put('/user/document/update', data)
 }

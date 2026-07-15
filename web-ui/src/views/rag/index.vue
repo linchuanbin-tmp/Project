@@ -243,10 +243,10 @@
                 <BookOpen :size="16" />
                 <div>
                   <h3>{{ doc.title || `Document ${doc.documentId}` }}</h3>
-                  <p>
+                  <div class="doc-tags-row">
                     <span class="level-tag" :class="levelClass(doc.securityLevel)">Level {{ doc.securityLevel || 1 }}</span>
-                    <span class="reason-tag">{{ doc.accessReason }}</span>
-                  </p>
+                    <span class="reason-tag" :class="reasonClass(doc.accessReason)">{{ reasonLabel(doc.accessReason) }}</span>
+                  </div>
                 </div>
               </div>
               <el-button :loading="indexingDocId === doc.documentId" size="small" @click.stop="handleIndexDocument(doc.documentId)">
@@ -270,20 +270,15 @@
             </el-button>
           </div>
 
-          <el-table v-if="indexTasks.length" :data="indexTasks" size="small" class="task-table">
-            <el-table-column prop="id" label="ID" width="68" />
-            <el-table-column prop="taskType" label="Type" min-width="126" show-overflow-tooltip />
-            <el-table-column label="Status" width="96">
-              <template #default="{ row }">
-                <el-tag size="small" :type="statusTagType(row.status)">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="Updated" width="94">
-              <template #default="{ row }">
-                {{ formatTime(row.updateTime || row.createTime) }}
-              </template>
-            </el-table-column>
-          </el-table>
+          <div class="index-task-cards" v-if="indexTasks.length">
+            <div v-for="task in indexTasks" :key="task.id" class="task-card-item">
+              <div class="task-card-row">
+                <div class="task-card-type">{{ task.taskType }}</div>
+                <el-tag size="small" :type="statusTagType(task.status)">{{ task.status }}</el-tag>
+              </div>
+              <div class="task-card-time">Updated {{ formatTime(task.updateTime || task.createTime) }}</div>
+            </div>
+          </div>
           <el-empty v-else description="No index tasks" />
         </div>
       </aside>
@@ -329,6 +324,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Activity,
@@ -363,6 +359,7 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const question = ref('')
 const topK = ref(5)
@@ -554,6 +551,22 @@ const levelClass = (level?: number) => {
   if (level === 3) return 'confidential'
   if (level === 2) return 'internal'
   return 'public'
+}
+
+const reasonLabel = (reason?: string) => {
+  if (!reason) return ''
+  const key = `rag.accessReasons.${reason}`
+  const translated = t(key)
+  return translated === key ? reason : translated
+}
+
+const reasonClass = (reason?: string) => {
+  if (!reason) return ''
+  if (reason === 'ROLE_ADMIN') return 'admin'
+  if (reason === 'RAG_APPLY_APPROVED') return 'approved'
+  if (reason === 'GLOBAL_CLEARANCE') return 'global'
+  if (reason === 'DEPARTMENT_CLEARANCE') return 'dept'
+  return ''
 }
 
 const formatTime = (value?: string) => {
@@ -897,6 +910,15 @@ onUnmounted(() => {
 .document-main h3 { margin: 0 0 3px; font-size: 12.5px; font-weight: 600; color: #1e293b; }
 .document-main p { margin: 0; font-size: 11px; color: #94a3b8; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
+/* Document tag row */
+.doc-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
 /* Level tags */
 .level-tag {
   display: inline-block;
@@ -904,6 +926,7 @@ onUnmounted(() => {
   border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
+  white-space: nowrap;
 }
 .level-tag.public { background: #f0fdf4; color: #15803d; }
 .level-tag.internal { background: #fffbeb; color: #b45309; }
@@ -917,7 +940,12 @@ onUnmounted(() => {
   font-weight: 500;
   background: #f1f5f9;
   color: #64748b;
+  white-space: nowrap;
 }
+.reason-tag.admin { background: #f3e8ff; color: #7c3aed; }
+.reason-tag.approved { background: #fef3c7; color: #b45309; }
+.reason-tag.global { background: #f0fdf4; color: #15803d; }
+.reason-tag.dept { background: #dbeafe; color: #1d4ed8; }
 
 .view-all-link {
   display: block;
@@ -953,6 +981,44 @@ onUnmounted(() => {
 @keyframes loading-spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+.index-task-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-card-item {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background 0.12s;
+}
+
+.task-card-item:hover {
+  background: #f3f4f6;
+}
+
+.task-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-card-type {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.task-card-time {
+  font-size: 11px;
+  color: #9ca3af;
 }
 
 @media (max-width: 960px) {

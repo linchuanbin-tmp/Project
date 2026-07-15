@@ -38,10 +38,11 @@ public class SqlValidationService {
     /**
      * 校验 SQL 是否通过白名单
      *
-     * @param sql 待校验的 SQL
+     * @param sql       待校验的 SQL
+     * @param userRoles 当前用户的角色列表（用于敏感列判断，非管理员角色时敏感列将被拒绝）
      * @return 校验结果
      */
-    public ValidationResult validate(String sql) {
+    public ValidationResult validate(String sql, List<String> userRoles) {
         if (sql == null || sql.isBlank()) {
             return ValidationResult.fail("SQL 不能为空");
         }
@@ -67,6 +68,10 @@ public class SqlValidationService {
         // 第五层：检查查询复杂度
         ValidationResult complexityResult = validateComplexity(normalizedSql);
         if (!complexityResult.passed) return complexityResult;
+
+        // 第六层：检查敏感列（仅对非管理员生效）
+        ValidationResult sensitiveResult = validateSensitiveColumns(normalizedSql, userRoles);
+        if (!sensitiveResult.passed) return sensitiveResult;
 
         return ValidationResult.pass();
     }
@@ -285,6 +290,52 @@ public class SqlValidationService {
         return count;
     }
 
+    /**
+     * 第六层：敏感列校验。
+     * <p>
+     * 仅对非管理员用户生效。如果查询引用了敏感列且用户不是 ROLE_ADMIN，
+     * 校验失败 —— 调用方应将其路由到 HITL 审批流程。
+     */
+    private ValidationResult validateSensitiveColumns(String sql, List<String> userRoles) {
+        // 管理员不受敏感列限制
+        if (userRoles != null && userRoles.stream().anyMatch(r -> "ROLE_ADMIN".equalsIgnoreCase(r))) {
+            return ValidationResult.pass();
+        }
+        // 未传入角色信息时回退，不阻止（避免破坏匿名/未认证场景，由上游决定）
+        if (userRoles == null || userRoles.isEmpty()) {
+            return ValidationResult.pass();
+        }
+
+        List<String> sensitiveCols = properties.getWhitelist().getSensitiveColumns();
+        if (sensitiveCols == null || sensitiveCols.isEmpty()) {
+            return ValidationResult.pass();
+        }
+
+        // 如果是 SELECT *，检查全表 —— 宽松处理，仅标记警告
+        String upperSql = sql.toUpperCase();
+        if (upperSql.contains("SELECT *") || upperSql.contains("SELECT COUNT(*)")) {
+            log.info("⚠️ SELECT * query by non-admin may include sensitive columns; consider HITL review");
+            return ValidationResult.pass(); // 不阻断，由 HITL 机制处理
+        }
+
+        // 提取 SELECT 列并检查是否匹配敏感列
+        Matcher selectMatcher = SELECT_COLUMNS_PATTERN.matcher(sql);
+        if (selectMatcher.find()) {
+            String columnsPart = selectMatcher.group(1);
+            Set<String> usedColumns = extractColumnNames(columnsPart);
+            for (String col : usedColumns) {
+                for (String sensitive : sensitiveCols) {
+                    if (sensitive.equalsIgnoreCase(col)) {
+                        return ValidationResult.fail(
+                                "查询包含敏感列 '" + col + "'，非管理员用户需通过 HITL 审批");
+                    }
+                }
+            }
+        }
+
+        return ValidationResult.pass();
+    }
+
     // ==================== 校验结果类 ====================
 
     public record ValidationResult(boolean passed, String message) {
@@ -296,5 +347,13 @@ public class SqlValidationService {
             log.warn("❌ SQL 白名单校验失败: {}", message);
             return new ValidationResult(false, message);
         }
+    }
+
+    /**
+     * 向后兼容：不带角色参数的校验方法。
+     * 不进行敏感列检查（等同于管理员权限）。
+     */
+    public ValidationResult validate(String sql) {
+        return validate(sql, null);
     }
 }

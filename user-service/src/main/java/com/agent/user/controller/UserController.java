@@ -122,7 +122,27 @@ public class UserController {
 
     @GetMapping("/list")
     public Result<List<UserResponse>> listUsers() {
-        return Result.success(userService.listUsers());
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        if ("anonymousUser".equals(username)) {
+            return Result.error(401, "Not authenticated");
+        }
+        User currentUser = userService.getUserByUsername(username);
+        if (currentUser == null) {
+            return Result.error(404, "User not found");
+        }
+
+        List<String> roles = userService.getRolesByUserId(currentUser.getId());
+        boolean isAdmin = roles.contains("ROLE_ADMIN");
+
+        if (isAdmin) {
+            return Result.success(userService.listUsers());
+        }
+
+        // 非管理员只返回同部门用户
+        if (currentUser.getDeptId() != null) {
+            return Result.success(userService.listUsersByDept(currentUser.getDeptId()));
+        }
+        return Result.success(List.of());
     }
 
     @GetMapping("/dept/list")

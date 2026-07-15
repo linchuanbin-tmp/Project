@@ -12,4 +12,6 @@ public class DocumentResponse {
     private Integer securityLevel;
     private Boolean accessible;
     private LocalDateTime createTime;
+    private String fileType;
+    private Long fileSize;
 }
