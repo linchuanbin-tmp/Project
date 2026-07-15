@@ -80,7 +80,7 @@ public class SystemConfigController {
      * Admin-only.
      */
     @GetMapping("/session-timeout")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<Long> getSessionTimeout() {
         long timeout = resolveTimeout();
         return Result.success(timeout);
@@ -93,7 +93,7 @@ public class SystemConfigController {
      * Body: { "timeout": 45 }
      */
     @PutMapping("/session-timeout")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<String> updateSessionTimeout(@RequestBody Map<String, Object> body) {
         Object raw = body.get("timeout");
         if (raw == null) {
@@ -200,7 +200,7 @@ public class SystemConfigController {
      * apiKey is encrypted before storing.
      */
     @PutMapping("/ai-provider")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<String> updateAiProvider(@RequestBody Map<String, Object> body) {
         String provider = body.get("provider") != null ? body.get("provider").toString() : null;
         String baseUrl  = body.get("baseUrl")  != null ? body.get("baseUrl").toString()  : null;

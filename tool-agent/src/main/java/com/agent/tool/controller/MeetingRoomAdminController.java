@@ -3,6 +3,7 @@ package com.agent.tool.controller;
 import com.agent.tool.dto.Result;
 import com.agent.tool.entity.MeetingRoom;
 import com.agent.tool.service.MeetingRoomService;
+import com.agent.tool.util.PermissionUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
@@ -19,17 +20,11 @@ public class MeetingRoomAdminController {
 
     private final MeetingRoomService meetingRoomService;
 
-    private void checkAdminRole(String roles) {
-        if (!StringUtils.hasText(roles) || (!roles.contains("ROLE_ADMIN") && !roles.contains("ADMIN"))) {
-            throw new RuntimeException("Unauthorized: Admin access required");
-        }
-    }
-
     @GetMapping
     public Result<List<MeetingRoom>> listRooms(
             @RequestHeader(value = "X-User-Roles", required = false) String roles) {
         try {
-            checkAdminRole(roles);
+            PermissionUtils.requireAdmin(roles);
             return Result.success(meetingRoomService.list());
         } catch (Exception e) {
             log.error("Failed to list meeting rooms", e);
@@ -42,7 +37,7 @@ public class MeetingRoomAdminController {
             @RequestHeader(value = "X-User-Roles", required = false) String roles,
             @RequestBody MeetingRoom room) {
         try {
-            checkAdminRole(roles);
+            PermissionUtils.requireAdmin(roles);
             if (!StringUtils.hasText(room.getRoomName())) {
                 return Result.error("Room name is required");
             }
@@ -66,7 +61,7 @@ public class MeetingRoomAdminController {
             @RequestHeader(value = "X-User-Roles", required = false) String roles,
             @RequestBody MeetingRoom room) {
         try {
-            checkAdminRole(roles);
+            PermissionUtils.requireAdmin(roles);
             if (room.getId() == null) {
                 return Result.error("Meeting room ID is required");
             }
@@ -86,7 +81,7 @@ public class MeetingRoomAdminController {
             @RequestHeader(value = "X-User-Roles", required = false) String roles,
             @PathVariable Long id) {
         try {
-            checkAdminRole(roles);
+            PermissionUtils.requireAdmin(roles);
             meetingRoomService.removeById(id);
             return Result.success("Meeting room deleted successfully");
         } catch (Exception e) {

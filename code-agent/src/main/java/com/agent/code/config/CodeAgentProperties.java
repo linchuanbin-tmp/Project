@@ -35,6 +35,11 @@ public class CodeAgentProperties {
         );
         private int maxTablesPerQuery = 3;
         private int maxConditions = 10;
+        /** 敏感列：普通用户查询这些列时需要触发 HITL 审批 */
+        private List<String> sensitiveColumns = List.of(
+                "password", "id_card", "salary", "phone",
+                "account_no", "balance", "customer_no"
+        );
     }
 
     @Data

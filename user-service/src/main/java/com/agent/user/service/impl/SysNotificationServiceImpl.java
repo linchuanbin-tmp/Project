@@ -7,13 +7,17 @@ import com.agent.user.mapper.SysNotificationMapper;
 import com.agent.user.mapper.UserMapper;
 import com.agent.user.service.SysNotificationService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,6 +26,8 @@ public class SysNotificationServiceImpl implements SysNotificationService {
 
     private final SysNotificationMapper notificationMapper;
     private final UserMapper userMapper;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public List<NotificationResponse> listNotifications(Long userId, Integer status, String notifyType) {
@@ -179,13 +185,39 @@ public class SysNotificationServiceImpl implements SysNotificationService {
 
         int targetStatus = "APPROVE".equalsIgnoreCase(request.getAction()) ? 3 : 4; // 3 = APPROVED, 4 = DENIED
         notification.setStatus(targetStatus);
-        
+
         if (request.getOpinion() != null && !request.getOpinion().isEmpty()) {
             notification.setContent(notification.getContent() + " (Approval Opinion: " + request.getOpinion() + ")");
         }
-        
+
         notification.setUpdateTime(LocalDateTime.now());
         notificationMapper.updateById(notification);
+
+        // ── HITL 审批回调：批准后写 Redis 临时令牌 ──────────────────
+        if (targetStatus == 3) { // APPROVED
+            String notifyType = notification.getNotifyType();
+            String payload = notification.getPayload();
+            if (payload != null && !payload.isEmpty()) {
+                try {
+                    JsonNode node = objectMapper.readTree(payload);
+                    if ("RAG_APPLY".equalsIgnoreCase(notifyType) && node.has("documentId")) {
+                        // RAG 文档访问审批：写临时访问令牌，24h
+                        Long documentId = node.get("documentId").asLong();
+                        Long senderId = notification.getSenderId();
+                        String key = "rag:temp_access:" + senderId + ":" + documentId;
+                        redisTemplate.opsForValue().set(key, "approved", 24, TimeUnit.HOURS);
+                    } else if ("SQL_AUDIT".equalsIgnoreCase(notifyType) && node.has("sqlHash")) {
+                        // SQL 审计审批：写临时令牌，5min
+                        String sqlHash = node.get("sqlHash").asText();
+                        Long senderId = notification.getSenderId();
+                        String key = "sql:temp_approval:" + senderId + ":" + sqlHash;
+                        redisTemplate.opsForValue().set(key, "approved", 5, TimeUnit.MINUTES);
+                    }
+                } catch (Exception e) {
+                    // swallow parse errors — Redis token is best-effort; DB notification status is the source of truth
+                }
+            }
+        }
     }
 
     @Override

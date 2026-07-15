@@ -347,11 +347,13 @@ public class ToolController {
                     username
                 );
             } catch (Exception e) {
-                log.warn("User not found in sys_user for username: {}", username);
+                log.warn("User not found in sys_user for username: {}, skipping notification", username);
+                return;
             }
-            
+
             if (userId == null) {
-                userId = 1L; // Fallback to admin (id = 1)
+                log.warn("User not found for username: {}, skipping notification", username);
+                return;
             }
             
             jdbcTemplate.update(

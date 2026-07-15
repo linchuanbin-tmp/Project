@@ -31,6 +31,11 @@ spring:
             - Path=/api/task/**
           filters:
             - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                key-resolver: "#{@ipKeyResolver}"
 
         # Tool Agent HTTP 路由
         - id: tool-agent
@@ -39,6 +44,11 @@ spring:
             - Path=/api/tool/**
           filters:
             - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                key-resolver: "#{@ipKeyResolver}"
 
         # Task Service WebSocket 路由
         - id: task-ws
@@ -55,6 +65,11 @@ spring:
             - Path=/api/code/**
           filters:
             - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 3
+                redis-rate-limiter.burstCapacity: 5
+                key-resolver: "#{@ipKeyResolver}"
 
         # RAG Agent route
         - id: rag-agent

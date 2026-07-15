@@ -13,30 +13,49 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
 public class TaskServiceImpl implements TaskService {
 
+    private static final int CORE_POOL_SIZE = 5;
+    private static final int MAX_POOL_SIZE  = 10;
+    private static final int QUEUE_CAPACITY = 100;
+    private static final int MAX_RETRY      = 3;
+
     private final TaskRecordMapper taskRecordMapper;
     private final JdbcTemplate jdbcTemplate;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private final ExecutorService executor = new ThreadPoolExecutor(
+            CORE_POOL_SIZE, MAX_POOL_SIZE, 60L, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(QUEUE_CAPACITY),
+            new ThreadPoolExecutor.AbortPolicy()
+    );
 
     private final String codeAgentUrl;
     private final String toolAgentUrl;
     private final String ragAgentUrl;
+    private final String userServiceUrl;
 
     public TaskServiceImpl(TaskRecordMapper taskRecordMapper, JdbcTemplate jdbcTemplate) {
         this.taskRecordMapper = taskRecordMapper;
         this.jdbcTemplate = jdbcTemplate;
+
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(30000);
+        this.restTemplate = new RestTemplate(factory);
         
         String codeUri = System.getenv("CODE_SERVICE_URI");
         this.codeAgentUrl = (codeUri != null ? codeUri : "http://localhost:8084") + "/code/query";
@@ -46,6 +65,9 @@ public class TaskServiceImpl implements TaskService {
 
         String ragUri = System.getenv("RAG_SERVICE_URI");
         this.ragAgentUrl = (ragUri != null ? ragUri : "http://localhost:8085") + "/rag/query";
+
+        String userUri = System.getenv("USER_SERVICE_URI");
+        this.userServiceUrl = (userUri != null ? userUri : "http://localhost:8081") + "/user";
     }
 
     @Override
@@ -66,9 +88,17 @@ public class TaskServiceImpl implements TaskService {
 
         log.info("Task created in database: taskId={}, type={}", record.getId(), taskType);
 
-        // 2. 异步执行任务
+        // 2. 异步执行任务（队列满时返回友好错误）
         String wsTaskId = String.valueOf(record.getId());
-        executor.execute(() -> executeTaskAsync(record, wsTaskId, username, rolesHeader));
+        try {
+            executor.execute(() -> executeWithRetry(record, wsTaskId, username, rolesHeader));
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            log.warn("Task queue full, rejecting task: dbTaskId={}", record.getId());
+            record.setStatus("FAIL");
+            record.setErrorMsg("系统繁忙，请稍后重试");
+            record.setUpdatedAt(LocalDateTime.now());
+            taskRecordMapper.updateById(record);
+        }
 
         return record;
     }
@@ -106,7 +136,15 @@ public class TaskServiceImpl implements TaskService {
         log.info("WebSocket triggered task submission: dbTaskId={}, wsTaskId={}", record.getId(), taskIdStr);
 
         // 异步执行
-        executor.execute(() -> executeTaskAsync(record, taskIdStr, "admin", "ROLE_ADMIN"));
+        try {
+            executor.execute(() -> executeWithRetry(record, taskIdStr, "admin", "ROLE_ADMIN"));
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            log.warn("Task queue full (WebSocket), rejecting task: dbTaskId={}", record.getId());
+            record.setStatus("FAIL");
+            record.setErrorMsg("系统繁忙，请稍后重试");
+            record.setUpdatedAt(LocalDateTime.now());
+            taskRecordMapper.updateById(record);
+        }
     }
 
     @Override
@@ -133,7 +171,46 @@ public class TaskServiceImpl implements TaskService {
     }
 
 
-    private void executeTaskAsync(TaskRecord record, String wsTaskId, String username, String rolesHeader) {
+    private void executeWithRetry(TaskRecord record, String wsTaskId, String username, String rolesHeader) {
+        int attempt = record.getAttemptCount() != null ? record.getAttemptCount() : 0;
+        Exception lastException = null;
+
+        while (attempt < MAX_RETRY) {
+            attempt++;
+            record.setAttemptCount(attempt);
+            record.setUpdatedAt(LocalDateTime.now());
+            taskRecordMapper.updateById(record);
+
+            log.info("Task attempt {}/{}: dbTaskId={}, type={}", attempt, MAX_RETRY, record.getId(), record.getTaskType());
+
+            try {
+                executeTaskOnce(record, wsTaskId, username, rolesHeader);
+                return; // success
+            } catch (Exception e) {
+                lastException = e;
+                log.warn("Task attempt {}/{} failed: dbTaskId={}, error={}", attempt, MAX_RETRY, record.getId(), e.getMessage());
+                if (attempt < MAX_RETRY) {
+                    sendProgress(wsTaskId, 5, "running", "Retrying... (" + attempt + "/" + MAX_RETRY + ")");
+                    try { Thread.sleep(1000L * attempt); } catch (InterruptedException ignored) {}
+                }
+            }
+        }
+
+        // All retries exhausted
+        long endTime = System.currentTimeMillis();
+        long startTime = record.getCreatedAt() != null
+                ? record.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                : endTime;
+        record.setStatus("FAIL");
+        record.setErrorMsg(lastException != null ? lastException.getMessage() : "All retries exhausted");
+        record.setElapsedTime((int) (endTime - startTime));
+        record.setUpdatedAt(LocalDateTime.now());
+        taskRecordMapper.updateById(record);
+        sendProgress(wsTaskId, 100, "error", "Execution failed after " + MAX_RETRY + " attempts: " +
+                (lastException != null ? lastException.getMessage() : "unknown"));
+    }
+
+    private void executeTaskOnce(TaskRecord record, String wsTaskId, String username, String rolesHeader) {
         long startTime = System.currentTimeMillis();
         log.info("Starting execution of task: dbTaskId={}, type={}", record.getId(), record.getTaskType());
 
@@ -152,8 +229,18 @@ public class TaskServiceImpl implements TaskService {
 
                 // 调用 Code Agent
                 Map<String, String> requestBody = Map.of("question", record.getInput());
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("X-User-Name", username != null ? username : "anonymousUser");
+                headers.set("X-User-Roles", rolesHeader != null ? rolesHeader : "");
+
                 sendProgress(wsTaskId, 50, "running", "Generating SQL, please wait...");
-                Map<?, ?> response = restTemplate.postForObject(codeAgentUrl, requestBody, Map.class);
+                Map<?, ?> response = restTemplate.postForObject(
+                        codeAgentUrl,
+                        new HttpEntity<>(requestBody, headers),
+                        Map.class
+                );
 
                 if (response != null) {
                     resultOutput = objectMapper.writeValueAsString(response);
@@ -176,8 +263,17 @@ public class TaskServiceImpl implements TaskService {
                         "parameters", Map.of()
                 );
 
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("X-User-Name", username != null ? username : "anonymousUser");
+                headers.set("X-User-Roles", rolesHeader != null ? rolesHeader : "");
+
                 sendProgress(wsTaskId, 50, "running", "AI analyzing your request...");
-                Map<?, ?> response = restTemplate.postForObject(toolAgentUrl, requestBody, Map.class);
+                Map<?, ?> response = restTemplate.postForObject(
+                        toolAgentUrl,
+                        new HttpEntity<>(requestBody, headers),
+                        Map.class
+                );
                 if (response != null) {
                     Integer code = (Integer) response.get("code");
                     if (code != null && code == 200) {
@@ -271,8 +367,8 @@ public class TaskServiceImpl implements TaskService {
                     username
             );
         } catch (Exception e) {
-            log.warn("User not found by username: {}, defaulting to id=1", username);
-            return 1L; // Default fallback to admin (ID 1)
+            log.error("User not found by username: {}. Cannot default to admin — failing.", username);
+            throw new RuntimeException("User not found: " + username);
         }
     }
 }

@@ -13,6 +13,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -39,6 +40,9 @@ public class SysDocumentServiceImpl implements SysDocumentService {
 
     @Autowired
     private RagIndexSyncClient ragIndexSyncClient;
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
     @Override
     public List<DocumentResponse> listDocumentsForUser(Long userId) {
@@ -80,24 +84,33 @@ public class SysDocumentServiceImpl implements SysDocumentService {
             boolean isApproved = false;
 
             if (!hasClearance) {
-                // Check if user has an approved RAG_APPLY notification for this document
-                List<SysNotification> approvedNotifications = notificationMapper.selectList(
-                    new LambdaQueryWrapper<SysNotification>()
-                        .eq(SysNotification::getNotifyType, "RAG_APPLY")
-                        .eq(SysNotification::getSenderId, userId)
-                        .eq(SysNotification::getStatus, 3) // 3 = Approved
-                );
-                for (SysNotification notif : approvedNotifications) {
-                    String payload = notif.getPayload();
-                    if (payload != null && !payload.isEmpty()) {
-                        try {
-                            JsonNode node = objectMapper.readTree(payload);
-                            if (node.has("documentId") && node.get("documentId").asLong() == doc.getId().longValue()) {
-                                isApproved = true;
-                                break;
+                // 先检查 Redis 临时令牌（HITL 审批回调写入，性能优于 DB 扫描）
+                String tempAccessKey = "rag:temp_access:" + userId + ":" + doc.getId();
+                String tempToken = redisTemplate.opsForValue().get(tempAccessKey);
+                if ("approved".equals(tempToken)) {
+                    isApproved = true;
+                } else {
+                    // 回退到 DB 检查：用户是否已获得审批
+                    List<SysNotification> approvedNotifications = notificationMapper.selectList(
+                        new LambdaQueryWrapper<SysNotification>()
+                            .eq(SysNotification::getNotifyType, "RAG_APPLY")
+                            .eq(SysNotification::getSenderId, userId)
+                            .eq(SysNotification::getStatus, 3) // 3 = Approved
+                    );
+                    for (SysNotification notif : approvedNotifications) {
+                        String payload = notif.getPayload();
+                        if (payload != null && !payload.isEmpty()) {
+                            try {
+                                JsonNode node = objectMapper.readTree(payload);
+                                if (node.has("documentId") && node.get("documentId").asLong() == doc.getId().longValue()) {
+                                    isApproved = true;
+                                    // 补充写入 Redis 缓存，避免后续重复 DB 扫描
+                                    redisTemplate.opsForValue().set(tempAccessKey, "approved", 24, java.util.concurrent.TimeUnit.HOURS);
+                                    break;
+                                }
+                            } catch (Exception e) {
+                                // ignore parse errors
                             }
-                        } catch (Exception e) {
-                            // ignore parse errors
                         }
                     }
                 }
