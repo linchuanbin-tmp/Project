@@ -588,6 +588,19 @@
             </span>
           </div>
           <div class="rag-info-item">
+            <span class="rag-info-label">File Type</span>
+            <span class="rag-info-value">{{ getDocIndexStatus(ragInfoDoc)?.fileType || ragInfoDoc?.fileType || 'MARKDOWN' }}</span>
+          </div>
+          <div class="rag-info-item">
+            <span class="rag-info-label">Parse Status</span>
+            <span
+              class="rag-info-value"
+              :class="parseStatusClass(getDocIndexStatus(ragInfoDoc)?.parseStatus || ragInfoDoc?.parseStatus)"
+            >
+              {{ getDocIndexStatus(ragInfoDoc)?.parseStatus || ragInfoDoc?.parseStatus || 'READY' }}
+            </span>
+          </div>
+          <div class="rag-info-item">
             <span class="rag-info-label">{{ $t('document.ragChunkCount') }}</span>
             <span class="rag-info-value">{{ getDocIndexStatus(ragInfoDoc)?.chunkCount || 0 }}</span>
           </div>
@@ -655,6 +668,7 @@ import {
   getRagDocumentChunks,
   getRagDocumentIndexStatus,
   indexRagDocument,
+  reprocessRagDocument,
   type RagDocumentChunkDetail,
   type RagDocumentIndexStatus
 } from '@/api/rag'
@@ -1190,7 +1204,10 @@ const handleReindexDoc = async (doc: any) => {
   if (!doc?.id) return
   setIndexingDoc(doc.id, true)
   try {
-    const result = await indexRagDocument(doc.id)
+    const status = getDocIndexStatus(doc)
+    const result = status?.hasStoredFile
+      ? await reprocessRagDocument(doc.id)
+      : await indexRagDocument(doc.id)
     if (result.status === 'SUCCESS') {
       ElMessage.success(result.message || 'RAG index updated.')
     } else {
@@ -1206,6 +1223,13 @@ const handleReindexDoc = async (doc: any) => {
   } finally {
     setIndexingDoc(doc.id, false)
   }
+}
+
+const parseStatusClass = (status?: string) => {
+  if (status === 'DONE') return 'text-success'
+  if (status === 'FAILED') return 'text-red'
+  if (status === 'PENDING') return 'text-warning'
+  return ''
 }
 
 const openRagInfoDialog = async (doc: any) => {
@@ -2316,6 +2340,10 @@ watch(
 
 .rag-info-value.text-red {
   color: #dc2626;
+}
+
+.rag-info-value.text-warning {
+  color: #b45309;
 }
 
 .chunk-loading,

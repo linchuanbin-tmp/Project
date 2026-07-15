@@ -11,6 +11,8 @@ public interface RagIndexService {
 
     RagIndexResponse indexDocument(Long documentId);
 
+    RagIndexResponse reprocessDocument(Long documentId);
+
     RagIndexResponse rebuildAll();
 
     RagIndexResponse deleteDocumentIndex(Long documentId);

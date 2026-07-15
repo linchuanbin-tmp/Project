@@ -21,6 +21,12 @@ public class RagDocumentIndexStatus {
 
     private Integer securityLevel;
 
+    private String fileType;
+
+    private String parseStatus;
+
+    private Boolean hasStoredFile;
+
     private Boolean indexed;
 
     private Integer chunkCount;

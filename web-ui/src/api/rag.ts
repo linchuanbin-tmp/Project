@@ -79,6 +79,9 @@ export interface RagDocumentIndexStatus {
   title: string
   deptId?: number
   securityLevel?: number
+  fileType?: string
+  parseStatus?: string
+  hasStoredFile?: boolean
   indexed: boolean
   chunkCount: number
   documentCreateTime?: string
@@ -154,6 +157,9 @@ export const rebuildRagIndex = () =>
 
 export const indexRagDocument = (documentId: number) =>
   request.post<any, RagIndexResponse>(`/rag/index/document/${documentId}`)
+
+export const reprocessRagDocument = (documentId: number) =>
+  request.post<any, RagIndexResponse>(`/rag/index/document/${documentId}/reprocess`)
 
 export const deleteRagDocumentIndex = (documentId: number) =>
   request.delete<any, RagIndexResponse>(`/rag/index/document/${documentId}`)

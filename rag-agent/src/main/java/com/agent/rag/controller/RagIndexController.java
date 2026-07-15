@@ -28,6 +28,11 @@ public class RagIndexController {
         return ragIndexService.indexDocument(documentId);
     }
 
+    @PostMapping("/document/{documentId}/reprocess")
+    public RagIndexResponse reprocessDocument(@PathVariable Long documentId) {
+        return ragIndexService.reprocessDocument(documentId);
+    }
+
     @PostMapping("/rebuild")
     public RagIndexResponse rebuildAll() {
         return ragIndexService.rebuildAll();

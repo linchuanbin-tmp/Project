@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 public class RagIndexServiceImpl implements RagIndexService {
 
     private static final String TASK_INDEX_DOCUMENT = "INDEX_DOCUMENT";
+    private static final String TASK_REPROCESS_DOCUMENT = "REPROCESS_DOCUMENT";
     private static final String TASK_REBUILD_ALL = "REBUILD_ALL";
     private static final String TASK_DELETE_DOCUMENT = "DELETE_DOCUMENT";
 
@@ -58,20 +59,13 @@ public class RagIndexServiceImpl implements RagIndexService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RagIndexResponse indexDocument(Long documentId) {
-        RagIndexTask task = createTask(documentId, TASK_INDEX_DOCUMENT);
-        try {
-            SysDocument document = sysDocumentMapper.selectById(documentId);
-            if (document == null) {
-                throw new RuntimeException("Document not found: " + documentId);
-            }
+        return processDocument(documentId, TASK_INDEX_DOCUMENT, false);
+    }
 
-            int chunkCount = writeChunks(document);
-            markTask(task, STATUS_SUCCESS, "Indexed " + chunkCount + " chunk(s).");
-            return response(task, chunkCount);
-        } catch (Exception e) {
-            markTask(task, STATUS_FAIL, e.getMessage());
-            return response(task, 0);
-        }
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public RagIndexResponse reprocessDocument(Long documentId) {
+        return processDocument(documentId, TASK_REPROCESS_DOCUMENT, true);
     }
 
     @Override
@@ -150,6 +144,9 @@ public class RagIndexServiceImpl implements RagIndexService {
                     .title(document.getTitle())
                     .deptId(document.getDeptId())
                     .securityLevel(document.getSecurityLevel())
+                    .fileType(document.getFileType())
+                    .parseStatus(document.getParseStatus())
+                    .hasStoredFile(document.getMinioObjectKey() != null && !document.getMinioObjectKey().isBlank())
                     .indexed(!documentChunks.isEmpty())
                     .chunkCount(documentChunks.size())
                     .documentCreateTime(document.getCreateTime())
@@ -173,8 +170,29 @@ public class RagIndexServiceImpl implements RagIndexService {
                 .toList();
     }
 
+    private RagIndexResponse processDocument(Long documentId, String taskType, boolean forceParse) {
+        RagIndexTask task = createTask(documentId, taskType);
+        try {
+            SysDocument document = sysDocumentMapper.selectById(documentId);
+            if (document == null) {
+                throw new RuntimeException("Document not found: " + documentId);
+            }
+
+            int chunkCount = writeChunks(document, forceParse);
+            markTask(task, STATUS_SUCCESS, "Indexed " + chunkCount + " chunk(s).");
+            return response(task, chunkCount);
+        } catch (Exception e) {
+            markTask(task, STATUS_FAIL, e.getMessage());
+            return response(task, 0);
+        }
+    }
+
     private int writeChunks(SysDocument document) {
-        document = ensureDocumentTextReady(document);
+        return writeChunks(document, false);
+    }
+
+    private int writeChunks(SysDocument document, boolean forceParse) {
+        document = ensureDocumentTextReady(document, forceParse);
         vectorStoreService.deleteByDocumentId(document.getId());
         ragDocumentChunkMapper.hardDeleteByDocumentId(document.getId());
         List<DocumentChunk> chunks = documentChunker.split(document.getContent());
@@ -219,14 +237,14 @@ public class RagIndexServiceImpl implements RagIndexService {
         return chunks.size();
     }
 
-    private SysDocument ensureDocumentTextReady(SysDocument document) {
+    private SysDocument ensureDocumentTextReady(SysDocument document, boolean forceParse) {
         String content = document.getContent();
         boolean hasText = content != null && !content.isBlank();
         boolean hasStoredFile = document.getMinioObjectKey() != null && !document.getMinioObjectKey().isBlank();
         boolean parsePending = PARSE_STATUS_PENDING.equalsIgnoreCase(document.getParseStatus())
                 || PARSE_STATUS_FAILED.equalsIgnoreCase(document.getParseStatus());
 
-        if (hasText && !parsePending) {
+        if (!forceParse && hasText && !parsePending) {
             return document;
         }
         if (!hasStoredFile) {
