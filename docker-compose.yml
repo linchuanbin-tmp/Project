@@ -212,6 +212,33 @@ services:
       mysql:
         condition: service_healthy
 
+  rag-worker:
+    profiles:
+      - rag-worker
+    build:
+      context: .
+      dockerfile: rag-worker/Dockerfile
+    container_name: agent_rag_worker
+    restart: unless-stopped
+    environment:
+      - RAG_WORKER_PORT=8091
+      - RAG_WORKER_MODEL=${RAG_WORKER_MODEL:-BAAI/bge-m3}
+      - RAG_WORKER_DEVICE=${RAG_WORKER_DEVICE:-}
+      - RAG_WORKER_NORMALIZE=${RAG_WORKER_NORMALIZE:-true}
+      - RAG_WORKER_MAX_BATCH_SIZE=${RAG_WORKER_MAX_BATCH_SIZE:-32}
+      - HF_DOWNLOAD=${HF_DOWNLOAD:-1}
+      - HF_ENDPOINT=${HF_ENDPOINT:-}
+    ports:
+      - "${RAG_WORKER_PORT:-8091}:8091"
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8091/health', timeout=5).read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   code-agent:
     build:
       context: .
@@ -330,4 +357,6 @@ volumes:
   minio_data:
     driver: local
   milvus_data:
+    driver: local
+  huggingface_cache:
     driver: local

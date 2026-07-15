@@ -270,6 +270,63 @@ If `RAG_EMBEDDING_PROVIDER=http` but no endpoint is configured, RAG Agent will f
 RAG embedding endpoint is not configured.
 ```
 
+### Local BGE-M3 Worker
+
+For local development without a third-party embedding API, run the Python worker in `rag-worker`.
+
+Install dependencies in the project virtual environment:
+
+```powershell
+cd "D:\github\Intelligent Multi-Agent System for Enterprise Operations\Project"
+.\.venv-rag\Scripts\Activate.ps1
+$env:HF_DOWNLOAD="1"
+python -m pip install -r rag-worker\requirements.txt
+```
+
+Start the worker:
+
+```powershell
+python rag-worker\app.py
+```
+
+The first startup downloads `BAAI/bge-m3` and caches it under the Hugging Face cache. BGE-M3 returns 1024-dimensional vectors.
+
+Use this local Java configuration:
+
+```text
+RAG_EMBEDDING_PROVIDER=http
+RAG_EMBEDDING_ENDPOINT=http://localhost:8091/embed
+RAG_EMBEDDING_API_KEY=
+RAG_EMBEDDING_MODEL=BAAI/bge-m3
+RAG_EMBEDDING_DIM=1024
+RAG_EMBEDDING_TIMEOUT_MS=30000
+RAG_MILVUS_COLLECTION=rag_document_chunks_bge_m3
+```
+
+Use this Docker Compose configuration:
+
+```text
+RAG_EMBEDDING_PROVIDER=http
+RAG_EMBEDDING_ENDPOINT=http://rag-worker:8091/embed
+RAG_EMBEDDING_API_KEY=
+RAG_EMBEDDING_MODEL=BAAI/bge-m3
+RAG_EMBEDDING_DIM=1024
+RAG_EMBEDDING_TIMEOUT_MS=30000
+RAG_MILVUS_COLLECTION=rag_document_chunks_bge_m3
+```
+
+Start the worker through Docker Compose only when needed:
+
+```powershell
+docker compose --profile rag-worker up -d rag-worker
+```
+
+Verify the worker and RAG readiness:
+
+```powershell
+.\scripts\test-rag-embedding.ps1
+```
+
 ## 9. Switching To Real LLM
 
 The default local setup uses mock LLM so the full RAG pipeline can run without paid or private model credentials. To switch to a real OpenAI-compatible chat completion service, update `.env`:

@@ -1,0 +1,14 @@
+.git
+.idea
+.vscode
+.venv
+.venv-*
+**/__pycache__
+**/*.pyc
+**/target
+**/node_modules
+**/dist
+*.log
+.env
+.env.*
+!.env.example
