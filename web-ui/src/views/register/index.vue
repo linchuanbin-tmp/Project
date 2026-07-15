@@ -10,7 +10,7 @@
       </div>
 
       <el-form :model="form" :rules="rules" ref="formRef">
-        <el-form-item prop="email">
+        <el-form-item prop="email" :error="emailError">
           <label class="field-label">{{ $t('register.email') }}</label>
           <el-input
               v-model="form.email"
@@ -29,14 +29,15 @@
                 maxlength="6"
                 class="soft-input code-input"
             />
-            <el-button
-                :loading="sending"
-                :disabled="countdown > 0"
+            <button
+                :disabled="countdown > 0 || sending"
                 class="send-code-btn"
                 @click="sendCode"
+                type="button"
             >
+              <span v-if="sending" class="btn-loading-dot"></span>
               {{ countdown > 0 ? $t('register.resendCode', { seconds: countdown }) : $t('register.sendCode') }}
-            </el-button>
+            </button>
           </div>
         </el-form-item>
 
@@ -82,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, h, onUnmounted } from 'vue'
+import { reactive, ref, h, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -95,6 +96,7 @@ const formRef = ref()
 const loading = ref(false)
 const sending = ref(false)
 const countdown = ref(0)
+const emailError = ref('')
 let timer: ReturnType<typeof setInterval> | null = null
 
 onUnmounted(() => {
@@ -108,16 +110,20 @@ const form = reactive({
   code: ''
 })
 
+watch(() => form.email, () => {
+  if (emailError.value) emailError.value = ''
+})
+
 const sendCode = async () => {
-  // 校验邮箱格式
   if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
     ElMessage.warning(t('register.emailInvalid'))
     return
   }
   try {
     sending.value = true
-    await request.post('/user/send-code', { email: form.email })
+    await request.post('/user/send-code', { email: form.email, scene: 'register' }, { silent: true } as any)
     ElMessage.success(t('register.codeSent'))
+    emailError.value = ''
     countdown.value = 60
     timer = setInterval(() => {
       countdown.value--
@@ -126,8 +132,13 @@ const sendCode = async () => {
         timer = null
       }
     }, 1000)
-  } catch {
-    // error handled by axios interceptor
+  } catch (e: any) {
+    const msg = e?.message || ''
+    if (msg.includes('already registered')) {
+      emailError.value = t('register.emailAlreadyRegistered')
+    } else {
+      ElMessage.error(msg || t('request.failed'))
+    }
   } finally {
     sending.value = false
   }
@@ -288,21 +299,30 @@ const submit = () => {
   display: flex;
   gap: 10px;
   width: 100%;
+  align-items: center;
 }
 .code-input {
   flex: 1;
 }
 .send-code-btn {
+  flex-shrink: 0;
   width: 150px;
-  height: 44px;
-  background: #fff !important;
-  border: 1px solid #d1d5db !important;
-  border-radius: 10px !important;
-  color: #374151 !important;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  color: #374151;
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
+  cursor: pointer;
   transition: all 0.15s;
+  box-sizing: border-box;
+  font-family: inherit;
+  margin: 0;
 }
 .send-code-btn:hover:not(:disabled) {
   border-color: #111827 !important;
@@ -311,5 +331,16 @@ const submit = () => {
 .send-code-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+</style>
+
+<style>
+.soft-input input:-webkit-autofill,
+.soft-input input:-webkit-autofill:hover,
+.soft-input input:-webkit-autofill:focus,
+.soft-input input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #f9fafb inset !important;
+  -webkit-text-fill-color: #111827 !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 </style>

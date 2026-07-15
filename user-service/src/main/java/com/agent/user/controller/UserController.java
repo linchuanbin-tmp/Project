@@ -43,7 +43,7 @@ public class UserController {
                                                HttpServletRequest servletRequest) {
         try {
             String clientIp = getClientIp(servletRequest);
-            userService.sendVerificationCode(request.getEmail(), clientIp);
+            userService.sendVerificationCode(request.getEmail(), clientIp, request.getScene());
             return Result.success("Verification code sent");
         } catch (RuntimeException e) {
             return Result.error(400, e.getMessage());

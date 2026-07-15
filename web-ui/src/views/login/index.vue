@@ -36,7 +36,7 @@
       </div>
 
       <el-form :model="form" :rules="rules" ref="formRef">
-        <el-form-item prop="username">
+        <el-form-item prop="username" :error="usernameError">
           <label class="field-label">{{ $t('login.email') }}</label>
           <el-input
               v-model="form.username"
@@ -71,14 +71,15 @@
                 @keyup.enter="handleLogin"
                 class="soft-input code-input"
             />
-            <el-button
-                :loading="sending"
-                :disabled="countdown > 0"
+            <button
+                :disabled="countdown > 0 || sending"
                 class="send-code-btn"
                 @click="sendCode"
+                type="button"
             >
+              <span v-if="sending" class="btn-loading-dot"></span>
               {{ countdown > 0 ? $t('login.resendCode', { seconds: countdown }) : $t('login.sendCode') }}
-            </el-button>
+            </button>
           </div>
         </el-form-item>
 
@@ -120,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, h, computed, onUnmounted } from 'vue'
+import { reactive, ref, h, computed, watch, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
@@ -139,6 +140,7 @@ const forgotDialogVisible = ref(false)
 const loginMode = ref<'password' | 'code'>('password')
 const sending = ref(false)
 const countdown = ref(0)
+const usernameError = ref('')
 let timer: ReturnType<typeof setInterval> | null = null
 
 onUnmounted(() => {
@@ -173,6 +175,10 @@ const switchMode = (mode: 'password' | 'code') => {
   formRef.value?.clearValidate()
 }
 
+watch(() => form.username, () => {
+  if (usernameError.value) usernameError.value = ''
+})
+
 const sendCode = async () => {
   if (!form.username || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.username)) {
     ElMessage.warning(t('login.emailRequired'))
@@ -180,8 +186,9 @@ const sendCode = async () => {
   }
   try {
     sending.value = true
-    await request.post('/user/send-code', { email: form.username })
+    await request.post('/user/send-code', { email: form.username, scene: 'login' }, { silent: true } as any)
     ElMessage.success(t('login.codeSent'))
+    usernameError.value = ''
     countdown.value = 60
     timer = setInterval(() => {
       countdown.value--
@@ -190,8 +197,13 @@ const sendCode = async () => {
         timer = null
       }
     }, 1000)
-  } catch {
-    // error handled by axios interceptor
+  } catch (e: any) {
+    const msg = e?.message || ''
+    if (msg.includes('No account found')) {
+      usernameError.value = t('login.emailNotRegistered')
+    } else {
+      ElMessage.error(msg || t('request.failed'))
+    }
   } finally {
     sending.value = false
   }
@@ -361,21 +373,30 @@ const handleLogin = async () => {
   display: flex;
   gap: 10px;
   width: 100%;
+  align-items: center;
 }
 .code-input {
   flex: 1;
 }
 .send-code-btn {
+  flex-shrink: 0;
   width: 150px;
-  height: 44px;
-  background: #fff !important;
-  border: 1px solid #d1d5db !important;
-  border-radius: 10px !important;
-  color: #374151 !important;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  color: #374151;
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
+  cursor: pointer;
   transition: all 0.15s;
+  box-sizing: border-box;
+  font-family: inherit;
+  margin: 0;
 }
 .send-code-btn:hover:not(:disabled) {
   border-color: #111827 !important;
@@ -429,4 +450,14 @@ const handleLogin = async () => {
 .forgot-dialog .forgot-dialog-btn:hover {
   background: #1f2937 !important;
   border-color: #1f2937 !important;
+}
+
+/* Override Chrome autofill blue background */
+.soft-input input:-webkit-autofill,
+.soft-input input:-webkit-autofill:hover,
+.soft-input input:-webkit-autofill:focus,
+.soft-input input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #f9fafb inset !important;
+  -webkit-text-fill-color: #111827 !important;
+  transition: background-color 5000s ease-in-out 0s;
 }</style>

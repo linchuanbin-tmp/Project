@@ -79,6 +79,7 @@ export default {
     sendCode: 'Send Code',
     codeSent: 'Code sent',
     resendCode: 'Resend ({seconds}s)',
+    emailNotRegistered: 'No account found — please register first',
   },
 
   // Register Page
@@ -108,6 +109,7 @@ export default {
     sendCode: 'Send Code',
     codeSent: 'Code sent',
     resendCode: 'Resend ({seconds}s)',
+    emailAlreadyRegistered: 'This email is already registered — please log in instead',
   },
 
   // Dashboard

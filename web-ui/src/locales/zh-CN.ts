@@ -79,6 +79,7 @@ export default {
     sendCode: '发送验证码',
     codeSent: '验证码已发送',
     resendCode: '重新发送 ({seconds}秒)',
+    emailNotRegistered: '账号未注册，请先创建账户',
   },
 
   // 注册页
@@ -108,6 +109,7 @@ export default {
     sendCode: '发送验证码',
     codeSent: '验证码已发送',
     resendCode: '重新发送 ({seconds}秒)',
+    emailAlreadyRegistered: '该邮箱已注册，请直接登录',
   },
 
   // 仪表盘

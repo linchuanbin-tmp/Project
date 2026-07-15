@@ -9,7 +9,7 @@ public interface UserService {
     LoginResponse login(LoginRequest request);
     void logout(String username);
     void register(RegisterRequest request);
-    void sendVerificationCode(String email, String clientIp);
+    void sendVerificationCode(String email, String clientIp, String scene);
     User getUserByUsername(String username);
     List<UserResponse> listUsers();
     void assignRole(Long userId, Long roleId);

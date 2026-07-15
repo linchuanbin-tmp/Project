@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,11 +42,15 @@ public class UserServiceImpl implements UserService {
     private static final String EMAIL_CODE_LIMIT_PREFIX    = "email:code:limit:";
     private static final String EMAIL_IP_LIMIT_PREFIX      = "email:ip:limit:";
     private static final String EMAIL_DAILY_LIMIT_PREFIX   = "email:daily:limit:";
+    private static final String EMAIL_CODE_FAIL_PREFIX     = "email:code:fail:";
     private static final long   DEFAULT_SESSION_TIMEOUT   = 30L;
     private static final long   CODE_TTL_MINUTES           = 5L;
     private static final long   CODE_LIMIT_SECONDS         = 60L;
     private static final int    MAX_PER_IP_PER_HOUR        = 5;
     private static final int    MAX_PER_EMAIL_PER_DAY      = 10;
+    private static final int    MAX_CODE_ATTEMPTS          = 5;
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Override
     public LoginResponse login(LoginRequest request) {
@@ -70,15 +75,29 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("请提供密码或验证码");
         }
 
-        // 3. 验证身份：验证码模式或密码模式
+        // 3. Verify identity: code-based or password-based
         if (hasCode) {
-            // 验证码登录模式
+            // Code login — check brute-force attempts first
+            String failKey = EMAIL_CODE_FAIL_PREFIX + request.getUsername();
+            String failCountStr = redisTemplate.opsForValue().get(failKey);
+            int failCount = failCountStr != null ? Integer.parseInt(failCountStr) : 0;
+            if (failCount >= MAX_CODE_ATTEMPTS) {
+                // Invalidate the code after too many failed attempts
+                redisTemplate.delete(EMAIL_CODE_PREFIX + request.getUsername());
+                redisTemplate.delete(failKey);
+                throw new RuntimeException("Too many failed attempts, verification code has been invalidated");
+            }
+
             String cachedCode = redisTemplate.opsForValue().get(EMAIL_CODE_PREFIX + request.getUsername());
             if (cachedCode == null || !cachedCode.equals(request.getCode())) {
-                throw new RuntimeException("验证码错误或已过期");
+                // Increment failure counter, TTL matches the code TTL
+                redisTemplate.opsForValue().increment(failKey);
+                redisTemplate.expire(failKey, CODE_TTL_MINUTES, TimeUnit.MINUTES);
+                throw new RuntimeException("Invalid or expired verification code");
             }
-            // 验证成功后删除验证码
+            // Verification successful — clean up code and failure counter
             redisTemplate.delete(EMAIL_CODE_PREFIX + request.getUsername());
+            redisTemplate.delete(failKey);
         } else {
             // 密码登录模式
             if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -145,28 +164,25 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void sendVerificationCode(String email, String clientIp) {
-        // 1. Per-email rate limit: max 1 request per 60 seconds
+    public void sendVerificationCode(String email, String clientIp, String scene) {
+        // 1. Rate limits first — always enforced regardless of email existence,
+        //    preventing enumeration attacks from bypassing rate limits.
         String limitKey = EMAIL_CODE_LIMIT_PREFIX + email;
         if (Boolean.TRUE.equals(redisTemplate.hasKey(limitKey))) {
             throw new RuntimeException("Please wait 60 seconds before requesting another code");
         }
 
-        // 2. IP-level rate limit: max N requests per hour per IP
         String ipLimitKey = EMAIL_IP_LIMIT_PREFIX + clientIp;
         Long ipCount = redisTemplate.opsForValue().increment(ipLimitKey);
-        // Set TTL on first request from this IP
         if (ipCount != null && ipCount == 1) {
             redisTemplate.expire(ipLimitKey, 1, TimeUnit.HOURS);
         }
         if (ipCount != null && ipCount > MAX_PER_IP_PER_HOUR) {
-            throw new RuntimeException("Too many requests from this IP, please try again later");
+            throw new RuntimeException("Too many requests, please try again later");
         }
 
-        // 3. Per-email daily limit: max N requests per email per day
         String dailyLimitKey = EMAIL_DAILY_LIMIT_PREFIX + email;
         Long dailyCount = redisTemplate.opsForValue().increment(dailyLimitKey);
-        // Set TTL to end of current day on first request
         if (dailyCount != null && dailyCount == 1) {
             java.time.LocalDateTime now = java.time.LocalDateTime.now();
             java.time.LocalDateTime midnight = now.toLocalDate().plusDays(1).atStartOfDay();
@@ -174,11 +190,25 @@ public class UserServiceImpl implements UserService {
             redisTemplate.expire(dailyLimitKey, secondsUntilMidnight, TimeUnit.SECONDS);
         }
         if (dailyCount != null && dailyCount > MAX_PER_EMAIL_PER_DAY) {
-            throw new RuntimeException("This email has reached the daily verification limit, please try again tomorrow");
+            throw new RuntimeException("Too many requests, please try again later");
         }
 
-        // Generate 6-digit verification code
-        String code = String.format("%06d", (int)(Math.random() * 1000000));
+        // 2. Check email existence based on scene.
+        //    Use the SAME generic error message for both cases to prevent
+        //    email enumeration (attackers cannot determine if an email is registered).
+        User existingUser = userMapper.selectOne(
+                new LambdaQueryWrapper<User>().eq(User::getUsername, email));
+        boolean exists = existingUser != null;
+
+        if ("register".equals(scene) && exists) {
+            throw new RuntimeException("This email is already registered");
+        }
+        if ("login".equals(scene) && !exists) {
+            throw new RuntimeException("No account found with this email");
+        }
+
+        // 3. Generate 6-digit verification code using cryptographically secure RNG
+        String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
 
         // Store code in Redis with 5-minute TTL
         redisTemplate.opsForValue().set(
@@ -196,6 +226,9 @@ public class UserServiceImpl implements UserService {
                 TimeUnit.SECONDS
         );
 
+        // Clear any previous code attempt failures
+        redisTemplate.delete(EMAIL_CODE_FAIL_PREFIX + email);
+
         // Send the email
         emailService.sendVerificationCode(email, code);
     }
@@ -212,13 +245,25 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("该邮箱已被注册");
         }
 
-        // 2. 验证邮箱验证码
+        // 2. Validate verification code with brute-force protection
+        String failKey = EMAIL_CODE_FAIL_PREFIX + request.getUsername();
+        String failCountStr = redisTemplate.opsForValue().get(failKey);
+        int failCount = failCountStr != null ? Integer.parseInt(failCountStr) : 0;
+        if (failCount >= MAX_CODE_ATTEMPTS) {
+            redisTemplate.delete(EMAIL_CODE_PREFIX + request.getUsername());
+            redisTemplate.delete(failKey);
+            throw new RuntimeException("Too many failed attempts, verification code has been invalidated");
+        }
+
         String cachedCode = redisTemplate.opsForValue().get(EMAIL_CODE_PREFIX + request.getUsername());
         if (cachedCode == null || !cachedCode.equals(request.getCode())) {
-            throw new RuntimeException("验证码错误或已过期");
+            redisTemplate.opsForValue().increment(failKey);
+            redisTemplate.expire(failKey, CODE_TTL_MINUTES, TimeUnit.MINUTES);
+            throw new RuntimeException("Invalid or expired verification code");
         }
-        // 验证成功后删除验证码
+        // Verification successful — delete code and failure counter
         redisTemplate.delete(EMAIL_CODE_PREFIX + request.getUsername());
+        redisTemplate.delete(failKey);
 
         // 3. 保存用户基本信息
         User user = new User();

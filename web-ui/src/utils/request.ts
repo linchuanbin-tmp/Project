@@ -43,10 +43,14 @@ request.interceptors.response.use(
                     router.push({ path: '/login', query: { expired: '1' } })
                 } else {
                     // Authentication error on login page (e.g. wrong password)
-                    ElMessage.error(res.message || i18n.global.t('request.failed'))
+                    if (!(response.config as any).silent) {
+                        ElMessage.error(res.message || i18n.global.t('request.failed'))
+                    }
                 }
             } else {
-                ElMessage.error(res.message || i18n.global.t('request.failed'))
+                if (!(response.config as any).silent) {
+                    ElMessage.error(res.message || i18n.global.t('request.failed'))
+                }
             }
             return Promise.reject(new Error(res.message || i18n.global.t('request.failed')))
         }

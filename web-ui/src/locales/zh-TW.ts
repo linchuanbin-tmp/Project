@@ -79,6 +79,7 @@ export default {
     sendCode: '發送驗證碼',
     codeSent: '驗證碼已發送',
     resendCode: '重新發送 ({seconds}秒)',
+    emailNotRegistered: '帳號未註冊，請先建立帳戶',
   },
 
   // 註冊頁
@@ -108,6 +109,7 @@ export default {
     sendCode: '發送驗證碼',
     codeSent: '驗證碼已發送',
     resendCode: '重新發送 ({seconds}秒)',
+    emailAlreadyRegistered: '該郵箱已註冊，請直接登入',
   },
 
   // 儀表板
