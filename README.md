@@ -12,7 +12,7 @@
 
 ## 一、环境要求
 
-部署前请确认以下环境已安装，版本必须匹配（完整版本信息在第7）：
+部署前请确认以下环境已安装，版本必须匹配（完整版本信息在第8）：
 
 | 依赖 | 版本 | 用途 | 验证命令 |
 |------|------|------|----------|
@@ -20,6 +20,8 @@
 | Maven | 3.9+ | 后端构建 | `mvn -v` |
 | MySQL | 8.0.33+ | 业务数据库 | `mysql --version` |
 | Redis | 5.0+ | 缓存 + 限流 + 日程冲突检测 | `redis-cli --version` |
+| Docker Desktop | 最新稳定版 | 本地启动 MySQL、Redis、MinIO、Milvus、etcd | `docker --version` |
+| Python | 3.10+ | 本地 RAG Embedding Worker | `python --version` |
 | Node.js | 18.16+ (LTS) | 前端构建 | `node -v` |
 | npm | 9.5+ | 前端包管理 | `npm -v` |
 
@@ -66,6 +68,19 @@ BankAgent/
 │   ├── src/main/java/com/agent/code/        # Java 审计与熔断控制
 │   └── data/                                # Python 执行子容器 (MySQL 真实隔离沙箱环境)
 │
+├── 📁 rag-agent/                    # RAG 知识库问答智能体 (端口 8085)
+│   ├── src/main/java/com/agent/rag/
+│   │   ├── controller/              # RAG 问答、索引、知识库、权限申请接口
+│   │   ├── service/impl/            # 文档解析、切分、Embedding、Milvus 检索、权限过滤
+│   │   ├── mapper/                  # RAG 表、用户、文档、通知相关 Mapper
+│   │   └── RagAgentApplication.java # RAG Agent 启动类
+│   └── pom.xml
+│
+├── 📁 rag-worker/                   # 本地 Embedding Worker (端口 8091)
+│   ├── app.py                       # FastAPI Embedding 服务
+│   ├── requirements.txt             # sentence-transformers / torch / fastapi 依赖
+│   └── Dockerfile
+│
 ├── 📁 web-ui/                       # Vue 3 前端工程 (端口 3000)
 │   ├── src/
 │   │   ├── views/
@@ -82,6 +97,11 @@ BankAgent/
 ├── 📁 docker/                       # Docker 数据库与 Nginx 启动初始化配置
 │   ├── init/                        # 数据库初始化 SQL 脚本
 │   └── nginx/                       # nginx.conf 反向代理配置
+│
+├── 📁 scripts/                      # 本地开发验证脚本
+│   ├── start-rag-worker.ps1         # 启动本地 Embedding Worker
+│   ├── test-rag-embedding.ps1       # 验证 Embedding 服务
+│   └── test-rag-agent.ps1           # 验证 RAG Agent 检索链路
 │
 ├── 📄 docker-compose.yml            # 容器化部署基础配置
 ├── 📄 docker-compose.prod.yml       # 生产环境容器化服务挂载重写
@@ -151,8 +171,12 @@ mysql -u root -p -e "USE agent_platform; SHOW TABLES;"
 |------|------|----------------------------|
 | `sys_user` | id, username, password, real_name, role, status, dept_id, clearance_level, create_time | 用户登录账户表，新增部门绑定 (dept_id) 与安全密级 (clearance_level: 1=公开, 2=内部, 3=机密) |
 | `sys_department` | id, dept_name, description, parent_id, status, create_time | 组织架构部门管理表 |
-| `sys_document` | id, title, content, dept_id, security_level, create_time | 知识资产库文档表，根据部门与密级实现多维度访问过滤控制 |
+| `sys_document` | id, title, content, dept_id, security_level, create_time, file_type, file_size, minio_object_key, parse_status | 知识资产库文档表，保存文档元数据、解析正文、MinIO 文件位置和解析状态 |
 | `sys_notification` | id, sender_id, receiver_id, title, content, notify_type, status, payload, opinion, create_time, update_time, deleted | 系统消息通知与审批事务表，支持 RAG 提权及 SQL 执行审核 |
+| `rag_knowledge_base` | id, name, description, owner_id, dept_id, status, create_time, update_time | RAG 知识库表，用于按知识库组织文档集合 |
+| `rag_source_document` | id, kb_id, sys_document_id, title, file_type, object_key, parse_status, create_time | RAG 原始文档映射表，关联知识库、上传文件和系统文档 |
+| `rag_document_chunk` | id, document_id, chunk_index, content, vector_id, security_level, dept_id, create_time | 文档分块记录表，和 Milvus 向量记录一一对应 |
+| `rag_query_log` | id, trace_id, username, question, status, top_k, latency_ms, create_time | RAG 问答日志表，用于追踪检索、权限过滤和回答状态 |
 | `meeting_room` | id, room_name, floor, capacity, facilities, status | 会议室资源表，预设 3 条数据            |
 | `meeting_schedule` | id, room_id, booker, start_time, end_time, topic, status | 预定记录表，room_id=0 表示个人日程     |
 
@@ -196,14 +220,22 @@ redis-server --daemonize yes
 
 | 顺序 | 服务 | 端口 | 启动命令 | 验证方式 |
 |------|------|------|----------|----------|
-| 1 | MySQL | 3306 | `mysqld --console` | `mysql -u root -p` |
-| 2 | Redis | 6379 | `redis-server` | `redis-cli ping` |
-| 3 | Gateway | 8080 | `cd gateway-service && mvn spring-boot:run` | `curl http://localhost:8080` |
-| 4 | User Service | 8081 | `cd user-service && mvn spring-boot:run` | `curl http://localhost:8081/api/user/login` |
-| 5 | Tool Agent | 8083 | `cd tool-agent && mvn spring-boot:run` | `curl http://localhost:8083/api/tool/meeting-rooms` |
+| 1 | MySQL | 3306 | `docker compose up -d mysql` 或 `mysqld --console` | `mysql -u root -p` |
+| 2 | Redis | 6379 | `docker compose up -d redis` 或 `redis-server` | `redis-cli ping` |
+| 3 | MinIO | 9000 / 9001 | `docker compose up -d minio` | `http://localhost:9001` |
+| 4 | Milvus + etcd | 19530 / 9091 | `docker compose up -d etcd milvus` | `docker compose ps milvus` |
+| 5 | RAG Worker | 8091 | `.\scripts\start-rag-worker.ps1` | `.\scripts\test-rag-embedding.ps1 -SkipRagHealth` |
+| 6 | User Service | 8081 | `.\mvnw.cmd -pl user-service spring-boot:run` | 查看 `Started UserServiceApplication` |
+| 7 | Task Service | 8082 | `.\mvnw.cmd -pl task-service spring-boot:run` | 查看 `Started TaskServiceApplication` |
+| 8 | Tool Agent | 8083 | `.\mvnw.cmd -pl tool-agent spring-boot:run` | `curl http://localhost:8083/tool/meeting-rooms` |
+| 9 | Code Agent | 8084 | `.\mvnw.cmd -pl code-agent spring-boot:run` | 查看 `Started CodeAgentApplication` |
+| 10 | RAG Agent | 8085 | `.\mvnw.cmd -pl rag-agent spring-boot:run` | `curl http://localhost:8085/rag/health` |
+| 11 | Gateway | 8080 | `.\mvnw.cmd -pl gateway-service spring-boot:run` | `curl http://localhost:8080` |
 
 **注意**：
-- Gateway 必须在 User Service 和 Tool Agent 之后启动，否则路由转发会 502
+- 本地开发可以先用 `docker compose up -d mysql redis etcd minio milvus` 一次性启动基础设施。
+- Gateway 建议最后启动；否则前端请求已经进 Gateway，但后端服务未启动时会出现 502。
+- RAG Worker 只有在 `RAG_EMBEDDING_PROVIDER=http` 时必须启动；如果仍使用 `mock`，可以先跳过。
 - 每个服务启动后看控制台日志，确认 `Started XxxApplication in x.x seconds`
 
 ### 5.2 配置文件检查
@@ -222,6 +254,14 @@ spring:
           uri: http://localhost:8083    # 确认 Tool Agent 端口
           predicates:
             - Path=/api/tool/**
+        - id: code-agent
+          uri: http://localhost:8084    # 确认 Code Agent 端口
+          predicates:
+            - Path=/api/code/**
+        - id: rag-agent
+          uri: http://localhost:8085    # 确认 RAG Agent 端口
+          predicates:
+            - Path=/api/rag/**
         - id: tool-ws                   # WebSocket 路由（AI 助手用）
           uri: ws://localhost:8083
           predicates:
@@ -246,11 +286,111 @@ spring:
       port: 6379
 ```
 
+**rag-agent/src/main/resources/application.yml / .env**：
+```yaml
+server:
+  port: 8085
+
+rag:
+  vector-store:
+    provider: milvus
+  embedding:
+    provider: http                 # mock 可用于快速开发；http 调用 rag-worker
+    endpoint: http://localhost:8091/embed
+    dimension: 1024                # BAAI/bge-m3 对应 1024
+  llm:
+    provider: mock                 # 接真实大模型时改为 http
+```
+
 ------------------------------------------------------------------------------------------------------------------------
 
-## 六、前端部署
+## 六、RAG Agent 使用
 
-### 6.1 安装依赖
+### 6.1 RAG 配置
+
+本地真实语义检索推荐使用：
+
+```env
+RAG_EMBEDDING_PROVIDER=http
+RAG_EMBEDDING_ENDPOINT=http://localhost:8091/embed
+RAG_EMBEDDING_MODEL=BAAI/bge-m3
+RAG_EMBEDDING_DIM=1024
+RAG_EMBEDDING_TIMEOUT_MS=30000
+```
+
+### 6.2 Embedding Worker
+
+首次使用 Embedding 前，需要准备 Python 虚拟环境并安装依赖：
+
+```powershell
+python -m venv .venv-rag
+.\.venv-rag\Scripts\Activate.ps1
+python -m pip install -r rag-worker\requirements.txt
+```
+
+启动 Embedding Worker：
+
+```powershell
+.\scripts\start-rag-worker.ps1
+```
+
+首次请求 `/embed` 时会自动下载 `BAAI/bge-m3` 到本机 Hugging Face 缓存。模型未下载完成前，RAG 索引会等待或失败；下载完成后再次执行索引即可。
+
+验证 Embedding：
+
+```powershell
+.\scripts\test-rag-embedding.ps1 -SkipRagHealth
+```
+
+看到 `Embedding verification passed.` 表示可用。
+
+### 6.3 文档测试流程
+
+1. 登录前端，进入 Knowledge Base / Documents。
+2. 上传 PDF、Word 或 PPT 文档。
+3. 原始文件进入 MinIO，文档记录进入 MySQL。
+4. 在文档列表中打开 RAG Info，点击 Reindex / Reprocess。
+5. 等待解析、分块、向量化完成。
+6. 进入 RAG Agent 页面提问，检查回答和引用来源。
+
+### 6.4 验证命令
+
+健康检查：
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8085/rag/health" -Method Get
+```
+
+文档解析状态：
+
+```powershell
+docker exec agent_mysql mysql -uroot -p123456 agent_platform -e "select id,title,file_type,parse_status,left(content,120) as preview from sys_document order by id desc limit 5;"
+```
+
+chunk 数量：
+
+```powershell
+docker exec agent_mysql mysql -uroot -p123456 agent_platform -e "select count(*) as chunk_count from rag_document_chunk;"
+```
+
+重建单个文档索引：
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:8085/rag/index/document/{documentId}/reprocess" `
+  -Method Post
+```
+
+详细说明：
+
+- [RAG Agent Runbook](./docs/RAG_AGENT_RUNBOOK.md)
+- [File Upload Storage Design](./docs/file-upload-storage-design.md)
+
+------------------------------------------------------------------------------------------------------------------------
+
+## 七、前端部署
+
+### 7.1 安装依赖
 
 ```bash
 cd web-ui
@@ -262,7 +402,7 @@ npm install
 yarn install
 ```
 
-### 6.2 配置代理（vite.config.js）
+### 7.2 配置代理（vite.config.js）
 
 ```javascript
 server: {
@@ -283,7 +423,7 @@ server: {
 
 **注意**：如果 3000 端口被占用，Vite 会自动切换到 3001/3002，代理配置不受影响。
 
-### 6.3 启动开发服务器
+### 7.3 启动开发服务器
 
 ```bash
 npm run dev
@@ -299,13 +439,13 @@ VITE v4.x.x  ready in xxx ms
 ➜  Network: use --host to expose
 ```
 
-### 6.4 浏览器访问
+### 7.4 浏览器访问
 
 打开 http://localhost:3000
 
 ------------------------------------------------------------------------------------------------------------------------
 
-## 七、完整版本信息
+## 八、完整版本信息
 
 | 组件 | 具体版本 |
 |----------|----------|
