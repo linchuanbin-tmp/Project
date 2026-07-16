@@ -32,6 +32,7 @@ public class RagAccessRequestServiceImpl implements RagAccessRequestService {
     private static final String ROLE_DEPT_ADMIN = "ROLE_DEPT_ADMIN";
     private static final String NOTIFY_TYPE_RAG_APPLY = "RAG_APPLY";
     private static final int STATUS_PENDING = 2;
+    private static final int ACCESS_TTL_HOURS = 24;
 
     private final SysUserMapper sysUserMapper;
     private final SysRoleMapper sysRoleMapper;
@@ -167,6 +168,8 @@ public class RagAccessRequestServiceImpl implements RagAccessRequestService {
             payload.put("requesterId", requester.getId());
             payload.put("requesterUsername", requester.getUsername());
             payload.put("reason", StringUtils.hasText(reason) ? reason : "Required for business knowledge retrieval.");
+            payload.put("requestedAt", LocalDateTime.now().toString());
+            payload.put("accessTtlHours", ACCESS_TTL_HOURS);
             return objectMapper.writeValueAsString(payload);
         } catch (Exception e) {
             throw new RuntimeException("Failed to build RAG access request payload: " + e.getMessage());

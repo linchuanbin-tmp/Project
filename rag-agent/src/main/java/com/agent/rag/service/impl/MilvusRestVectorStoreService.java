@@ -103,12 +103,15 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
     }
 
     @Override
-    public List<VectorSearchResult> search(List<Float> queryEmbedding, int topK) {
+    public List<VectorSearchResult> search(List<Float> queryEmbedding, int topK, List<Long> allowedDocumentIds) {
         if (!isMilvusEnabled()) {
             return List.of();
         }
         if (queryEmbedding == null || queryEmbedding.isEmpty()) {
             throw new IllegalArgumentException("Query embedding is empty.");
+        }
+        if (allowedDocumentIds == null || allowedDocumentIds.isEmpty()) {
+            return List.of();
         }
         EmbeddingRuntimeConfig config = configService.getCurrentConfig();
         ensureCollection(config);
@@ -117,6 +120,7 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
         request.put("collectionName", config.getCollectionName());
         request.put("data", List.of(queryEmbedding));
         request.put("limit", Math.max(1, topK));
+        request.put("filter", buildAllowedDocumentFilter(allowedDocumentIds));
         request.put("outputFields", List.of(
                 "vector_id", "document_id", "chunk_id", "chunk_index",
                 "dept_id", "security_level", "chunk_text"
@@ -125,6 +129,16 @@ public class MilvusRestVectorStoreService implements VectorStoreService {
         JsonNode response = post("/v2/vectordb/entities/search", request);
         ensureSuccess(response, "search Milvus vectors");
         return parseSearchResults(response);
+    }
+
+    private String buildAllowedDocumentFilter(List<Long> allowedDocumentIds) {
+        String ids = allowedDocumentIds.stream()
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .map(String::valueOf)
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("0");
+        return "document_id in [" + ids + "]";
     }
 
     private synchronized void initializeCollection(EmbeddingRuntimeConfig config) {

@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -30,6 +31,7 @@ public class RagPermissionServiceImpl implements RagPermissionService {
 
     private static final String ROLE_ADMIN = "ROLE_ADMIN";
     private static final String ROLE_DEPT_ADMIN = "ROLE_DEPT_ADMIN";
+    private static final int RAG_APPROVAL_TTL_HOURS = 24;
 
     private final SysUserMapper sysUserMapper;
     private final SysRoleMapper sysRoleMapper;
@@ -118,12 +120,39 @@ public class RagPermissionServiceImpl implements RagPermissionService {
 
         Set<Long> documentIds = new LinkedHashSet<>();
         for (SysNotification approval : approvals) {
+            if (isApprovalExpired(approval)) {
+                continue;
+            }
             Long documentId = extractDocumentId(approval.getPayload());
             if (documentId != null) {
                 documentIds.add(documentId);
             }
         }
         return documentIds;
+    }
+
+    private boolean isApprovalExpired(SysNotification approval) {
+        LocalDateTime approvedAt = approval.getUpdateTime() != null ? approval.getUpdateTime() : approval.getCreateTime();
+        if (approvedAt == null) {
+            return true;
+        }
+        return approvedAt.plusHours(resolveAccessTtlHours(approval.getPayload())).isBefore(LocalDateTime.now());
+    }
+
+    private int resolveAccessTtlHours(String payload) {
+        if (!StringUtils.hasText(payload)) {
+            return RAG_APPROVAL_TTL_HOURS;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(payload);
+            if (root.has("accessTtlHours")) {
+                int ttl = root.get("accessTtlHours").asInt(RAG_APPROVAL_TTL_HOURS);
+                return ttl > 0 ? ttl : RAG_APPROVAL_TTL_HOURS;
+            }
+        } catch (Exception ignored) {
+            // Malformed payloads fall back to the default temporary access window.
+        }
+        return RAG_APPROVAL_TTL_HOURS;
     }
 
     private Long extractDocumentId(String payload) {

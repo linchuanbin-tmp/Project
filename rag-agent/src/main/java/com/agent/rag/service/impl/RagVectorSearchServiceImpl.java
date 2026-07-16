@@ -20,9 +20,12 @@ public class RagVectorSearchServiceImpl implements RagVectorSearchService {
     private final EmbeddingRuntimeConfigService embeddingConfigService;
 
     @Override
-    public List<VectorSearchResult> search(String question, Integer topK) {
+    public List<VectorSearchResult> search(String question, Integer topK, List<Long> allowedDocumentIds) {
         if (!StringUtils.hasText(question)) {
             throw new IllegalArgumentException("Question must not be empty.");
+        }
+        if (allowedDocumentIds == null || allowedDocumentIds.isEmpty()) {
+            return List.of();
         }
         if (!embeddingConfigService.isActiveIndexReady()) {
             throw new IllegalStateException("Active embedding profile index is not ready. Current status: "
@@ -31,7 +34,7 @@ public class RagVectorSearchServiceImpl implements RagVectorSearchService {
         }
         int safeTopK = topK == null || topK <= 0 ? 5 : Math.min(topK, 20);
         return embeddingConfigService.withCurrentProfile(
-                () -> vectorStoreService.search(embeddingClient.embed(question), safeTopK)
+                () -> vectorStoreService.search(embeddingClient.embed(question), safeTopK, allowedDocumentIds)
         );
     }
 }

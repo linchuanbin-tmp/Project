@@ -1,11 +1,11 @@
 package com.agent.rag.service.impl;
 
+import com.agent.rag.dto.EmbeddingRuntimeConfig;
 import com.agent.rag.dto.RagCitation;
 import com.agent.rag.dto.RagPermissionSnapshot;
 import com.agent.rag.dto.RagQueryRequest;
 import com.agent.rag.dto.RagQueryResponse;
 import com.agent.rag.dto.VectorSearchResult;
-import com.agent.rag.dto.EmbeddingRuntimeConfig;
 import com.agent.rag.entity.RagQueryLog;
 import com.agent.rag.mapper.RagQueryLogMapper;
 import com.agent.rag.service.EmbeddingRuntimeConfigService;
@@ -61,22 +61,26 @@ public class RagQueryServiceImpl implements RagQueryService {
             if (permission.getAllowedDocumentIds() == null || permission.getAllowedDocumentIds().isEmpty()) {
                 status = STATUS_NO_CONTEXT;
                 message = "No accessible documents for current user.";
-                answer = "当前用户没有可访问的文档，因此无法基于企业知识库回答该问题。";
+                answer = "The current user has no accessible documents, so the question cannot be answered from the enterprise knowledge base.";
                 return buildResponse(traceId, status, answer, List.of(), List.of(), List.of(), List.of(), topK, startedAt, message);
             }
 
+            List<Long> allowedDocumentIds = permission.getAllowedDocumentIds();
             List<VectorSearchResult> candidates = embeddingConfigService.withProfile(
                     embeddingConfig.getProfile(),
-                    () -> ragVectorSearchService.search(request.getQuestion(), Math.max(topK * 4, topK))
+                    () -> ragVectorSearchService.search(
+                            request.getQuestion(),
+                            Math.max(topK * 4, topK),
+                            allowedDocumentIds)
             );
-            QueryFilterResult filterResult = filterByPermission(candidates, permission.getAllowedDocumentIds(), topK);
+            QueryFilterResult filterResult = filterByPermission(candidates, allowedDocumentIds, topK);
             filteredChunks = filterResult.allowedChunks();
             blockedDocumentIds = filterResult.blockedDocumentIds();
 
             if (filteredChunks.isEmpty()) {
                 status = STATUS_NO_CONTEXT;
                 message = "No permission-safe retrieval context found.";
-                answer = "没有检索到当前用户有权限访问且与问题相关的资料，因此无法确认答案。";
+                answer = "No permission-safe context related to the question was found, so the answer cannot be confirmed from accessible documents.";
                 return buildResponse(traceId, status, answer, List.of(), List.of(), blockedDocumentIds, List.of(), topK, startedAt, message);
             }
 
@@ -103,7 +107,7 @@ public class RagQueryServiceImpl implements RagQueryService {
         } catch (Exception e) {
             status = STATUS_FAIL;
             message = e.getMessage();
-            answer = "RAG 查询失败：" + e.getMessage();
+            answer = "RAG query failed: " + e.getMessage();
             return buildResponse(
                     traceId,
                     status,
@@ -141,29 +145,6 @@ public class RagQueryServiceImpl implements RagQueryService {
             }
         }
         return new QueryFilterResult(filtered, new ArrayList<>(blocked));
-    }
-
-    private String buildPrompt(String question, List<VectorSearchResult> chunks) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("你是企业内部 RAG 问答助手。请严格遵守以下规则：\n");
-        prompt.append("1. 只能依据给定资料回答，不要编造资料之外的事实。\n");
-        prompt.append("2. 如果资料不足，请明确说明无法确认。\n");
-        prompt.append("3. 回答应简洁、可执行，并在相关句子后引用来源编号，例如 [1]。\n\n");
-        prompt.append("用户问题：\n").append(question).append("\n\n");
-        prompt.append("可用资料：\n");
-
-        int index = 1;
-        for (VectorSearchResult chunk : chunks) {
-            prompt.append("[").append(index).append("] ");
-            prompt.append("documentId=").append(chunk.getDocumentId());
-            prompt.append(", chunkId=").append(chunk.getChunkId());
-            prompt.append(", chunkIndex=").append(chunk.getChunkIndex());
-            prompt.append(", securityLevel=").append(chunk.getSecurityLevel());
-            prompt.append("\n");
-            prompt.append(chunk.getChunkText()).append("\n\n");
-            index++;
-        }
-        return prompt.toString();
     }
 
     private String buildSafePrompt(String question, List<VectorSearchResult> chunks) {

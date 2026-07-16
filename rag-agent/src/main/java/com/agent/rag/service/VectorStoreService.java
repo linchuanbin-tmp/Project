@@ -13,5 +13,5 @@ public interface VectorStoreService {
 
     void deleteByDocumentId(Long documentId);
 
-    List<VectorSearchResult> search(List<Float> queryEmbedding, int topK);
+    List<VectorSearchResult> search(List<Float> queryEmbedding, int topK, List<Long> allowedDocumentIds);
 }

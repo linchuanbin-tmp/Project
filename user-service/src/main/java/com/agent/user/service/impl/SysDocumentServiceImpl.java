@@ -95,6 +95,9 @@ public class SysDocumentServiceImpl implements SysDocumentService {
                             .eq(SysNotification::getStatus, 3) // 3 = Approved
                     );
                     for (SysNotification notif : approvedNotifications) {
+                        if (isRagApprovalExpired(notif)) {
+                            continue;
+                        }
                         String payload = notif.getPayload();
                         if (payload != null && !payload.isEmpty()) {
                             try {
@@ -281,6 +284,16 @@ public class SysDocumentServiceImpl implements SysDocumentService {
         document.setCreateTime(LocalDateTime.now());
         documentMapper.insert(document);
         ragIndexSyncClient.indexDocumentAfterCommit(document.getId());
+    }
+
+    private boolean isRagApprovalExpired(SysNotification notification) {
+        LocalDateTime approvedAt = notification.getUpdateTime() != null
+                ? notification.getUpdateTime()
+                : notification.getCreateTime();
+        if (approvedAt == null) {
+            return true;
+        }
+        return approvedAt.plusHours(24).isBefore(LocalDateTime.now());
     }
 
     private String resolveFileType(String filename) {
