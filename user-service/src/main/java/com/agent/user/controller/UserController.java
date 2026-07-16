@@ -149,18 +149,8 @@ public class UserController {
             return Result.error(404, "User not found");
         }
 
-        List<String> roles = userService.getRolesByUserId(currentUser.getId());
-        boolean isAdmin = roles.contains("ROLE_ADMIN");
-
-        if (isAdmin) {
-            return Result.success(userService.listUsers());
-        }
-
-        // 非管理员只返回同部门用户
-        if (currentUser.getDeptId() != null) {
-            return Result.success(userService.listUsersByDept(currentUser.getDeptId()));
-        }
-        return Result.success(List.of());
+        // 所有认证用户都能看到全部用户列表
+        return Result.success(userService.listUsers());
     }
 
     @GetMapping("/admins")

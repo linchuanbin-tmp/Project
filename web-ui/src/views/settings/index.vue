@@ -639,8 +639,6 @@ const avatarLetter = computed(() => {
 // AI Model Provider
 const AI_PROVIDERS_BASE = [
   { key: 'xunfei',       i18nKey: 'settings.aiProviderXunfei',     baseUrl: 'https://maas-api.cn-huabei-1.xf-yun.com/v2', model: 'xopdeepseekv32' },
-  { key: 'deepseek',     i18nKey: 'settings.aiProviderDeepseek',   baseUrl: 'https://api.deepseek.com',                   model: 'deepseek-chat' },
-  { key: 'deepseek-v4',  i18nKey: 'settings.aiProviderDeepseekV4', baseUrl: 'https://api.deepseek.com',                   model: 'deepseek-v4-flash' },
   { key: 'ollama',       i18nKey: 'settings.aiProviderOllama',     baseUrl: 'http://localhost:11434/v1',                  model: '' },
 ]
 

@@ -49,6 +49,14 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
+# === Temp / Dump files ===
+dump.rdb
+*.log
+*.pdf
+
+# === Claude Code ===
+.claude/
+
 # === 敏感配置===
 application-local.yml
 application-dev.yml

@@ -395,13 +395,8 @@
         <!-- Right: Message Form -->
         <div class="compose-right-pane">
           <el-form :model="sendForm" :rules="sendRules" ref="sendFormRef" label-position="top">
-            <el-form-item :label="$t('notification.messageType')" prop="notifyType">
-              <el-select v-model="sendForm.notifyType" :placeholder="$t('notification.selectType')" style="width: 100%" @change="onNotifyTypeChange">
-                <el-option label="Chat Message" value="CHAT" />
-                <el-option label="RAG Permission Escalation (Mock Request)" value="RAG_APPLY" />
-                <el-option label="SQL Security Intercept (Mock Intercept)" value="SQL_AUDIT" />
-                <el-option label="Bug / Hallucination Trace Report (Mock Bug)" value="BUG_REPORT" />
-              </el-select>
+            <el-form-item :label="$t('notification.messageType')">
+              <el-tag type="primary" effect="plain" style="font-size: 13px;">Chat Message</el-tag>
             </el-form-item>
             <el-form-item :label="$t('notification.titleField')" prop="title">
               <el-input v-model="sendForm.title" :placeholder="$t('notification.titlePlaceholder')" />
@@ -525,7 +520,6 @@ const sendForm = ref({
 })
 
 const sendRules = {
-  notifyType: [{ required: true, message: t('notification.selectType'), trigger: 'change' }],
   title: [{ required: true, message: t('notification.titleRequired'), trigger: 'blur' }],
   content: [{ required: true, message: t('notification.contentRequired'), trigger: 'blur' }]
 }
@@ -808,43 +802,6 @@ const closeSendDialog = () => {
   sendDialogVisible.value = false
   if (sendFormRef.value) {
     sendFormRef.value.resetFields()
-  }
-}
-
-const onNotifyTypeChange = (type: string) => {
-  // Pre-fill mock data for simulation types
-  if (type === 'CHAT') {
-    sendForm.value.title = ''
-    sendForm.value.content = ''
-    sendForm.value.payload = ''
-  } else if (type === 'RAG_APPLY') {
-    sendForm.value.title = 'RAG Permission Escalation Request'
-    sendForm.value.content = 'User [zhangsan] requests temporary access to "Q1 2025 Credit Assessment Report" (Clearance: Level-3).'
-    sendForm.value.payload = JSON.stringify({
-      userId: 2,
-      username: 'zhangsan',
-      docId: 101,
-      docName: 'Q1_2025_Credit_Assessment_Report.pdf',
-      level: 3
-    }, null, 2)
-  } else if (type === 'SQL_AUDIT') {
-    sendForm.value.title = 'Warning: Risky SQL Execution Request'
-    sendForm.value.content = 'User [lisi] tried to execute a database modification query via Code Agent. Intercepted by system sandbox.'
-    sendForm.value.payload = JSON.stringify({
-      userId: 3,
-      username: 'lisi',
-      sql: 'DELETE FROM bank_ledger WHERE create_time < \'2025-01-01\'',
-      reason: 'AST Security Interceptor: contains DELETE keyword'
-    }, null, 2)
-  } else if (type === 'BUG_REPORT') {
-    sendForm.value.title = 'AI Hallucination Feedback Report'
-    sendForm.value.content = 'User [zhangsan] reported an AI response hallucination and uploaded the execution trace.'
-    sendForm.value.payload = JSON.stringify({
-      prompt: 'What is the credit limit of Zhang San?',
-      response: 'Zhang San currently has a credit limit of 10M, but has multiple bad assets under his name. Recommend downgrading...',
-      milvusTopK: '1. Credit Manual Article 12: Downgrade rules...\n2. Credit Assessment: Zhang San\'s actual limit is 2M...',
-      error: 'LLM output mismatch with Milvus retrieved facts.'
-    }, null, 2)
   }
 }
 
