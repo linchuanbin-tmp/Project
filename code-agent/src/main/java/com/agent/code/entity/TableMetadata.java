@@ -9,7 +9,7 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * 表元数据实体
+ * Table metadata entity
  */
 @Data
 @Builder
@@ -19,15 +19,15 @@ public class TableMetadata implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 表名 */
+    /** Table name */
     private String tableName;
 
-    /** 库名 */
+    /** Schema name */
     private String schemaName;
 
-    /** 表注释 */
+    /** Table comment */
     private String comment;
 
-    /** 列信息列表 */
+    /** Column information list */
     private List<ColumnMetadata> columns;
 }

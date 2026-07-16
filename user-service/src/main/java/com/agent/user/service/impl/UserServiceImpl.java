@@ -54,7 +54,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public LoginResponse login(LoginRequest request) {
-        // 1. 查询用户
+        // Step 1: Look up user
         User user = userMapper.selectOne(
                 new LambdaQueryWrapper<User>()
                         .eq(User::getUsername, request.getUsername())
@@ -68,14 +68,14 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("用户已被禁用");
         }
 
-        // 2. 校验至少提供密码或验证码
+        // Step 2: Require either password or verification code
         boolean hasCode = request.getCode() != null && !request.getCode().isEmpty();
         boolean hasPassword = request.getPassword() != null && !request.getPassword().isEmpty();
         if (!hasCode && !hasPassword) {
             throw new RuntimeException("请提供密码或验证码");
         }
 
-        // 3. Verify identity: code-based or password-based
+        // Step 3. Verify identity: code-based or password-based
         if (hasCode) {
             // Code login — check brute-force attempts first
             String failKey = EMAIL_CODE_FAIL_PREFIX + request.getUsername();
@@ -99,13 +99,13 @@ public class UserServiceImpl implements UserService {
             redisTemplate.delete(EMAIL_CODE_PREFIX + request.getUsername());
             redisTemplate.delete(failKey);
         } else {
-            // 密码登录模式
+            // Password login mode
             if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
                 throw new RuntimeException("密码错误");
             }
         }
 
-        // 4. 查询角色与权限
+        // Step 4: Retrieve roles and permissions
         List<SysRole> roles = sysRoleMapper.selectRolesByUserId(user.getId());
         List<SysPermission> permissions = sysPermissionMapper.selectPermissionsByUserId(user.getId());
 
@@ -117,10 +117,10 @@ public class UserServiceImpl implements UserService {
                 .map(SysPermission::getPermCode)
                 .collect(Collectors.toList());
 
-        // 5. 生成JWT
+        // Step 5: Generate JWT
         String token = jwtUtil.generateToken(user.getUsername(), roleCodes, permCodes);
 
-        // 6. 写入 Redis session（滑动过期窗口）
+        // Step 6: Write Redis session (sliding expiration window)
         long timeoutMinutes = resolveSessionTimeout();
         redisTemplate.opsForValue().set(
                 SESSION_KEY_PREFIX + user.getUsername(),
@@ -165,8 +165,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void sendVerificationCode(String email, String clientIp, String scene) {
-        // 1. Rate limits first — always enforced regardless of email existence,
-        //    preventing enumeration attacks from bypassing rate limits.
+        // Step 1. Rate limits first — always enforced regardless of email existence,
+        //         preventing enumeration attacks from bypassing rate limits.
         String limitKey = EMAIL_CODE_LIMIT_PREFIX + email;
         if (Boolean.TRUE.equals(redisTemplate.hasKey(limitKey))) {
             throw new RuntimeException("Please wait 60 seconds before requesting another code");
@@ -193,7 +193,7 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Too many requests, please try again later");
         }
 
-        // 2. Check email existence based on scene.
+        // Step 2. Check email existence based on scene.
         //    Use the SAME generic error message for both cases to prevent
         //    email enumeration (attackers cannot determine if an email is registered).
         User existingUser = userMapper.selectOne(
@@ -207,7 +207,7 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("No account found with this email");
         }
 
-        // 3. Generate 6-digit verification code using cryptographically secure RNG
+        // Step 3. Generate 6-digit verification code using cryptographically secure RNG
         String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
 
         // Store code in Redis with 5-minute TTL
@@ -236,7 +236,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void register(RegisterRequest request) {
-        // 1. 校验用户名是否重复
+        // Step 1: Check if username already exists
         User existingUser = userMapper.selectOne(
                 new LambdaQueryWrapper<User>()
                         .eq(User::getUsername, request.getUsername())
@@ -245,7 +245,7 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("该邮箱已被注册");
         }
 
-        // 2. Validate verification code with brute-force protection
+        // Step 2. Validate verification code with brute-force protection
         String failKey = EMAIL_CODE_FAIL_PREFIX + request.getUsername();
         String failCountStr = redisTemplate.opsForValue().get(failKey);
         int failCount = failCountStr != null ? Integer.parseInt(failCountStr) : 0;
@@ -265,19 +265,19 @@ public class UserServiceImpl implements UserService {
         redisTemplate.delete(EMAIL_CODE_PREFIX + request.getUsername());
         redisTemplate.delete(failKey);
 
-        // 3. 保存用户基本信息
+        // Step 3: Save basic user info
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRealName(request.getRealName());
-        user.setRole("user"); // 兼容旧系统的普通字段描述
-        user.setStatus(1); // 默认启用
+        user.setRole("user"); // Legacy role field for backward compatibility
+        user.setStatus(1); // Enabled by default
         user.setCreateTime(LocalDateTime.now());
         user.setUpdateTime(LocalDateTime.now());
         user.setDeleted(0);
         userMapper.insert(user);
 
-        // 4. 关联默认普通员工角色 ROLE_USER
+        // Step 4: Assign default employee role ROLE_USER
         SysRole userRole = sysRoleMapper.selectOne(
                 new LambdaQueryWrapper<SysRole>()
                         .eq(SysRole::getRoleCode, "ROLE_USER")
@@ -309,22 +309,22 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void assignRole(Long userId, Long roleId) {
-        // 1. 先清除现有的角色关系
+        // Step 1: Remove existing role assignments
         sysUserRoleMapper.delete(
                 new LambdaQueryWrapper<SysUserRole>()
                         .eq(SysUserRole::getUserId, userId)
         );
 
-        // 2. 写入新的关联
+        // Step 2: Insert new role mapping
         SysUserRole mapping = new SysUserRole(userId, roleId);
         sysUserRoleMapper.insert(mapping);
 
-        // 同步更新 sys_user 中的 role 字符串，兼容旧系统的单字段查询
+        // Sync legacy role string in sys_user for backward compatibility
         SysRole role = sysRoleMapper.selectById(roleId);
         if (role != null) {
             User user = userMapper.selectById(userId);
             if (user != null) {
-                // 如果是 ROLE_ADMIN 改为 admin，如果是 ROLE_USER 改为 user
+                // Map ROLE_ADMIN -> "admin", ROLE_USER -> "user"
                 String code = role.getRoleCode();
                 if ("ROLE_ADMIN".equalsIgnoreCase(code)) {
                     user.setRole("admin");

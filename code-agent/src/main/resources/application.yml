@@ -20,19 +20,19 @@ spring:
           max-idle: 8
           min-idle: 0
 
-# Code Agent 配置
+# Code Agent configuration
 code-agent:
-  # LLM 推理（通过 Python 推理服务调用）
+  # LLM inference (via Python inference server)
   onnx:
     model-path: classpath:models/text2sql.onnx
     server-url: ${CODE_AGENT_PYTHON_URL:http://localhost:8090/infer}
-    enabled: ${CODE_AGENT_ONNX_ENABLED:true}  # true = LLM 推理, false = 模板引擎 fallback
-  # SQL 白名单配置
+    enabled: ${CODE_AGENT_ONNX_ENABLED:true}  # true = LLM inference, false = template engine fallback
+  # SQL whitelist configuration
   whitelist:
-    # 只允许这些操作
+    # Only allow these operations
     allowed-operations:
       - SELECT
-    # 禁止的关键字（额外的安全检查）
+    # Forbidden keywords (additional safety check)
     forbidden-keywords:
       - DROP
       - DELETE
@@ -48,18 +48,18 @@ code-agent:
       - LOAD_FILE
       - OUTFILE
       - DUMPFILE
-    # 允许的最大表数量（防止复杂 JOIN 攻击）
+    # Max number of tables per query (prevents complex JOIN attacks)
     max-tables-per-query: 3
-    # 允许的最大条件数
+    # Max number of conditions
     max-conditions: 10
-  # 元数据缓存
+  # Metadata cache
   metadata:
-    # 缓存过期时间（秒）
+    # Cache expiration (seconds)
     cache-ttl: 3600
-    # 缓存 key 前缀
+    # Cache key prefix
     cache-prefix: "code_agent:metadata:"
 
-# 日志
+# Logging
 logging:
   level:
     com.agent.code: DEBUG

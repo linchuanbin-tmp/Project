@@ -81,13 +81,13 @@ public class SysDocumentServiceImpl implements SysDocumentService {
             boolean isApproved = false;
 
             if (!hasClearance) {
-                // 先检查 Redis 临时令牌（HITL 审批回调写入，性能优于 DB 扫描）
+                // Check Redis temp token first (written by HITL approval callback, faster than DB scan)
                 String tempAccessKey = "rag:temp_access:" + userId + ":" + doc.getId();
                 String tempToken = redisTemplate.opsForValue().get(tempAccessKey);
                 if ("approved".equals(tempToken)) {
                     isApproved = true;
                 } else {
-                    // 回退到 DB 检查：用户是否已获得审批
+                    // Fallback to DB check: whether the user has already been approved
                     List<SysNotification> approvedNotifications = notificationMapper.selectList(
                         new LambdaQueryWrapper<SysNotification>()
                             .eq(SysNotification::getNotifyType, "RAG_APPLY")
@@ -104,7 +104,7 @@ public class SysDocumentServiceImpl implements SysDocumentService {
                                 JsonNode node = objectMapper.readTree(payload);
                                 if (node.has("documentId") && node.get("documentId").asLong() == doc.getId().longValue()) {
                                     isApproved = true;
-                                    // 补充写入 Redis 缓存，避免后续重复 DB 扫描
+                                    // Backfill Redis cache to avoid repeated DB scans
                                     redisTemplate.opsForValue().set(tempAccessKey, "approved", 24, java.util.concurrent.TimeUnit.HOURS);
                                     break;
                                 }

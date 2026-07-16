@@ -20,12 +20,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * 元数据缓存服务
+ * Metadata cache service
  * <p>
- * 从 MySQL information_schema 读取表结构，缓存到 Redis。
- * 用于：
- * 1. SQL 白名单校验（表名/列名校验）
- * 2. SQL 生成上下文（提供 schema 给 LLM 推理）
+ * Read table structure from MySQL information_schema and cache to Redis.
+ * Used for:
+ * 1. SQL whitelist validation (table/column name validation)
+ * 2. SQL generation context (provide schema to LLM for inference)
  */
 @Slf4j
 @Service
@@ -38,7 +38,7 @@ public class MetadataCacheService {
     private final CodeAgentProperties properties;
 
     /**
-     * 刷新所有表的元数据缓存
+     * Refresh metadata cache for all tables
      */
     public Map<String, TableMetadata> refreshAllMetadata() {
         log.info("🔄 开始刷新元数据缓存...");
@@ -49,12 +49,12 @@ public class MetadataCacheService {
     }
 
     /**
-     * 获取所有缓存的表元数据（优先 Redis，Redis 不可用时回退 MySQL）
+     * Get all cached table metadata (Redis first, fallback to MySQL when Redis is unavailable)
      */
     public Map<String, TableMetadata> getAllTableMetadata() {
         String cacheKey = properties.getMetadata().getCachePrefix() + "tables";
 
-        // 尝试从 Redis 读取
+        // Try reading from Redis
         try {
             Map<Object, Object> cached = redisTemplate.opsForHash().entries(cacheKey);
             if (!cached.isEmpty()) {
@@ -74,13 +74,13 @@ public class MetadataCacheService {
             log.debug("⚠️ Redis 不可用，直接从 MySQL 读取元数据: {}", e.getMessage());
         }
 
-        // Redis 未命中或不可用，从 MySQL 加载
+        // Redis miss or unavailable, load from MySQL
         log.info("⚠️ 从 MySQL 加载元数据（Redis 不可用或缓存为空）");
         return loadFromInformationSchema();
     }
 
     /**
-     * 获取单表元数据
+     * Get metadata for a single table
      */
     public Optional<TableMetadata> getTableMetadata(String tableName) {
         Map<String, TableMetadata> all = getAllTableMetadata();
@@ -88,14 +88,14 @@ public class MetadataCacheService {
     }
 
     /**
-     * 获取所有白名单表名
+     * Get all whitelisted table names
      */
     public Set<String> getAllowedTableNames() {
         return getAllTableMetadata().keySet();
     }
 
     /**
-     * 获取指定表允许的列名
+     * Get allowed column names for a specific table
      */
     public Set<String> getAllowedColumnNames(String tableName) {
         return getTableMetadata(tableName)
@@ -105,10 +105,10 @@ public class MetadataCacheService {
                 .orElse(Collections.emptySet());
     }
 
-    // ==================== 私有方法 ====================
+    // ==================== Private Methods ====================
 
     /**
-     * 从 MySQL information_schema 读取表结构
+     * Read table structure from MySQL information_schema
      */
     private Map<String, TableMetadata> loadFromInformationSchema() {
         Map<String, TableMetadata> metadataMap = new LinkedHashMap<>();
@@ -116,7 +116,7 @@ public class MetadataCacheService {
         try (Connection conn = dataSource.getConnection()) {
             String catalog = conn.getCatalog();
 
-            // 获取所有用户表
+            // Get all user tables
             List<String> tableNames = queryTableNames(conn, catalog);
             log.info("📋 发现 {} 张用户表: {}", tableNames.size(), tableNames);
 
@@ -142,7 +142,7 @@ public class MetadataCacheService {
     }
 
     /**
-     * 查询所有用户表名（排除系统表）
+     * Query all user table names (exclude system tables)
      */
     private List<String> queryTableNames(Connection conn, String catalog) throws SQLException {
         String sql = """
@@ -165,7 +165,7 @@ public class MetadataCacheService {
     }
 
     /**
-     * 查询表的所有列信息
+     * Query all column information for a table
      */
     private List<ColumnMetadata> queryColumnMetadata(Connection conn, String catalog, String tableName)
             throws SQLException {
@@ -201,7 +201,7 @@ public class MetadataCacheService {
     }
 
     /**
-     * 查询表注释
+     * Query table comment
      */
     private String queryTableComment(Connection conn, String catalog, String tableName) throws SQLException {
         String sql = """
@@ -223,7 +223,7 @@ public class MetadataCacheService {
     }
 
     /**
-     * 缓存到 Redis（失败不抛异常，仅记日志）
+     * Cache to Redis (no exception on failure, log only)
      */
     private void cacheToRedis(Map<String, TableMetadata> metadataMap) {
         try {

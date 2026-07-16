@@ -9,10 +9,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 元数据缓存管理
+ * Metadata cache manager.
  * <p>
- * - 启动时自动加载 MySQL 表结构到 Redis
- * - 每 30 分钟自动刷新缓存
+ * - Loads MySQL table schemas into Redis on startup.
+ * - Auto-refreshes the cache every 30 minutes.
  */
 @Slf4j
 @Component
@@ -22,7 +22,7 @@ public class MetadataCacheManager {
     private final MetadataCacheService metadataCacheService;
 
     /**
-     * 应用启动完成后自动预热缓存
+     * Warm up the metadata cache after application startup.
      */
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
@@ -37,7 +37,7 @@ public class MetadataCacheManager {
     }
 
     /**
-     * 定时刷新缓存（每 30 分钟）
+     * Scheduled cache refresh (every 30 minutes).
      */
     @Scheduled(fixedRate = 30 * 60 * 1000)
     public void scheduledRefresh() {

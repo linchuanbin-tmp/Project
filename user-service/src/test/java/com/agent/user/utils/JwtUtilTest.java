@@ -18,7 +18,7 @@ class JwtUtilTest {
 
     @BeforeEach
     void setUp() {
-        // 注入固定 secret 和 expiration（绕过 @Value 注解依赖 Spring 上下文）
+        // Inject fixed secret and expiration (bypass @Value dependency on Spring context)
         ReflectionTestUtils.setField(jwtUtil, "secret", "test-secret-key-for-unit-test-at-least-256-bits-long!");
         ReflectionTestUtils.setField(jwtUtil, "expiration", 3600000L); // 1 hour
     }

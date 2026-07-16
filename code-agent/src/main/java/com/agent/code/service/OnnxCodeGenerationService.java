@@ -17,10 +17,10 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 /**
- * LLM 推理 SQL 生成服务
+ * LLM-based SQL generation service.
  * <p>
- * 调用 Python 推理服务器 (port 8090)，底层使用 LLM API。
- * 当 code-agent.onnx.enabled=true 时自动启用。
+ * Calls the Python inference server (port 8090) which uses an LLM API under the hood.
+ * Automatically enabled when code-agent.onnx.enabled=true.
  */
 @Slf4j
 @Service

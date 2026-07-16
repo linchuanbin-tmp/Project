@@ -35,7 +35,7 @@ class SqlValidationServiceTest {
 
     @BeforeEach
     void setUp() {
-        // 模拟白名单配置
+        // Mock whitelist configuration
         CodeAgentProperties.WhitelistConfig whitelist = new CodeAgentProperties.WhitelistConfig();
         whitelist.setAllowedOperations(List.of("SELECT"));
         whitelist.setForbiddenKeywords(List.of(
@@ -47,7 +47,7 @@ class SqlValidationServiceTest {
         whitelist.setMaxConditions(10);
         when(properties.getWhitelist()).thenReturn(whitelist);
 
-        // 模拟元数据
+        // Mock metadata
         when(metadataCacheService.getAllowedTableNames())
                 .thenReturn(Set.of("sys_user", "meeting_room", "meeting_schedule",
                         "bank_customer", "bank_account", "bank_transaction"));
@@ -142,7 +142,7 @@ class SqlValidationServiceTest {
         @Test
         @DisplayName("普通 SELECT 不触发关键字误判")
         void shouldNotTriggerFalsePositive() {
-            // INT 不应触发 IN 关键字
+            // INT should not trigger the IN keyword
             var result = validator.validate("SELECT id FROM meeting_room WHERE floor = 3");
             assertThat(result.passed()).isTrue();
         }

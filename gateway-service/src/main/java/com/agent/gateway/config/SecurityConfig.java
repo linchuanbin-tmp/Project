@@ -13,9 +13,9 @@ public class SecurityConfig {
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         http
-                .csrf(csrf -> csrf.disable())  // 禁用 CSRF（关键！）
+                .csrf(csrf -> csrf.disable())  // Disable CSRF (critical!)
                 .authorizeExchange(exchanges -> exchanges
-                        .anyExchange().permitAll()  // 允许所有请求（Gateway只做转发，鉴权在下游服务）
+                        .anyExchange().permitAll()  // Allow all requests (Gateway only forwards, authentication happens downstream)
                 );
         return http.build();
     }

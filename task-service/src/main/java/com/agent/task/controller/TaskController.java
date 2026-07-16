@@ -20,7 +20,7 @@ public class TaskController {
     private final TaskService taskService;
 
     /**
-     * 提交异步任务
+     * Submit an asynchronous task.
      * POST /api/task/submit
      */
     @PostMapping("/submit")
@@ -35,7 +35,7 @@ public class TaskController {
     }
 
     /**
-     * 查询任务状态和结果
+     * Query task status and result.
      * GET /api/task/{id}
      */
     @GetMapping("/{id}")
@@ -49,7 +49,7 @@ public class TaskController {
     }
 
     /**
-     * 查询当前用户任务历史列表
+     * Query current user's task history.
      * GET /api/task/list
      */
     @GetMapping("/list")
@@ -62,7 +62,7 @@ public class TaskController {
     }
 
     /**
-     * 管理员查询全平台任务列表（需要 ROLE_ADMIN）
+     * Admin query for platform-wide task list (requires ROLE_ADMIN).
      * GET /api/task/list/all
      */
     @GetMapping("/list/all")

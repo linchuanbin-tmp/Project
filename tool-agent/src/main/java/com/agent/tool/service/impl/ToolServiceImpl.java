@@ -78,7 +78,7 @@ public class ToolServiceImpl implements ToolService {
         return response;
     }
 
-    // ==================== AI 意图识别与自动路由 ====================
+    // ==================== AI Intent Recognition & Auto-Routing ====================
     private Map<String, Object> handleAiIntent(String naturalLanguage) {
         String systemPrompt = """
             你是智能任务路由助手。分析用户的自然语言请求，判断意图并提取参数。
@@ -123,7 +123,7 @@ public class ToolServiceImpl implements ToolService {
             });
         }
 
-        // 根据意图调用对应业务方法
+        // Route to corresponding business method based on intent
         Map<String, Object> result;
         switch (intent) {
             case "ROUTE_PLAN":
@@ -153,12 +153,12 @@ public class ToolServiceImpl implements ToolService {
                 break;
         }
 
-        // 统一包装：确保前端能识别 intent 和 aiParsed
+        // Unified wrapper: ensure frontend can recognize intent and aiParsed
         Map<String, Object> wrapped = new HashMap<>(result);
         wrapped.put("intent", intent);
         wrapped.put("aiParsed", aiResult);
 
-        // 路线规划如果没有坐标数组，补一段 Mock 路径让地图能显示
+        // If route plan has no coordinate array, add a mock path for map display
         if ("ROUTE_PLAN".equals(intent)) {
             if (!wrapped.containsKey("path") || wrapped.get("path") == null) {
                 List<List<Double>> mockPath = generateMockPath();
@@ -182,7 +182,7 @@ public class ToolServiceImpl implements ToolService {
         return path;
     }
 
-    // ==================== 会议室查询 ====================
+    // ==================== Meeting Room Query ====================
     private Map<String, Object> handleMeetingQuery(String naturalLanguage) {
         String systemPrompt = """
             你是企业会议室查询助手。分析用户需求，提取以下信息并返回JSON：
@@ -246,7 +246,7 @@ public class ToolServiceImpl implements ToolService {
         return data;
     }
 
-    // ==================== 日程冲突 ====================
+    // ==================== Schedule Conflict Check ====================
     private Map<String, Object> handleScheduleCheck(String naturalLanguage) {
         String systemPrompt = """
             你是日程管理助手。分析会议安排请求，检查冲突并返回JSON：
@@ -272,7 +272,7 @@ public class ToolServiceImpl implements ToolService {
         return data;
     }
 
-    // ==================== 路线规划 ====================
+    // ==================== Route Planning ====================
     private Map<String, Object> handleRoutePlan(String naturalLanguage, Map<String, Object> params) {
         String from = params != null && params.get("from") != null
                 ? params.get("from").toString() : "当前位置";
@@ -287,7 +287,7 @@ public class ToolServiceImpl implements ToolService {
             rawResult = null;
         }
 
-        // 用 HashMap 包装，防止 amapService 返回不可变 Map 导致 put 报错
+        // Wrap with HashMap to prevent errors when amapService returns an immutable Map
         Map<String, Object> amapResult = rawResult != null ? new HashMap<>(rawResult) : new HashMap<>();
 
         if (rawResult == null) {
@@ -302,37 +302,7 @@ public class ToolServiceImpl implements ToolService {
             amapResult.put("source", "mock");
         }
 
-        // DeepSeek 润色
-//        try {
-//            String systemPrompt = """
-//                你是智能导航助手。根据路线数据生成简洁的导航总结，返回JSON：
-//                {
-//                    "summary": "一句话总结",
-//                    "trafficAdvice": "交通建议",
-//                    "alternative": "备选方案建议"
-//                }
-//                只返回JSON。
-//                """;
-//
-//            String userContent = String.format("从%s到%s，距离%s，预计%s，路况%s",
-//                    from, to,
-//                    amapResult.getOrDefault("distance", "未知"),
-//                    amapResult.getOrDefault("duration", "未知"),
-//                    amapResult.getOrDefault("trafficStatus", "未知"));
-//
-//            String aiJson = deepSeekService.chat(systemPrompt, userContent);
-//            JsonNode aiResult = parseJson(aiJson);
-//
-//            amapResult.put("summary", aiResult.path("summary").asText(""));
-//            amapResult.put("trafficAdvice", aiResult.path("trafficAdvice").asText(""));
-//            amapResult.put("alternative", aiResult.path("alternative").asText(""));
-//            if (!amapResult.containsKey("source")) {
-//                amapResult.put("source", "amap+deepseek");
-//            }
-//        } catch (Exception e) {
-//            log.warn("DeepSeek润色失败，返回原始路线数据", e);
-//        }
-
+        // DeepSeek polish (disabled)
         amapResult.put("from", from);
         amapResult.put("to", to);
         amapResult.put("mode", params != null && params.get("mode") != null ? params.get("mode") : "driving");
@@ -340,7 +310,7 @@ public class ToolServiceImpl implements ToolService {
         return amapResult;
     }
 
-    // ==================== 工具方法 ====================
+    // ==================== Utility Methods ====================
     private JsonNode parseJson(String json) {
         try {
             return objectMapper.readTree(json);

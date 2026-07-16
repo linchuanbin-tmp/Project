@@ -193,7 +193,7 @@ public class SysNotificationServiceImpl implements SysNotificationService {
         notification.setUpdateTime(LocalDateTime.now());
         notificationMapper.updateById(notification);
 
-        // ── HITL 审批回调：批准后写 Redis 临时令牌 ──────────────────
+        // ── HITL Approval Callback: write Redis temp token after approval ──
         if (targetStatus == 3) { // APPROVED
             String notifyType = notification.getNotifyType();
             String payload = notification.getPayload();
@@ -201,13 +201,13 @@ public class SysNotificationServiceImpl implements SysNotificationService {
                 try {
                     JsonNode node = objectMapper.readTree(payload);
                     if ("RAG_APPLY".equalsIgnoreCase(notifyType) && node.has("documentId")) {
-                        // RAG 文档访问审批：写临时访问令牌，24h
+                        // RAG document access approval: write temp access token, 24h
                         Long documentId = node.get("documentId").asLong();
                         Long senderId = notification.getSenderId();
                         String key = "rag:temp_access:" + senderId + ":" + documentId;
                         redisTemplate.opsForValue().set(key, "approved", 24, TimeUnit.HOURS);
                     } else if ("SQL_AUDIT".equalsIgnoreCase(notifyType) && node.has("sqlHash")) {
-                        // SQL 审计审批：写临时令牌，5min
+                        // SQL audit approval: write temp token, 5min
                         String sqlHash = node.get("sqlHash").asText();
                         Long senderId = notification.getSenderId();
                         String key = "sql:temp_approval:" + senderId + ":" + sqlHash;

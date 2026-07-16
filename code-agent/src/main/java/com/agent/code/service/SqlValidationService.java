@@ -10,14 +10,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * SQL 白名单校验服务
+ * SQL whitelist validation service.
  * <p>
- * 多层防护策略：
- * 1. 操作类型校验 —— 仅允许 SELECT
- * 2. 关键字黑名单 —— 拦截危险关键字
- * 3. 表名白名单 —— 只允许查询 information_schema 中存在的表
- * 4. 列名白名单 —— 只允许查询表中实际存在的列
- * 5. 复杂度限制 —— 限制 JOIN 表数、条件数
+ * Multi-layer defense strategy:
+ * 1. Operation type validation — only SELECT is allowed
+ * 2. Keyword blacklist — block dangerous keywords
+ * 3. Table name whitelist — only allow queries on tables present in information_schema
+ * 4. Column name whitelist — only allow queries on columns that actually exist in the tables
+ * 5. Complexity limits — restrict JOIN table count and condition count
  */
 @Slf4j
 @Service
@@ -27,20 +27,21 @@ public class SqlValidationService {
     private final CodeAgentProperties properties;
     private final MetadataCacheService metadataCacheService;
 
-    /** 匹配表名的模式: FROM table_name, JOIN table_name */
+    /** Pattern to match table names: FROM table_name, JOIN table_name */
     private static final Pattern TABLE_PATTERN =
             Pattern.compile("\\b(?:FROM|JOIN)\\s+`?(\\w+)`?", Pattern.CASE_INSENSITIVE);
 
-    /** 匹配 SELECT 中的每个列 */
+    /** Pattern to match each column in SELECT */
     private static final Pattern SELECT_COLUMNS_PATTERN =
             Pattern.compile("SELECT\\s+(.+?)\\s+FROM", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
     /**
-     * 校验 SQL 是否通过白名单
+     * Validate SQL against the whitelist.
      *
-     * @param sql       待校验的 SQL
-     * @param userRoles 当前用户的角色列表（用于敏感列判断，非管理员角色时敏感列将被拒绝）
-     * @return 校验结果
+     * @param sql       the SQL to validate
+     * @param userRoles the current user's role list (used for sensitive column checks;
+     *                  non-admin roles will be denied access to sensitive columns)
+     * @return validation result
      */
     public ValidationResult validate(String sql, List<String> userRoles) {
         if (sql == null || sql.isBlank()) {
@@ -49,37 +50,37 @@ public class SqlValidationService {
 
         String normalizedSql = normalize(sql);
 
-        // 第一层：检查操作类型
+        // Layer 1: check operation type
         ValidationResult opResult = validateOperation(normalizedSql);
         if (!opResult.passed) return opResult;
 
-        // 第二层：检查禁用关键字
+        // Layer 2: check forbidden keywords
         ValidationResult kwResult = validateForbiddenKeywords(normalizedSql);
         if (!kwResult.passed) return kwResult;
 
-        // 第三层：检查表名白名单
+        // Layer 3: check table name whitelist
         ValidationResult tableResult = validateTableNames(normalizedSql);
         if (!tableResult.passed) return tableResult;
 
-        // 第四层：检查列名白名单
+        // Layer 4: check column name whitelist
         ValidationResult colResult = validateColumnNames(normalizedSql);
         if (!colResult.passed) return colResult;
 
-        // 第五层：检查查询复杂度
+        // Layer 5: check query complexity
         ValidationResult complexityResult = validateComplexity(normalizedSql);
         if (!complexityResult.passed) return complexityResult;
 
-        // 第六层：检查敏感列（仅对非管理员生效）
+        // Layer 6: check sensitive columns (only for non-admin users)
         ValidationResult sensitiveResult = validateSensitiveColumns(normalizedSql, userRoles);
         if (!sensitiveResult.passed) return sensitiveResult;
 
         return ValidationResult.pass();
     }
 
-    // ==================== 各层校验 ====================
+    // ==================== Validation Layers ====================
 
     /**
-     * 第一层：操作类型校验
+     * Layer 1: Operation type validation.
      */
     private ValidationResult validateOperation(String sql) {
         String upperSql = sql.toUpperCase().trim();
@@ -97,14 +98,14 @@ public class SqlValidationService {
     }
 
     /**
-     * 第二层：禁用关键字黑名单
+     * Layer 2: Forbidden keywords blacklist.
      */
     private ValidationResult validateForbiddenKeywords(String sql) {
         String upperSql = sql.toUpperCase();
         List<String> forbidden = properties.getWhitelist().getForbiddenKeywords();
 
         for (String keyword : forbidden) {
-            // 用正则单词边界匹配，避免误判（如 INT 中的 IN）
+            // Use regex word-boundary matching to avoid false positives (e.g. IN inside INT)
             Pattern p = Pattern.compile("\\b" + keyword + "\\b", Pattern.CASE_INSENSITIVE);
             if (p.matcher(upperSql).find()) {
                 return ValidationResult.fail("SQL 包含禁用关键字: " + keyword);
@@ -114,7 +115,7 @@ public class SqlValidationService {
     }
 
     /**
-     * 第三层：表名白名单校验
+     * Layer 3: Table name whitelist validation.
      */
     private ValidationResult validateTableNames(String sql) {
         Set<String> allowedTables = metadataCacheService.getAllowedTableNames();
@@ -145,27 +146,27 @@ public class SqlValidationService {
     }
 
     /**
-     * 第四层：列名白名单校验
+     * Layer 4: Column name whitelist validation.
      * <p>
-     * 对于 JOIN 查询，允许任意引用表的所有列。
-     * 对于别名（如 c.name），按所有引用表的列来校验。
+     * For JOIN queries, all columns of referenced tables are allowed.
+     * For aliases (e.g. c.name), validation is performed against all referenced table columns.
      */
     private ValidationResult validateColumnNames(String sql) {
-        // 如果是 SELECT *，允许（简化处理）
+        // If SELECT *, allow (simplified handling)
         String upperSql = sql.toUpperCase();
         if (upperSql.contains("SELECT *") || upperSql.contains("SELECT COUNT(*)")) {
             return ValidationResult.pass();
         }
 
-        // 提取 FROM 之前的 SELECT 列
+        // Extract SELECT columns before FROM
         Matcher selectMatcher = SELECT_COLUMNS_PATTERN.matcher(sql);
         if (!selectMatcher.find()) {
-            return ValidationResult.pass(); // 无法解析列，宽松处理
+            return ValidationResult.pass(); // unable to parse columns, treat leniently
         }
 
         String columnsPart = selectMatcher.group(1);
 
-        // 获取所有被引用的表（包括 JOIN 的表）
+        // Get all referenced tables (including JOINed tables)
         Matcher tableMatcher = TABLE_PATTERN.matcher(sql);
         Set<String> allTables = new HashSet<>();
         while (tableMatcher.find()) {
@@ -175,20 +176,20 @@ public class SqlValidationService {
             return ValidationResult.pass();
         }
 
-        // 合并所有引用表允许的列
+        // Merge allowed columns from all referenced tables
         Set<String> allAllowedColumns = new HashSet<>();
         for (String table : allTables) {
             allAllowedColumns.addAll(metadataCacheService.getAllowedColumnNames(table));
         }
         if (allAllowedColumns.isEmpty()) {
-            return ValidationResult.pass(); // 无元数据则跳过
+            return ValidationResult.pass(); // skip if no metadata
         }
 
-        // 提取每个列名
+        // Extract each column name
         Set<String> usedColumns = extractColumnNames(columnsPart);
 
         for (String col : usedColumns) {
-            // 跳过聚合函数和表达式
+            // Skip aggregate functions and expressions
             if (isAggregateOrExpression(col)) continue;
 
             boolean allowed = allAllowedColumns.stream()
@@ -204,13 +205,13 @@ public class SqlValidationService {
     }
 
     /**
-     * 第五层：复杂度限制
+     * Layer 5: Complexity limits
      */
     private ValidationResult validateComplexity(String sql) {
         String upperSql = sql.toUpperCase();
         int maxTables = properties.getWhitelist().getMaxTablesPerQuery();
 
-        // 统计 JOIN 表数
+        // Count JOINed tables
         Matcher tableMatcher = TABLE_PATTERN.matcher(sql);
         int tableCount = 0;
         while (tableMatcher.find()) tableCount++;
@@ -221,11 +222,11 @@ public class SqlValidationService {
             );
         }
 
-        // 统计 WHERE 条件数（按 AND/OR 分割）
+        // Count WHERE conditions (split by AND/OR)
         int maxConditions = properties.getWhitelist().getMaxConditions();
         int andCount = countOccurrences(upperSql, "\\bAND\\b");
         int orCount = countOccurrences(upperSql, "\\bOR\\b");
-        int conditionCount = andCount + orCount + 1; // +1 为基础条件
+        int conditionCount = andCount + orCount + 1; // +1 for the base condition
 
         if (conditionCount > maxConditions) {
             return ValidationResult.fail(
@@ -236,30 +237,30 @@ public class SqlValidationService {
         return ValidationResult.pass();
     }
 
-    // ==================== 辅助方法 ====================
+    // ==================== Helper Methods ====================
 
     /**
-     * 标准化 SQL（去除多余空白）
+     * Normalize SQL (remove excess whitespace)
      */
     private String normalize(String sql) {
         return sql.replaceAll("\\s+", " ").trim();
     }
 
     /**
-     * 从 SELECT 列部分提取列名
+     * Extract column names from the SELECT column list
      */
     private Set<String> extractColumnNames(String columnsPart) {
         Set<String> columns = new HashSet<>();
-        // 按逗号分割
+        // Split by comma
         String[] parts = columnsPart.split(",");
         for (String part : parts) {
             part = part.trim();
-            // 提取最后一个词作为列名（处理 "t.col" → "col", "col AS alias" → "col"）
-            // 先处理 table.column 形式
+            // Extract the last word as column name (handle "t.col" -> "col", "col AS alias" -> "col")
+            // Handle table.column format first
             if (part.contains(".")) {
                 part = part.substring(part.lastIndexOf('.') + 1);
             }
-            // 提取第一个词（跳过聚合函数）
+            // Extract the first word (skip aggregate functions)
             String[] words = part.split("\\s+");
             if (words.length > 0) {
                 String col = words[0].replaceAll("[^a-zA-Z0-9_]", "");
@@ -272,7 +273,7 @@ public class SqlValidationService {
     }
 
     /**
-     * 判断是否是聚合函数或表达式
+     * Check if the column is an aggregate function or expression
      */
     private boolean isAggregateOrExpression(String col) {
         String upper = col.toUpperCase();
@@ -281,7 +282,7 @@ public class SqlValidationService {
     }
 
     /**
-     * 统计正则匹配次数
+     * Count regex matches
      */
     private int countOccurrences(String text, String regex) {
         Matcher m = Pattern.compile(regex).matcher(text);
@@ -291,17 +292,18 @@ public class SqlValidationService {
     }
 
     /**
-     * 第六层：敏感列校验。
+     * Layer 6: Sensitive column validation.
      * <p>
-     * 仅对非管理员用户生效。如果查询引用了敏感列且用户不是 ROLE_ADMIN，
-     * 校验失败 —— 调用方应将其路由到 HITL 审批流程。
+     * Only enforced for non-admin users. If the query references sensitive columns
+     * and the user is not ROLE_ADMIN, validation fails — the caller should route
+     * it to the HITL approval flow.
      */
     private ValidationResult validateSensitiveColumns(String sql, List<String> userRoles) {
-        // 管理员不受敏感列限制
+        // Admins are exempt from sensitive column restrictions
         if (userRoles != null && userRoles.stream().anyMatch(r -> "ROLE_ADMIN".equalsIgnoreCase(r))) {
             return ValidationResult.pass();
         }
-        // 未传入角色信息时回退，不阻止（避免破坏匿名/未认证场景，由上游决定）
+        // Fallback when no role info is provided; do not block (avoid breaking anonymous/unauthenticated scenarios, let upstream decide)
         if (userRoles == null || userRoles.isEmpty()) {
             return ValidationResult.pass();
         }
@@ -311,14 +313,14 @@ public class SqlValidationService {
             return ValidationResult.pass();
         }
 
-        // 如果是 SELECT *，检查全表 —— 宽松处理，仅标记警告
+        // For SELECT *, check the full table — lenient handling, only log a warning
         String upperSql = sql.toUpperCase();
         if (upperSql.contains("SELECT *") || upperSql.contains("SELECT COUNT(*)")) {
             log.info("⚠️ SELECT * query by non-admin may include sensitive columns; consider HITL review");
-            return ValidationResult.pass(); // 不阻断，由 HITL 机制处理
+            return ValidationResult.pass(); // Do not block, let the HITL mechanism handle it
         }
 
-        // 提取 SELECT 列并检查是否匹配敏感列
+        // Extract SELECT columns and check against sensitive columns
         Matcher selectMatcher = SELECT_COLUMNS_PATTERN.matcher(sql);
         if (selectMatcher.find()) {
             String columnsPart = selectMatcher.group(1);
@@ -336,7 +338,7 @@ public class SqlValidationService {
         return ValidationResult.pass();
     }
 
-    // ==================== 校验结果类 ====================
+    // ==================== Validation Result Class ====================
 
     public record ValidationResult(boolean passed, String message) {
         public static ValidationResult pass() {
@@ -350,8 +352,8 @@ public class SqlValidationService {
     }
 
     /**
-     * 向后兼容：不带角色参数的校验方法。
-     * 不进行敏感列检查（等同于管理员权限）。
+     * Backward compatible: validation method without role parameter.
+     * Does not perform sensitive column checks (equivalent to admin privileges).
      */
     public ValidationResult validate(String sql) {
         return validate(sql, null);

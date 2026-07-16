@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Code Agent 配置属性
+ * Code Agent configuration properties
  */
 @Data
 @Component
@@ -35,7 +35,7 @@ public class CodeAgentProperties {
         );
         private int maxTablesPerQuery = 3;
         private int maxConditions = 10;
-        /** 敏感列：普通用户查询这些列时需要触发 HITL 审批 */
+        /** Sensitive columns: when regular users query these columns, HITL approval is triggered */
         private List<String> sensitiveColumns = List.of(
                 "password", "id_card", "salary", "phone",
                 "account_no", "balance", "customer_no"

@@ -51,7 +51,7 @@ public class ToolController {
     }
 
     /**
-     * 查询会议室（返回所有会议室，标记是否可预定）
+     * Query meeting rooms (return all rooms, mark whether bookable).
      */
     @GetMapping("/meeting-rooms")
     public Result<List<Map<String, Object>>> getMeetingRooms(
@@ -67,7 +67,7 @@ public class ToolController {
     }
 
     /**
-     * 预定会议室
+     * Book a meeting room.
      */
     @PostMapping("/meeting-room/book")
     public Result<String> bookRoom(@RequestBody Map<String, Object> request) {
@@ -104,7 +104,7 @@ public class ToolController {
     }
 
     /**
-     * 检查日程冲突
+     * Check schedule conflicts.
      */
     @PostMapping("/check-conflict")
     public Result<Map<String, Object>> checkScheduleConflict(@RequestBody Map<String, Object> request) {
@@ -143,14 +143,14 @@ public class ToolController {
     }
 
     /**
-     * 添加日程（同时写入数据库 + Redis）
+     * Add a schedule (write to both database and Redis).
      */
     @PostMapping("/schedule/create")
     public Result<String> createSchedule(@RequestBody ScheduleCreateRequest request) {
-        // 1. 写入数据库（meeting_schedule 表，roomId=0 表示个人日程）并且返回带主键的对象
+        // Step 1. Write to database (meeting_schedule table, roomId=0 means personal schedule) and return object with primary key
         MeetingSchedule schedule = meetingRoomService.addPersonalSchedule(request);
 
-        // 2. 写入 Redis（用于快速冲突检测），使用 event_ + id 作为唯一标识
+        // Step 2. Write to Redis (for fast conflict detection), using event_ + id as unique identifier
         scheduleService.addSchedule(
                 request.getUserId(),
                 "event_" + schedule.getId(),

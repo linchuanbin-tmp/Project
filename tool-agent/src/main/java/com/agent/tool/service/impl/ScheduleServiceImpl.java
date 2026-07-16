@@ -22,7 +22,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         long startTs = startTime.toEpochSecond(ZoneOffset.ofHours(8));
         long endTs = endTime.toEpochSecond(ZoneOffset.ofHours(8));
 
-        // 查询该用户在 [startTs, endTs] 内是否有日程
+        // Check if the user has any schedules within [startTs, endTs]
         Set<String> events = redisTemplate.opsForZSet().rangeByScore(key, startTs, endTs);
         return events != null && !events.isEmpty();
     }

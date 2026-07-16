@@ -11,5 +11,5 @@ public class LoginRequest {
 
     private String password;
 
-    private String code;  // 验证码登录（可选，有值则走验证码登录）
+    private String code;  // Verification code (optional; if present, code-based login is used)
 }

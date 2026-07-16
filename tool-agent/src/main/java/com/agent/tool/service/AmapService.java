@@ -64,7 +64,7 @@ public class AmapService {
                 throw new RuntimeException("高德未返回路径数据");
             }
 
-            // 解析 polyline：优先取 path 级别的总 polyline，否则从 steps 拼接
+            // Parse polyline: prefer path-level polyline, otherwise concatenate from steps
             List<List<Double>> pathCoords = parsePolylineFromPath(pathNode);
 
             Map<String, Object> result = new HashMap<>();
@@ -79,7 +79,7 @@ public class AmapService {
             result.put("startPoint", List.of(Double.parseDouble(originParts[0]), Double.parseDouble(originParts[1])));
             result.put("endPoint", List.of(Double.parseDouble(destParts[0]), Double.parseDouble(destParts[1])));
 
-            // 关键修复：只有解析出真实坐标才用，否则抛异常让上层走 Mock
+            // Critical fix: only use if real coordinates are parsed, otherwise throw exception for upstream Mock fallback
             if (pathCoords.isEmpty()) {
                 log.warn("高德返回了路径，但 polyline 解析为空，降级到 Mock");
                 throw new RuntimeException("polyline 解析为空");
@@ -286,7 +286,7 @@ public class AmapService {
         }
     }
 
-    // ==================== 地理编码多级降级 ====================
+    // ==================== Geocoding Multi-Level Fallback ====================
 
     private String geocodeWithFallback(String address) {
         String location = geocode(address);
@@ -352,10 +352,10 @@ public class AmapService {
         }
     }
 
-    // ==================== Polyline 解析（核心修复） ====================
+    // ==================== Polyline Parsing (Core Fix) ====================
 
     /**
-     * 优先取 path 级别的 polyline，如果为空则从 steps 各段拼接
+     * Prefer path-level polyline; if empty, concatenate from individual steps.
      */
     private List<List<Double>> parsePolylineFromPath(JsonNode pathNode) {
         String polyline = pathNode.path("polyline").asText("");
@@ -369,7 +369,7 @@ public class AmapService {
             return coords;
         }
 
-        // 降级：从 steps 里每段的 polyline 拼接
+        // Fallback: concatenate polyline from each step
         log.info("path 级别 polyline 为空，尝试从 steps 拼接");
         JsonNode steps = pathNode.path("steps");
         if (steps.isArray()) {
@@ -403,7 +403,7 @@ public class AmapService {
         return coords;
     }
 
-    // ==================== 数据格式化工具 ====================
+    // ==================== Data Formatting Utilities ====================
 
     private List<Map<String, String>> parseSteps(JsonNode stepsNode) {
         List<Map<String, String>> steps = new ArrayList<>();

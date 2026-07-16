@@ -149,7 +149,7 @@ public class UserController {
             return Result.error(404, "User not found");
         }
 
-        // 所有认证用户都能看到全部用户列表
+        // All authenticated users can view the full user list
         return Result.success(userService.listUsers());
     }
 

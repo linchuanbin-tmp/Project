@@ -11,7 +11,7 @@ spring:
         locator:
           enabled: false
       routes:
-        # 用户中心路由
+        # User service route
         - id: user-service
           uri: ${USER_SERVICE_URI:http://localhost:8081}
           predicates:
@@ -24,7 +24,7 @@ spring:
                 redis-rate-limiter.burstCapacity: 20
                 key-resolver: "#{@ipKeyResolver}"
 
-        # 任务中心路由
+        # Task service route
         - id: task-service
           uri: ${TASK_SERVICE_URI:http://localhost:8082}
           predicates:
@@ -37,7 +37,7 @@ spring:
                 redis-rate-limiter.burstCapacity: 10
                 key-resolver: "#{@ipKeyResolver}"
 
-        # Tool Agent HTTP 路由
+        # Tool Agent HTTP route
         - id: tool-agent
           uri: ${TOOL_SERVICE_URI:http://localhost:8083}
           predicates:
@@ -50,7 +50,7 @@ spring:
                 redis-rate-limiter.burstCapacity: 10
                 key-resolver: "#{@ipKeyResolver}"
 
-        # Task Service WebSocket 路由
+        # Task Service WebSocket route
         - id: task-ws
           uri: ${TASK_SERVICE_WS_URI:ws://localhost:8082}
           predicates:
@@ -58,7 +58,7 @@ spring:
           filters:
             - StripPrefix=2
 
-        # Code Agent 路由
+        # Code Agent route
         - id: code-agent
           uri: ${CODE_SERVICE_URI:http://localhost:8084}
           predicates:
@@ -79,7 +79,7 @@ spring:
           filters:
             - StripPrefix=1
 
-        # Dashboard Intent Router 路由
+        # Dashboard Intent Router route
         - id: dashboard-route
           uri: ${CODE_AGENT_PYTHON_BASE_URL:http://localhost:8090}
           predicates:
@@ -97,6 +97,6 @@ logging:
   level:
     org.springframework.cloud.gateway: DEBUG
 
-# JWT配置（由 JWT_SECRET 环境变量覆盖）
+# JWT configuration (overridden by JWT_SECRET environment variable)
 jwt:
   secret: ${JWT_SECRET:your-secret-key-here-change-in-production}

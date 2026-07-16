@@ -24,7 +24,7 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     map-underscore-to-camel-case: true
 
-# DeepSeek API 配置（Docker 环境由 AI_DEEPSEEK_API_KEY 等环境变量覆盖）
+# LLM API configuration (overridden by AI_DEEPSEEK_* env vars in Docker)
 ai:
   deepseek:
     api-key: ${AI_DEEPSEEK_API_KEY:2a62ecda76e5be506cbf442160539507:OWVkYWYzZTE2NDBkNmNjOThjNzNmMzYx}
@@ -32,7 +32,7 @@ ai:
     model: ${AI_DEEPSEEK_MODEL:xopdeepseekv32}
     timeout: 6000
 
-# 高德地图（Docker 环境由 AMAP_KEY 环境变量覆盖）
+# AMap (overridden by AMAP_KEY env var in Docker)
 amap:
   key: ${AMAP_KEY:f5a3d5e1af9c992f925692aae7b04115}
 

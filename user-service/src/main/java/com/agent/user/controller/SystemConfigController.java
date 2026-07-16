@@ -160,7 +160,7 @@ public class SystemConfigController {
         return value;
     }
 
-    // ── AI Provider 配置 ─────────────────────────────────────────────
+    // ── AI Provider Configuration ─────────────────────────────────────
 
     /**
      * GET /user/config/ai-provider
@@ -330,7 +330,7 @@ public class SystemConfigController {
         return map;
     }
 
-    // ── Max Upload Size 配置 ──────────────────────────────────────────
+    // ── Max Upload Size Configuration ─────────────────────────────────
 
     @GetMapping("/max-upload-size")
     @PreAuthorize("hasRole('ADMIN')")

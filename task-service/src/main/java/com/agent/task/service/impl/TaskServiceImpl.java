@@ -74,7 +74,7 @@ public class TaskServiceImpl implements TaskService {
     public TaskRecord submitTask(String username, String rolesHeader, String taskType, String input) {
         Long userId = getUserIdByUsername(username);
 
-        // 1. 创建数据库记录
+        // Step 1: Create database record
         TaskRecord record = new TaskRecord();
         record.setTaskType(taskType);
         record.setStatus("INIT");
@@ -88,7 +88,7 @@ public class TaskServiceImpl implements TaskService {
 
         log.info("Task created in database: taskId={}, type={}", record.getId(), taskType);
 
-        // 2. 异步执行任务（队列满时返回友好错误）
+        // Step 2: Execute task asynchronously (return friendly error if queue full)
         String wsTaskId = String.valueOf(record.getId());
         try {
             executor.execute(() -> executeWithRetry(record, wsTaskId, username, rolesHeader));
@@ -105,11 +105,12 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public void submitTaskFromWebSocket(String taskIdStr, String taskType, String input) {
-        // 如果是前端随机生成的 mock taskId 字符串，我们直接创建对应的 DB 任务，并保留该 mock taskId 用于 WS 回传进度
-        Long userId = 1L; // 默认分配给 admin (ID 1) 或者系统用户
+        // If a random mock taskId string was passed from the frontend, create the corresponding DB record
+        // and retain the mock taskId for WebSocket progress callbacks
+        Long userId = 1L; // Default assign to admin (ID 1) or system user
 
         TaskRecord record = new TaskRecord();
-        // 尝试解析 taskIdStr 是否为数据库 ID，如果是数字则使用，否则自动生成
+        // Try parsing taskIdStr as database ID; use if numeric, otherwise auto-generate
         boolean isNumericId = false;
         try {
             Long dbId = Long.parseLong(taskIdStr);
@@ -117,7 +118,7 @@ public class TaskServiceImpl implements TaskService {
             isNumericId = true;
         } catch (NumberFormatException ignored) {}
 
-        // 如果是 mock，不指定 ID 让数据库自增，得到自增 ID 后再和 mock taskId 对应
+        // For mock task IDs, let the DB auto-generate the ID; map mock taskId to the auto-generated ID later
         record.setTaskType(taskType != null ? taskType : "TOOL");
         record.setStatus("INIT");
         record.setUserId(userId);
@@ -135,7 +136,7 @@ public class TaskServiceImpl implements TaskService {
 
         log.info("WebSocket triggered task submission: dbTaskId={}, wsTaskId={}", record.getId(), taskIdStr);
 
-        // 异步执行
+        // Execute asynchronously
         try {
             executor.execute(() -> executeWithRetry(record, taskIdStr, "admin", "ROLE_ADMIN"));
         } catch (java.util.concurrent.RejectedExecutionException e) {
@@ -214,12 +215,12 @@ public class TaskServiceImpl implements TaskService {
         long startTime = System.currentTimeMillis();
         log.info("Starting execution of task: dbTaskId={}, type={}", record.getId(), record.getTaskType());
 
-        // 1. 更新状态为 RUNNING
+        // Step 1: Update status to RUNNING
         record.setStatus("RUNNING");
         record.setUpdatedAt(LocalDateTime.now());
         taskRecordMapper.updateById(record);
 
-        // 2. 发送 WebSocket 进度 - 开始阶段
+        // Step 2: Send WebSocket progress - start phase
         sendProgress(wsTaskId, 10, "running", "Analyzing...");
 
         try {
@@ -227,7 +228,7 @@ public class TaskServiceImpl implements TaskService {
             if ("CODE".equalsIgnoreCase(record.getTaskType())) {
                 sendProgress(wsTaskId, 30, "running", "Connecting to Code Agent...");
 
-                // 调用 Code Agent
+                // Call Code Agent
                 Map<String, String> requestBody = Map.of("question", record.getInput());
 
                 HttpHeaders headers = new HttpHeaders();
@@ -245,7 +246,7 @@ public class TaskServiceImpl implements TaskService {
                 if (response != null) {
                     resultOutput = objectMapper.writeValueAsString(response);
 
-                    // 检查响应中是否有错误字段
+                    // Check if response contains error field
                     if (response.containsKey("error") && response.get("error") != null && !response.get("error").toString().isEmpty()) {
                         throw new RuntimeException("Code Agent Execution Error: " + response.get("error"));
                     }
@@ -256,7 +257,7 @@ public class TaskServiceImpl implements TaskService {
             } else if ("TOOL".equalsIgnoreCase(record.getTaskType()) || "AI".equalsIgnoreCase(record.getTaskType())) {
                 sendProgress(wsTaskId, 25, "running", "Routing to Tool Agent...");
 
-                // 调用 Tool Agent
+                // Call Tool Agent
                 Map<String, Object> requestBody = Map.of(
                         "toolType", "AI",
                         "naturalLanguage", record.getInput(),
@@ -323,7 +324,7 @@ public class TaskServiceImpl implements TaskService {
 
             sendProgress(wsTaskId, 80, "running", "Processing result...");
 
-            // 3. 执行成功后更新状态
+            // Step 3. Update status after successful execution
             long endTime = System.currentTimeMillis();
             record.setStatus("SUCCESS");
             record.setOutput(resultOutput);
@@ -337,7 +338,7 @@ public class TaskServiceImpl implements TaskService {
         } catch (Exception e) {
             log.error("Task execution failed: dbTaskId={}", record.getId(), e);
 
-            // 4. 执行失败后更新状态
+            // Step 4. Update status after execution failure
             long endTime = System.currentTimeMillis();
             record.setStatus("FAIL");
             record.setErrorMsg(e.getMessage());

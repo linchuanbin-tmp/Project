@@ -34,7 +34,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     @Value("${jwt.secret}")
     private String secret;
 
-    // 白名单接口，直接放行
+    // Whitelist: endpoints that bypass authentication
     private static final List<String> WHITELIST = Arrays.asList(
             "/api/user/login",
             "/api/user/register",
@@ -53,12 +53,12 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
 
-        // 1. 白名单直接放行
+        // 1. Allow whitelisted paths
         if (isWhitelisted(path)) {
             return chain.filter(exchange);
         }
 
-        // 2. 获取 Authorization Header
+        // 2. Extract Authorization header
         String authHeader = request.getHeaders().getFirst("Authorization");
         if (!StringUtils.hasText(authHeader) || !authHeader.startsWith("Bearer ")) {
             return handleUnauthorized(exchange, "Missing or invalid Authorization header");
@@ -67,7 +67,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         String token = authHeader.substring(7);
 
         try {
-            // 3. 校验并解析 Token
+            // 3. Validate and parse JWT token
             Claims claims = Jwts.parser()
                     .verifyWith(getKey())
                     .build()
@@ -145,6 +145,6 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return -100; // 较高优先级
+        return -100; // Higher priority (runs before other filters)
     }
 }

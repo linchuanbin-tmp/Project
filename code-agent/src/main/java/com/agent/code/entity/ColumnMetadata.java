@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.io.Serializable;
 
 /**
- * 列元数据实体
+ * Column metadata entity
  */
 @Data
 @Builder
@@ -18,18 +18,18 @@ public class ColumnMetadata implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 列名 */
+    /** Column name */
     private String columnName;
 
-    /** 数据类型 (varchar, int, datetime...) */
+    /** Data type (varchar, int, datetime...) */
     private String dataType;
 
-    /** 是否可为空 */
+    /** Whether nullable */
     private Boolean nullable;
 
-    /** 列注释 */
+    /** Column comment */
     private String comment;
 
-    /** 是否是主键 */
+    /** Whether primary key */
     private Boolean isPrimaryKey;
 }

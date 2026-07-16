@@ -30,13 +30,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // 禁用CSRF（因为是前后端分离，用JWT）
+                // Disable CSRF (separate frontend/backend, uses JWT)
                 .csrf(csrf -> csrf.disable())
-                // 无状态会话（不用Session）
+                // Stateless sessions (no server-side session)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                // 放行登录和注册接口，其他需要认证
+                // Permit login and register endpoints; all others require authentication
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/user/login", "/user/register", "/user/logout", "/user/send-code", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/user/config/ai-provider").permitAll()
@@ -44,7 +44,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/user/config/ai-provider/test").permitAll()
                         .anyRequest().authenticated()
                 )
-                // 添加 JWT 过滤器
+                // Add JWT authentication filter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

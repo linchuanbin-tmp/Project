@@ -5,10 +5,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * Code Agent 启动类
+ * Code Agent entry point
  * <p>
- * 基于 ONNX Runtime 的本地 SQL 生成与白名单校验服务。
- * 端口 8084，通过 Gateway (8080) 统一路由。
+ * Local SQL generation and whitelist validation service backed by ONNX Runtime / LLM API.
+ * Runs on port 8084, routed through Gateway (8080).
  *
  * @author Lin Chuanbin
  */

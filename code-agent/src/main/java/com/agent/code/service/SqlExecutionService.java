@@ -10,10 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * SQL 安全执行服务
+ * SQL secure execution service
  * <p>
- * 通过 Spring JdbcTemplate 执行白名单校验通过的 SQL，
- * 自动使用 PreparedStatement 防注入，结果以 List&lt;Map&gt; 返回。
+ * Execute whitelisted SQL via Spring JdbcTemplate,
+ * automatically use PreparedStatement to prevent injection, results returned as List&lt;Map&gt;.
  */
 @Slf4j
 @Service
@@ -24,13 +24,13 @@ public class SqlExecutionService {
     private final SqlValidationService validationService;
 
     /**
-     * 执行 SQL 并返回结果
+     * Execute SQL and return results
      *
-     * @param sql 通过白名单校验的 SQL
-     * @return 执行结果（列名 + 数据行）
+     * @param sql SQL that passed whitelist validation
+     * @return execution result (column names + data rows)
      */
     public ExecutionResult execute(String sql) {
-        // 执行前再次校验（纵深防御）
+        // Re-validate before execution (defense in depth)
         SqlValidationService.ValidationResult validation = validationService.validate(sql);
         if (!validation.passed()) {
             return ExecutionResult.fail("白名单校验失败: " + validation.message());
@@ -56,10 +56,10 @@ public class SqlExecutionService {
     }
 
     /**
-     * 生成 SQL 并执行（一键式接口）
+     * Generate SQL and execute (one-click interface)
      */
     public FullResult generateAndExecute(String question, CodeGenerationService generationService) {
-        // 1. 生成
+        // Step 1. Generate
         var genResponse = generationService.generateSQL(
                 new com.agent.code.dto.CodeGenerationRequest(question, "agent_platform"));
 
@@ -72,7 +72,7 @@ public class SqlExecutionService {
                     .build();
         }
 
-        // 2. 执行
+        // Step 2. Execute
         ExecutionResult execResult = execute(genResponse.getSql());
 
         return FullResult.builder()
@@ -89,7 +89,7 @@ public class SqlExecutionService {
                 .build();
     }
 
-    // ==================== 内部类 ====================
+    // ==================== Inner Classes ====================
 
     public record ExecutionResult(
             boolean success,

@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * SQL 生成响应 DTO
+ * SQL generation response DTO
  */
 @Data
 @Builder
@@ -14,21 +14,21 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CodeGenerationResponse {
 
-    /** 是否成功 */
+    /** Whether successful */
     private Boolean success;
 
-    /** 生成的 SQL */
+    /** Generated SQL */
     private String sql;
 
-    /** 原始问题 */
+    /** Original question */
     private String question;
 
-    /** 使用的推理方式: LLM */
+    /** Inference method used: LLM */
     private String inferenceMethod;
 
-    /** 白名单校验结果 */
+    /** Whitelist validation result */
     private Boolean whitelistPassed;
 
-    /** 错误信息（如有） */
+    /** Error message (if any) */
     private String errorMessage;
 }

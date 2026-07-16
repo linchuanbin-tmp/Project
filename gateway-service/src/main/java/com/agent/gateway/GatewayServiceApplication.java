@@ -12,7 +12,7 @@ public class GatewayServiceApplication {
         SpringApplication.run(GatewayServiceApplication.class, args);
     }
 
-    // IP限流解析器
+    // IP rate limiter key resolver
     @Bean
     public KeyResolver ipKeyResolver() {
         return exchange -> Mono.just(

@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
- * 元数据缓存查询响应
+ * Metadata cache query response
  */
 @Data
 @Builder
@@ -16,15 +16,15 @@ import java.util.List;
 @AllArgsConstructor
 public class MetadataCacheResponse {
 
-    /** 缓存的表数量 */
+    /** Number of cached tables */
     private Integer tableCount;
 
-    /** 表名列表 */
+    /** List of table names */
     private List<String> tableNames;
 
-    /** 缓存来源 */
+    /** Cache source */
     private String source;
 
-    /** 查询时间戳 */
+    /** Query timestamp */
     private Long timestamp;
 }
