@@ -17,6 +17,8 @@ public interface RagIndexService {
 
     RagIndexResponse deleteDocumentIndex(Long documentId);
 
+    RagIndexResponse getTask(Long taskId);
+
     List<RagIndexTask> listTasks(Integer limit);
 
     List<RagDocumentIndexStatus> listDocumentIndexStatus();

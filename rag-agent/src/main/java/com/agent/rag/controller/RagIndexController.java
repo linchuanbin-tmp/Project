@@ -48,6 +48,11 @@ public class RagIndexController {
         return ragIndexService.listTasks(limit);
     }
 
+    @GetMapping("/tasks/{taskId}")
+    public RagIndexResponse getTask(@PathVariable Long taskId) {
+        return ragIndexService.getTask(taskId);
+    }
+
     @GetMapping("/documents/status")
     public List<RagDocumentIndexStatus> listDocumentIndexStatus() {
         return ragIndexService.listDocumentIndexStatus();

@@ -22,6 +22,8 @@ import com.agent.rag.service.RagIndexService;
 import com.agent.rag.service.VectorStoreService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +33,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,6 +48,7 @@ public class RagIndexServiceImpl implements RagIndexService {
     private static final String STATUS_RUNNING = "RUNNING";
     private static final String STATUS_SUCCESS = "SUCCESS";
     private static final String STATUS_FAIL = "FAIL";
+    private static final String STATUS_QUEUED = "QUEUED";
     private static final String PARSE_STATUS_PENDING = "PENDING";
     private static final String PARSE_STATUS_DONE = "DONE";
     private static final String PARSE_STATUS_FAILED = "FAILED";
@@ -59,6 +63,10 @@ public class RagIndexServiceImpl implements RagIndexService {
     private final VectorStoreService vectorStoreService;
     private final EmbeddingRuntimeConfigService embeddingConfigService;
 
+    @Autowired
+    @Qualifier("ragIndexTaskExecutor")
+    private Executor ragIndexTaskExecutor;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RagIndexResponse indexDocument(Long documentId) {
@@ -72,10 +80,19 @@ public class RagIndexServiceImpl implements RagIndexService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public RagIndexResponse rebuildAll() {
-        RagIndexTask task = createTask(null, TASK_REBUILD_ALL);
+        RagIndexTask task = createTask(null, TASK_REBUILD_ALL, STATUS_QUEUED, "Queued full index rebuild.");
+        ragIndexTaskExecutor.execute(() -> runRebuildAll(task.getId()));
+        return response(task, 0);
+    }
+
+    private void runRebuildAll(Long taskId) {
+        RagIndexTask task = ragIndexTaskMapper.selectById(taskId);
+        if (task == null) {
+            return;
+        }
         try {
+            markTask(task, STATUS_RUNNING, "Rebuilding active embedding profile index.");
             embeddingConfigService.markActiveIndexRebuilding();
             int totalChunks = embeddingConfigService.withCurrentProfile(() -> {
                 List<SysDocument> documents = sysDocumentMapper.selectList(null);
@@ -87,11 +104,9 @@ public class RagIndexServiceImpl implements RagIndexService {
                 return chunks;
             });
             embeddingConfigService.markActiveIndexReady();
-            return response(task, totalChunks);
         } catch (Exception e) {
             embeddingConfigService.markActiveIndexFailed(e.getMessage());
             markTask(task, STATUS_FAIL, e.getMessage());
-            return response(task, 0);
         }
     }
 
@@ -111,6 +126,15 @@ public class RagIndexServiceImpl implements RagIndexService {
             markTask(task, STATUS_FAIL, e.getMessage());
             return response(task, 0);
         }
+    }
+
+    @Override
+    public RagIndexResponse getTask(Long taskId) {
+        RagIndexTask task = ragIndexTaskMapper.selectById(taskId);
+        if (task == null) {
+            throw new IllegalArgumentException("RAG index task not found: " + taskId);
+        }
+        return response(task, null);
     }
 
     @Override
@@ -171,6 +195,8 @@ public class RagIndexServiceImpl implements RagIndexService {
                     .embeddingModel(config.getModel())
                     .vectorCollection(config.getCollectionName())
                     .indexStatus(embeddingConfigService.getActiveIndexStatus())
+                    .pipelineStatus(resolvePipelineStatus(document, documentChunks))
+                    .pipelineMessage(resolvePipelineMessage(document, documentChunks))
                     .build());
         }
         return result;
@@ -325,15 +351,58 @@ public class RagIndexServiceImpl implements RagIndexService {
     }
 
     private RagIndexTask createTask(Long documentId, String taskType) {
+        return createTask(documentId, taskType, STATUS_RUNNING, "Started");
+    }
+
+    private RagIndexTask createTask(Long documentId, String taskType, String status, String message) {
         RagIndexTask task = new RagIndexTask();
         task.setDocumentId(documentId);
         task.setTaskType(taskType);
-        task.setStatus(STATUS_RUNNING);
-        task.setMessage("Started");
+        task.setStatus(status);
+        task.setMessage(message);
         task.setCreateTime(LocalDateTime.now());
         task.setUpdateTime(LocalDateTime.now());
         ragIndexTaskMapper.insert(task);
         return task;
+    }
+
+    private String resolvePipelineStatus(SysDocument document, List<RagDocumentChunk> chunks) {
+        String parseStatus = document.getParseStatus();
+        if (PARSE_STATUS_PENDING.equalsIgnoreCase(parseStatus)) {
+            return "PARSING";
+        }
+        if (PARSE_STATUS_FAILED.equalsIgnoreCase(parseStatus)) {
+            return "FAILED";
+        }
+        if (chunks.stream().anyMatch(chunk -> STATUS_RUNNING.equalsIgnoreCase(chunk.getIndexStatus()))) {
+            return "INDEXING";
+        }
+        if (chunks.stream().anyMatch(chunk -> STATUS_FAIL.equalsIgnoreCase(chunk.getIndexStatus()))) {
+            return "FAILED";
+        }
+        if (!chunks.isEmpty()) {
+            return "INDEXED";
+        }
+        if (document.getContent() != null && !document.getContent().isBlank()) {
+            return "READY_TO_INDEX";
+        }
+        if (document.getMinioObjectKey() != null && !document.getMinioObjectKey().isBlank()) {
+            return "PENDING_PARSE";
+        }
+        return "EMPTY";
+    }
+
+    private String resolvePipelineMessage(SysDocument document, List<RagDocumentChunk> chunks) {
+        String status = resolvePipelineStatus(document, chunks);
+        return switch (status) {
+            case "PARSING" -> "Document text extraction is pending.";
+            case "PENDING_PARSE" -> "Original file is stored and waiting for text extraction.";
+            case "READY_TO_INDEX" -> "Document text is available but no vector chunks exist for the active profile.";
+            case "INDEXING" -> "Vector chunks are being written for the active profile.";
+            case "INDEXED" -> "Document is indexed for the active embedding profile.";
+            case "FAILED" -> "Parsing or indexing failed. Reprocess the document to retry.";
+            default -> "Document has no text or stored source file to index.";
+        };
     }
 
     private void markTask(RagIndexTask task, String status, String message) {

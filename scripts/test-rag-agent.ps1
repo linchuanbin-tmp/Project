@@ -69,17 +69,33 @@ function Assert-Condition {
     }
 }
 
+function Wait-RagIndexTask {
+    param(
+        [long]$TaskId,
+        [int]$TimeoutSeconds = 600
+    )
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        $task = Invoke-RagGet "/rag/index/tasks/$TaskId"
+        if ($task.status -in @("SUCCESS", "FAIL")) {
+            return $task
+        }
+        Start-Sleep -Seconds 2
+    } while ((Get-Date) -lt $deadline)
+    throw "Timed out waiting for RAG index task $TaskId"
+}
+
 function Test-NoPermissionLeak {
     param(
         [object]$Response,
-        [Nullable[int]]$DeptId,
+        [object]$DeptId,
         [int]$ClearanceLevel
     )
     foreach ($chunk in @($Response.chunks)) {
         $chunkDept = if ($null -ne $chunk.deptId) { [int]$chunk.deptId } else { 0 }
         $chunkLevel = if ($null -ne $chunk.securityLevel) { [int]$chunk.securityLevel } else { 1 }
         $global = $chunkDept -eq 0
-        $sameDept = $DeptId.HasValue -and $chunkDept -eq $DeptId.Value
+        $sameDept = $null -ne $DeptId -and $chunkDept -eq [int]$DeptId
         if (($global -or $sameDept) -and $chunkLevel -le $ClearanceLevel) {
             continue
         }
@@ -121,7 +137,9 @@ if (-not $SkipRebuild) {
     try {
         $rebuild = Invoke-RagPost -Path "/rag/index/rebuild" -Body @{} -Username "admin" -Roles "ROLE_ADMIN"
         $rebuild | Format-List
-        Assert-Condition ($rebuild.status -eq "SUCCESS" -and $rebuild.chunkCount -gt 0) "Index rebuild succeeded with chunks." "Index rebuild did not succeed."
+        $finalTask = if ($rebuild.taskId) { Wait-RagIndexTask -TaskId $rebuild.taskId } else { $rebuild }
+        $finalTask | Format-List
+        Assert-Condition ($finalTask.status -eq "SUCCESS") "Index rebuild task completed successfully." "Index rebuild did not succeed."
     } catch {
         Write-Fail "Index rebuild failed: $($_.Exception.Message)"
     }

@@ -46,4 +46,8 @@ public class RagDocumentIndexStatus {
     private String vectorCollection;
 
     private String indexStatus;
+
+    private String pipelineStatus;
+
+    private String pipelineMessage;
 }

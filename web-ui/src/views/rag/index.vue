@@ -253,6 +253,9 @@
                   <div class="doc-tags-row">
                     <span class="level-tag" :class="levelClass(doc.securityLevel)">Level {{ doc.securityLevel || 1 }}</span>
                     <span class="reason-tag" :class="reasonClass(doc.accessReason)">{{ reasonLabel(doc.accessReason) }}</span>
+                    <span v-if="documentPipelineStatus(doc.documentId)" class="reason-tag" :class="pipelineClass(documentPipelineStatus(doc.documentId))">
+                      {{ documentPipelineStatus(doc.documentId) }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -307,6 +310,9 @@
               <p>
                 <span class="level-tag" :class="levelClass(doc.securityLevel)">Level {{ doc.securityLevel || 1 }}</span>
                 <span class="reason-tag">{{ doc.accessReason }}</span>
+                <span v-if="documentPipelineStatus(doc.documentId)" class="reason-tag" :class="pipelineClass(documentPipelineStatus(doc.documentId))">
+                  {{ documentPipelineStatus(doc.documentId) }}
+                </span>
               </p>
             </div>
           </div>
@@ -351,6 +357,7 @@ import {
   getAccessibleDocuments,
   getRagHealth,
   getRagDocumentIndexStatus,
+  getRagIndexTask,
   getRagIndexTasks,
   indexRagDocument,
   queryRag,
@@ -483,6 +490,17 @@ const handleRebuild = async () => {
     const result = await rebuildRagIndex()
     ElMessage.success(result.message || 'RAG index rebuild started.')
     await loadTasks()
+    if (result.taskId) {
+      const finalTask = await waitForIndexTask(result.taskId)
+      if (finalTask.status === 'SUCCESS') {
+        ElMessage.success(finalTask.message || 'RAG index rebuild completed.')
+      } else if (finalTask.status === 'FAIL') {
+        ElMessage.error(finalTask.message || 'RAG index rebuild failed.')
+      }
+      await refreshWorkspace()
+    }
+  } catch (error: any) {
+    ElMessage.error(error.message || 'Failed to rebuild RAG index.')
   } finally {
     rebuilding.value = false
   }
@@ -549,10 +567,15 @@ const documentSecurityLevel = (documentId: number) => {
   return documentStatusMap.value[documentId]?.securityLevel
 }
 
+const documentPipelineStatus = (documentId: number) => {
+  return documentStatusMap.value[documentId]?.pipelineStatus
+}
+
 const statusTagType = (status?: string) => {
   if (status === 'SUCCESS') return 'success'
   if (status === 'FAIL') return 'danger'
   if (status === 'RUNNING') return 'warning'
+  if (status === 'QUEUED') return 'info'
   if (status === 'LLM_FALLBACK') return 'warning'
   if (status === 'NO_CONTEXT') return 'info'
   return ''
@@ -583,6 +606,29 @@ const reasonClass = (reason?: string) => {
   if (reason === 'GLOBAL_CLEARANCE') return 'global'
   if (reason === 'DEPARTMENT_CLEARANCE') return 'dept'
   return ''
+}
+
+const pipelineClass = (status?: string) => {
+  if (!status) return ''
+  if (status === 'INDEXED') return 'approved'
+  if (status === 'INDEXING' || status === 'PARSING' || status === 'PENDING_PARSE') return 'dept'
+  if (status === 'READY_TO_INDEX') return 'global'
+  if (status === 'FAILED' || status === 'EMPTY') return 'admin'
+  return ''
+}
+
+const wait = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms))
+
+const waitForIndexTask = async (taskId: number) => {
+  for (let attempt = 0; attempt < 180; attempt += 1) {
+    const task = await getRagIndexTask(taskId)
+    if (task.status === 'SUCCESS' || task.status === 'FAIL') {
+      return task
+    }
+    await loadTasks()
+    await wait(2000)
+  }
+  throw new Error('RAG index rebuild is still running. Please refresh tasks later.')
 }
 
 const formatTime = (value?: string) => {

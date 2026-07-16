@@ -93,6 +93,8 @@ export interface RagDocumentIndexStatus {
   embeddingModel?: string
   vectorCollection?: string
   indexStatus?: string
+  pipelineStatus?: string
+  pipelineMessage?: string
 }
 
 export interface RagDocumentChunkDetail {
@@ -197,6 +199,9 @@ export const getAccessibleDocuments = () =>
 
 export const getRagIndexTasks = (limit = 10) =>
   request.get<any, RagIndexTask[]>('/rag/index/tasks', { params: { limit } })
+
+export const getRagIndexTask = (taskId: number) =>
+  request.get<any, RagIndexResponse>(`/rag/index/tasks/${taskId}`)
 
 export const rebuildRagIndex = () =>
   request.post<any, RagIndexResponse>('/rag/index/rebuild')

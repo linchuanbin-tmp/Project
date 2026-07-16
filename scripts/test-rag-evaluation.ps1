@@ -53,17 +53,33 @@ function Invoke-RagPost {
         -TimeoutSec 240
 }
 
+function Wait-RagIndexTask {
+    param(
+        [long]$TaskId,
+        [int]$TimeoutSeconds = 600
+    )
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        $task = Invoke-RagGet "/rag/index/tasks/$TaskId"
+        if ($task.status -in @("SUCCESS", "FAIL")) {
+            return $task
+        }
+        Start-Sleep -Seconds 2
+    } while ((Get-Date) -lt $deadline)
+    throw "Timed out waiting for RAG index task $TaskId"
+}
+
 function Test-NoPermissionLeak {
     param(
         [object]$Response,
-        [Nullable[int]]$DeptId,
+        [object]$DeptId,
         [int]$ClearanceLevel
     )
     foreach ($chunk in @($Response.chunks)) {
         $chunkDept = if ($null -ne $chunk.deptId) { [int]$chunk.deptId } else { 0 }
         $chunkLevel = if ($null -ne $chunk.securityLevel) { [int]$chunk.securityLevel } else { 1 }
         $global = $chunkDept -eq 0
-        $sameDept = $DeptId.HasValue -and $chunkDept -eq $DeptId.Value
+        $sameDept = $null -ne $DeptId -and $chunkDept -eq [int]$DeptId
         if (($global -or $sameDept) -and $chunkLevel -le $ClearanceLevel) {
             continue
         }
@@ -114,7 +130,8 @@ try {
 if (-not $SkipRebuild) {
     try {
         $rebuild = Invoke-RagPost -Path "/rag/index/rebuild" -Body @{}
-        Add-Result "Index rebuild" "Active profile rebuild" "status = SUCCESS and chunkCount > 0" "status=$($rebuild.status), chunkCount=$($rebuild.chunkCount)" ($(if ($rebuild.status -eq "SUCCESS" -and $rebuild.chunkCount -gt 0) { "PASS" } else { "FAIL" }))
+        $finalTask = if ($rebuild.taskId) { Wait-RagIndexTask -TaskId $rebuild.taskId } else { $rebuild }
+        Add-Result "Index rebuild" "Active profile rebuild" "final status = SUCCESS" "taskId=$($rebuild.taskId), initial=$($rebuild.status), final=$($finalTask.status), message=$($finalTask.message)" ($(if ($finalTask.status -eq "SUCCESS") { "PASS" } else { "FAIL" }))
     } catch {
         Add-Result "Index rebuild" "Active profile rebuild" "rebuild endpoint succeeds" $_.Exception.Message "FAIL"
     }
@@ -202,7 +219,8 @@ foreach ($row in $results) {
     $markdown.Add("| $(Escape-MarkdownCell $row.Area) | $(Escape-MarkdownCell $row.Case) | $(Escape-MarkdownCell $row.Expected) | $(Escape-MarkdownCell $row.Observed) | $(Escape-MarkdownCell $row.Status) |") | Out-Null
 }
 $markdown.Add("") | Out-Null
-$markdown.Add("Notes: failure-fallback behavior is represented by controlled `LLM_FALLBACK`/`FAIL` statuses and should be tested manually by disabling the relevant external dependency when required.") | Out-Null
+$markdown.Add("Notes: full index rebuild is asynchronous; the script follows the returned task id until `SUCCESS` or `FAIL` unless `-SkipRebuild` is used.") | Out-Null
+$markdown.Add("Failure-fallback behavior is represented by controlled `LLM_FALLBACK`/`FAIL` statuses and should be tested manually by disabling the relevant external dependency when required.") | Out-Null
 
 $outFile = Resolve-Path -Path "." | ForEach-Object { Join-Path $_ $OutputPath }
 $outDir = Split-Path $outFile -Parent
