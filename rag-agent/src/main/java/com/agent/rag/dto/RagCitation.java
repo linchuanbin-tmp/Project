@@ -9,6 +9,8 @@ public class RagCitation {
 
     private Long documentId;
 
+    private String documentTitle;
+
     private Long chunkId;
 
     private Integer chunkIndex;

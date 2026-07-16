@@ -179,7 +179,7 @@
 
                     <!-- Render payload ONLY on the message that contains it -->
                     <!-- Custom Renderer: RAG_APPLY -->
-                    <div v-if="msgItem.notifyType === 'RAG_APPLY' && msgItem.payload && parseSinglePayload(msgItem.payload)" class="payload-container rag-card">
+                    <div v-if="msgItem.notifyType === 'RAG_APPLY' && msgItem.payload && ragPayload(msgItem.payload)" class="payload-container rag-card">
                       <div class="payload-header">
                         <BookOpen :size="16" />
                         <span>RAG Permission Request Details</span>
@@ -188,23 +188,27 @@
                         <div class="info-grid">
                           <div class="info-cell">
                             <span class="info-label">Applicant:</span>
-                            <span class="info-val">{{ parseSinglePayload(msgItem.payload).username }} (ID: {{ parseSinglePayload(msgItem.payload).userId }})</span>
+                            <span class="info-val">{{ ragPayload(msgItem.payload)?.username }} (ID: {{ ragPayload(msgItem.payload)?.userId }})</span>
                           </div>
                           <div class="info-cell">
                             <span class="info-label">Target Document:</span>
-                            <span class="info-val code-font">{{ parseSinglePayload(msgItem.payload).docName }}</span>
+                            <span class="info-val code-font">{{ ragPayload(msgItem.payload)?.docName }}</span>
                           </div>
                           <div class="info-cell">
                             <span class="info-label">Document ID:</span>
-                            <span class="info-val">{{ parseSinglePayload(msgItem.payload).docId }}</span>
+                            <span class="info-val">{{ ragPayload(msgItem.payload)?.docId }}</span>
                           </div>
                           <div class="info-cell">
                             <span class="info-label">Required Security Level:</span>
                             <span class="info-val">
-                              <span class="level-tag" :class="'level-' + parseSinglePayload(msgItem.payload).level">
-                                Level {{ parseSinglePayload(msgItem.payload).level }}
+                              <span class="level-tag" :class="'level-' + ragPayload(msgItem.payload)?.level">
+                                Level {{ ragPayload(msgItem.payload)?.level }}
                               </span>
                             </span>
+                          </div>
+                          <div class="info-cell">
+                            <span class="info-label">Temporary Access:</span>
+                            <span class="info-val">{{ ragPayload(msgItem.payload)?.ttlHours }} hours after approval</span>
                           </div>
                         </div>
                       </div>
@@ -616,6 +620,19 @@ const parseSinglePayload = (payloadStr: string) => {
     return JSON.parse(payloadStr)
   } catch (e) {
     return null
+  }
+}
+
+const ragPayload = (payloadStr: string) => {
+  const payload = parseSinglePayload(payloadStr)
+  if (!payload) return null
+  return {
+    username: payload.username || payload.requesterUsername || '-',
+    userId: payload.userId || payload.requesterId || '-',
+    docName: payload.docName || payload.title || '-',
+    docId: payload.docId || payload.documentId || '-',
+    level: payload.level || payload.clearanceLevel || payload.securityLevel || 1,
+    ttlHours: payload.accessTtlHours || 24
   }
 }
 

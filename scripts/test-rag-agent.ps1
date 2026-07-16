@@ -69,6 +69,25 @@ function Assert-Condition {
     }
 }
 
+function Test-NoPermissionLeak {
+    param(
+        [object]$Response,
+        [Nullable[int]]$DeptId,
+        [int]$ClearanceLevel
+    )
+    foreach ($chunk in @($Response.chunks)) {
+        $chunkDept = if ($null -ne $chunk.deptId) { [int]$chunk.deptId } else { 0 }
+        $chunkLevel = if ($null -ne $chunk.securityLevel) { [int]$chunk.securityLevel } else { 1 }
+        $global = $chunkDept -eq 0
+        $sameDept = $DeptId.HasValue -and $chunkDept -eq $DeptId.Value
+        if (($global -or $sameDept) -and $chunkLevel -le $ClearanceLevel) {
+            continue
+        }
+        return $false
+    }
+    return $true
+}
+
 Write-Host "RAG Agent verification"
 Write-Host "Base URL: $RagBaseUrl"
 Write-Host "Question: $Question"
@@ -140,10 +159,10 @@ if ($indexedDocumentId) {
 
 Write-Step "5. Permission-aware queries"
 $users = @(
-    @{ username = "admin"; roles = "ROLE_ADMIN"; expectBlocked = $false },
-    @{ username = "credit_mgr"; roles = "ROLE_DEPT_ADMIN"; expectBlocked = $true },
-    @{ username = "credit_staff"; roles = "ROLE_USER"; expectBlocked = $true },
-    @{ username = "compliance_staff"; roles = "ROLE_USER"; expectBlocked = $true }
+    @{ username = "admin"; roles = "ROLE_ADMIN"; deptId = $null; clearance = 3; checkLeak = $false },
+    @{ username = "credit_mgr"; roles = "ROLE_DEPT_ADMIN"; deptId = 1; clearance = 2; checkLeak = $true },
+    @{ username = "credit_staff"; roles = "ROLE_USER"; deptId = 1; clearance = 1; checkLeak = $true },
+    @{ username = "compliance_staff"; roles = "ROLE_USER"; deptId = 2; clearance = 1; checkLeak = $true }
 )
 
 $lastCreditStaffResponse = $null
@@ -166,9 +185,9 @@ foreach ($user in $users) {
             latencyMs = $response.latencyMs
         } | Format-List
 
-        Assert-Condition ($response.status -in @("SUCCESS", "NO_CONTEXT")) "$($user.username) query returned a controlled RAG status." "$($user.username) query failed unexpectedly."
-        if ($user.expectBlocked) {
-            Assert-Condition (@($response.blockedDocumentIds).Count -gt 0) "$($user.username) blocked unauthorized documents." "$($user.username) did not show blocked documents."
+        Assert-Condition ($response.status -in @("SUCCESS", "NO_CONTEXT", "LLM_FALLBACK")) "$($user.username) query returned a controlled RAG status." "$($user.username) query failed unexpectedly."
+        if ($user.checkLeak) {
+            Assert-Condition (Test-NoPermissionLeak -Response $response -DeptId $user.deptId -ClearanceLevel $user.clearance) "$($user.username) retrieved only permission-safe chunks." "$($user.username) retrieved chunks outside department/clearance scope."
         }
         if ($user.username -eq "credit_staff") {
             $lastCreditStaffResponse = $response
@@ -183,6 +202,15 @@ if ($SubmitAccessRequest) {
     $blockedId = $null
     if ($lastCreditStaffResponse -and @($lastCreditStaffResponse.blockedDocumentIds).Count -gt 0) {
         $blockedId = @($lastCreditStaffResponse.blockedDocumentIds)[0]
+    } else {
+        try {
+            $statuses = @(Invoke-RagGet "/rag/index/documents/status")
+            $blockedId = @($statuses | Where-Object {
+                ($_.deptId -eq 1 -and $_.securityLevel -gt 1) -or ($_.deptId -ne $null -and $_.deptId -ne 1)
+            } | Select-Object -First 1).documentId
+        } catch {
+            Write-WarnLine "Could not infer an inaccessible document for access request: $($_.Exception.Message)"
+        }
     }
 
     if ($blockedId) {

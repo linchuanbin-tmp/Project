@@ -7,6 +7,7 @@ export interface RagQueryRequest {
 
 export interface RagCitation {
   documentId: number
+  documentTitle?: string
   chunkId: number
   chunkIndex: number
   score?: number

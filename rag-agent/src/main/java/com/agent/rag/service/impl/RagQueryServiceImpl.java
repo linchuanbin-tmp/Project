@@ -7,7 +7,9 @@ import com.agent.rag.dto.RagQueryRequest;
 import com.agent.rag.dto.RagQueryResponse;
 import com.agent.rag.dto.VectorSearchResult;
 import com.agent.rag.entity.RagQueryLog;
+import com.agent.rag.entity.SysDocument;
 import com.agent.rag.mapper.RagQueryLogMapper;
+import com.agent.rag.mapper.SysDocumentMapper;
 import com.agent.rag.service.EmbeddingRuntimeConfigService;
 import com.agent.rag.service.RagLlmClient;
 import com.agent.rag.service.RagPermissionService;
@@ -23,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -41,6 +44,7 @@ public class RagQueryServiceImpl implements RagQueryService {
     private final RagLlmClient ragLlmClient;
     private final RagQueryLogMapper ragQueryLogMapper;
     private final EmbeddingRuntimeConfigService embeddingConfigService;
+    private final SysDocumentMapper sysDocumentMapper;
 
     @Override
     public RagQueryResponse query(RagQueryRequest request, String username, String rolesHeader) {
@@ -188,15 +192,30 @@ public class RagQueryServiceImpl implements RagQueryService {
     }
 
     private List<RagCitation> toCitations(List<VectorSearchResult> chunks) {
+        Map<Long, String> titlesByDocumentId = resolveDocumentTitles(chunks);
         return chunks.stream()
                 .map(chunk -> RagCitation.builder()
                         .documentId(chunk.getDocumentId())
+                        .documentTitle(titlesByDocumentId.get(chunk.getDocumentId()))
                         .chunkId(chunk.getChunkId())
                         .chunkIndex(chunk.getChunkIndex())
                         .score(chunk.getScore())
                         .snippet(snippet(chunk.getChunkText()))
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    private Map<Long, String> resolveDocumentTitles(List<VectorSearchResult> chunks) {
+        List<Long> documentIds = chunks.stream()
+                .map(VectorSearchResult::getDocumentId)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        if (documentIds.isEmpty()) {
+            return Map.of();
+        }
+        return sysDocumentMapper.selectBatchIds(documentIds).stream()
+                .collect(Collectors.toMap(SysDocument::getId, SysDocument::getTitle, (left, right) -> left));
     }
 
     private RagQueryResponse buildResponse(

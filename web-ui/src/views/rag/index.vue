@@ -107,9 +107,10 @@
           <div class="citation-list">
             <article v-for="citation in citations" :key="citationKey(citation)" class="citation-item">
               <div class="citation-head">
-                <span>Doc {{ citation.documentId }} · Chunk {{ citation.chunkIndex }}</span>
+                <span>{{ citationTitle(citation) }} · Chunk {{ citation.chunkIndex }}</span>
                 <el-tag size="small" effect="plain">{{ formatScore(citation.score) }}</el-tag>
               </div>
+              <div class="citation-sub">Doc {{ citation.documentId }}</div>
               <p>{{ citation.snippet || 'No snippet returned.' }}</p>
             </article>
           </div>
@@ -540,6 +541,10 @@ const documentTitle = (documentId: number) => {
   return documentStatusMap.value[documentId]?.title || `Document ${documentId}`
 }
 
+const citationTitle = (citation: RagCitation) => {
+  return citation.documentTitle || documentTitle(citation.documentId)
+}
+
 const documentSecurityLevel = (documentId: number) => {
   return documentStatusMap.value[documentId]?.securityLevel
 }
@@ -899,6 +904,7 @@ onMounted(async () => {
   font-weight: 600;
   color: #334155;
 }
+.citation-sub { margin: -2px 0 6px; font-size: 11.5px; color: #94a3b8; }
 .citation-item p { margin: 0; font-size: 12.5px; color: #64748b; line-height: 1.5; }
 
 /* ── Chunks ── */
