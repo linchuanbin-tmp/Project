@@ -47,13 +47,19 @@ From the project root directory:
 docker compose up --build -d
 ```
 
-This will pull base images, build the Java service containers from source, and download the BGE-M3 embedding model. The first startup takes approximately **15-30 minutes** depending on network speed.
+The first startup takes approximately **15-30 minutes** depending on network speed. This includes:
+- Pulling Docker base images (MySQL, Redis, Milvus, MinIO, etcd, Nginx)
+- Building Java services from source
+- Initializing the database with seed data
+- **RAG index warm-up**: on first startup, the system automatically rebuilds the embedding index for all pre-loaded documents (~8 documents). This runs synchronously during startup so the knowledge base is queryable as soon as the containers are up. Subsequent restarts skip this step.
 
 To watch progress:
 
 ```bash
 docker compose logs -f
 ```
+
+> Tip: you can check whether the RAG index is ready by watching for `"RAG index is ready"` or `"RAG startup check: ..."` in the rag-agent logs. The readiness banner on the RAG page will also disappear once the index is complete.
 
 ---
 

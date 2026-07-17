@@ -86,6 +86,15 @@ public class RagIndexServiceImpl implements RagIndexService {
         return response(task, 0);
     }
 
+    /**
+     * Synchronous version of rebuildAll, called during startup.
+     * Blocks until all documents are chunked, embedded, and written to the vector store.
+     */
+    public void rebuildAllSync() {
+        RagIndexTask task = createTask(null, TASK_REBUILD_ALL, STATUS_QUEUED, "Startup index rebuild.");
+        runRebuildAll(task.getId());
+    }
+
     private void runRebuildAll(Long taskId) {
         RagIndexTask task = ragIndexTaskMapper.selectById(taskId);
         if (task == null) {

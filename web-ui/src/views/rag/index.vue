@@ -25,6 +25,12 @@
           <span>{{ $t('rag.noAccessibleDocs') }}</span>
         </div>
 
+        <!-- Index not ready banner -->
+        <div v-if="health && !health.embeddingReady" class="index-rebuilding-banner">
+          <RefreshCw :size="15" class="spin" />
+          <span>Knowledge base index is being prepared. This happens automatically on first startup and should finish shortly. You can try asking questions, but results may not appear until indexing completes.</span>
+        </div>
+
         <div class="premium-card">
           <div class="card-header-simple">
             <span class="card-title-text">
@@ -848,6 +854,27 @@ onMounted(async () => {
 .no-access-banner :deep(svg) {
   flex-shrink: 0;
   color: #f59e0b;
+}
+
+/* ── Index Rebuilding Banner ── */
+.index-rebuilding-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e40af;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.index-rebuilding-banner :deep(svg) {
+  flex-shrink: 0;
+  color: #3b82f6;
 }
 
 /* ── Cards ── */

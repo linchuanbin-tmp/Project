@@ -41,6 +41,8 @@ For local development (running services outside Docker), additional dependencies
 
 This is the simplest way to run the entire platform. All infrastructure (MySQL, Redis, MinIO, Milvus, etcd) and backend services are started in Docker containers.
 
+For a detailed walkthrough, see [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md).
+
 ### Step 1: Configure environment
 
 ```bash

@@ -6,11 +6,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Ensures the active RAG embedding profile has a ready index on startup.
- * If the index status is not READY, a rebuild is triggered automatically in the background.
+ * The rebuild runs synchronously during startup so the system is fully ready
+ * before accepting any requests.
  */
 @Slf4j
 @Component
@@ -20,14 +20,8 @@ public class RagStartupAutoRebuild {
     private final EmbeddingRuntimeConfigService configService;
     private final RagIndexServiceImpl indexService;
 
-    private static final AtomicBoolean autoRebuildTriggered = new AtomicBoolean(false);
-
     @PostConstruct
     void ensureIndexReady() {
-        if (!autoRebuildTriggered.compareAndSet(false, true)) {
-            return;
-        }
-
         String profile = configService.getActiveProfile().getId();
         String status = configService.getActiveIndexStatus();
         log.info("RAG startup check: profile={}, indexStatus={}", profile, status);
@@ -37,11 +31,11 @@ public class RagStartupAutoRebuild {
             return;
         }
 
-        log.info("RAG index is not ready, triggering automatic rebuild for profile: {}", profile);
+        log.info("RAG index not ready, running synchronous rebuild for profile: {}", profile);
         try {
-            indexService.rebuildAll();
+            indexService.rebuildAllSync();
         } catch (Exception e) {
-            log.warn("Auto-rebuild trigger failed: {}", e.getMessage());
+            log.error("Synchronous RAG rebuild failed during startup: {}", e.getMessage(), e);
         }
     }
 }
