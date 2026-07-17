@@ -28,13 +28,11 @@ jwt:
   expiration: ${JWT_EXPIRATION:86400000}
 
 # API Key configuration (sensitive, injected via environment or .env)
-# Local dev: set DEEPSEEK_API_KEY and DEEPSEEK_OFFICIAL_API_KEY in IDE run config
+# Local dev: set DEEPSEEK_API_KEY in IDE run config
 # Docker: injected by docker-compose from .env
 app:
   deepseek:
     api-key: ${DEEPSEEK_API_KEY:}
-  deepseek-official:
-    api-key: ${DEEPSEEK_OFFICIAL_API_KEY:}
   encryption:
     password: ${APP_ENCRYPTION_PASSWORD:change-me-in-production}
     salt: ${APP_ENCRYPTION_SALT:deadbeef}

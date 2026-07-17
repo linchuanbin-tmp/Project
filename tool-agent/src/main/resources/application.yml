@@ -28,9 +28,9 @@ mybatis-plus:
 ai:
   deepseek:
     api-key: ${AI_DEEPSEEK_API_KEY:}
-    base-url: ${AI_DEEPSEEK_BASE_URL:https://maas-api.cn-huabei-1.xf-yun.com/v2}
-    model: ${AI_DEEPSEEK_MODEL:xopdeepseekv32}
-    timeout: 6000
+    base-url: ${AI_DEEPSEEK_BASE_URL:https://api.deepseek.com}
+    model: ${AI_DEEPSEEK_MODEL:deepseek-chat}
+    timeout: 120000
 
 # AMap (overridden by AMAP_KEY env var in Docker)
 amap:

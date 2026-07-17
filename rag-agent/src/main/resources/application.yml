@@ -85,8 +85,8 @@ rag:
   llm:
     provider: ${RAG_LLM_PROVIDER:http}
     api-key: ${RAG_LLM_API_KEY:${DEEPSEEK_API_KEY:}}
-    base-url: ${RAG_LLM_BASE_URL:${DEEPSEEK_BASE_URL:https://maas-api.cn-huabei-1.xf-yun.com/v2}}
-    model: ${RAG_LLM_MODEL:${DEEPSEEK_MODEL:xopdeepseekv32}}
+    base-url: ${RAG_LLM_BASE_URL:${DEEPSEEK_BASE_URL:https://api.deepseek.com}}
+    model: ${RAG_LLM_MODEL:${DEEPSEEK_MODEL:deepseek-chat}}
     timeout-ms: ${RAG_LLM_TIMEOUT_MS:30000}
     temperature: ${RAG_LLM_TEMPERATURE:0.2}
     max-tokens: ${RAG_LLM_MAX_TOKENS:1200}

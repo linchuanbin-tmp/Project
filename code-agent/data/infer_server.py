@@ -303,7 +303,7 @@ def call_llm(question: str) -> dict:
         client = OpenAI(
             api_key=DEEPSEEK_API_KEY,
             base_url=DEEPSEEK_BASE_URL,
-            timeout=45.0,  # 45s timeout — client times out before Java's 60s
+            timeout=120.0,  # 120s timeout — generous for slower servers
         )
 
         system_prompt = _build_system_prompt()
@@ -337,11 +337,16 @@ def call_llm(question: str) -> dict:
         return {"sql": sql, "method": "LLM"}
 
     except ImportError:
-        log.error("❌ openai 库未安装，请执行: pip install openai")
-        return {"sql": "", "method": "LLM", "error": "openai package not installed"}
+        log.error("openai package not installed: pip install openai")
+        return {"sql": "", "method": "LLM", "error": "Python dependency missing (openai). Please check the server setup."}
     except Exception as e:
-        log.error("❌ LLM API 调用失败: %s", e)
-        return {"sql": "", "method": "LLM", "error": str(e)}
+        err_msg = str(e)
+        log.error("LLM API call failed: %s", err_msg)
+        if "timeout" in err_msg.lower() or "timed out" in err_msg.lower():
+            return {"sql": "", "method": "LLM", "error": "The AI service is taking too long to respond. Please try again later."}
+        if "connection" in err_msg.lower() or "refused" in err_msg.lower():
+            return {"sql": "", "method": "LLM", "error": "Unable to reach the AI service. Please check the network and try again."}
+        return {"sql": "", "method": "LLM", "error": "AI service temporarily unavailable. Please try again in a moment."}
 
 
 # ============================================================

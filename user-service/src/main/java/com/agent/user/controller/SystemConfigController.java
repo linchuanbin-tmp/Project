@@ -36,9 +36,6 @@ public class SystemConfigController {
     @Value("${app.deepseek.api-key}")
     private String defaultApiKey;
 
-    @Value("${app.deepseek-official.api-key}")
-    private String defaultDeepseekApiKey;
-
     // Lazy-loaded .env reader
     private static volatile Dotenv dotenv;
     private static Dotenv dotenv() {
@@ -186,9 +183,9 @@ public class SystemConfigController {
             }
         }
         if (result.isEmpty()) {
-            result.put("provider", "xunfei");
-            result.put("baseUrl", "https://maas-api.cn-huabei-1.xf-yun.com/v2");
-            result.put("model", "xopdeepseekv32");
+            result.put("provider", "deepseek");
+            result.put("baseUrl", "https://api.deepseek.com");
+            result.put("model", "deepseek-chat");
         }
         try {
             stringRedisTemplate.opsForValue().set(REDIS_KEY_AI_PROVIDER, objectMapper.writeValueAsString(result));
@@ -268,9 +265,9 @@ public class SystemConfigController {
 
         // Resolve API key: provided > .env / yml default
         if (apiKey == null || apiKey.isBlank()) {
-            if (baseUrl != null && (baseUrl.contains("api.deepseek.com") || baseUrl.contains("11434"))) {
-                apiKey = envOrDotenv("DEEPSEEK_OFFICIAL_API_KEY");
-                if (apiKey == null || apiKey.isBlank()) apiKey = defaultDeepseekApiKey;
+            if (baseUrl != null && baseUrl.contains("11434")) {
+                // Ollama: no API key needed
+                apiKey = "";
             } else {
                 apiKey = envOrDotenv("DEEPSEEK_API_KEY");
                 if (apiKey == null || apiKey.isBlank()) apiKey = defaultApiKey;
@@ -411,10 +408,6 @@ public class SystemConfigController {
         String key = envOrDotenv("DEEPSEEK_API_KEY");
         if (key != null) return key;
 
-        String provider = (String) map.get("provider");
-        if (provider != null && (provider.contains("deepseek") || provider.equals("ollama"))) {
-            return defaultDeepseekApiKey;
-        }
         return defaultApiKey;
     }
 

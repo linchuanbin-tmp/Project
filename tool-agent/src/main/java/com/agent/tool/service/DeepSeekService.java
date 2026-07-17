@@ -6,10 +6,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,17 +29,24 @@ public class DeepSeekService {
     @Value("${ai.deepseek.model}")
     private String fallbackModel;
 
+    @Value("${ai.deepseek.timeout:120000}")
+    private long timeoutMs;
+
     @Value("${user-service.url:http://user-service:8081}")
     private String userServiceUrl;
 
     private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
     // Cached unified config from user-service
     private volatile Map<String, String> unifiedConfig = new ConcurrentHashMap<>();
 
-    public DeepSeekService(ObjectMapper objectMapper) {
+    public DeepSeekService(ObjectMapper objectMapper, RestTemplateBuilder restTemplateBuilder) {
         this.objectMapper = objectMapper;
+        this.restTemplate = restTemplateBuilder
+                .setConnectTimeout(Duration.ofSeconds(30))
+                .setReadTimeout(Duration.ofMillis(timeoutMs))
+                .build();
     }
 
     @PostConstruct
@@ -115,8 +124,15 @@ public class DeepSeekService {
             throw new RuntimeException("DeepSeek returned unexpected format");
 
         } catch (Exception e) {
-            log.error("DeepSeek call failed", e);
-            throw new RuntimeException("AI service unavailable: " + e.getMessage());
+            log.error("LLM API call failed: {}", e.getMessage());
+            String detail = e.getMessage() != null ? e.getMessage() : "unknown error";
+            if (detail.contains("Read timed out") || detail.contains("timeout")) {
+                throw new RuntimeException("The AI service is taking longer than expected. Please try again in a moment.");
+            }
+            if (detail.contains("Connection refused") || detail.contains("connect")) {
+                throw new RuntimeException("Unable to reach the AI service. Please check your network connection.");
+            }
+            throw new RuntimeException("AI service temporarily unavailable: " + detail);
         }
     }
 }
