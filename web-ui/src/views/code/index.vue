@@ -162,14 +162,14 @@
           <!-- Execution Error Display -->
           <el-alert
             v-if="executeError"
-            type="error"
+            type="warning"
             :title="executeError"
             show-icon
             :closable="false"
             class="result-alert"
           >
             <template #default>
-              <p class="error-detail">{{ $t('code.blockError') }}</p>
+              <p class="error-detail">This query was blocked by the security filter. The attempt has been automatically reported to the system administrator for review.</p>
             </template>
           </el-alert>
 
@@ -264,6 +264,7 @@ import {
   getCodeMetadata,
   refreshCodeMetadata
 } from '@api/code'
+import { sendNotification, getAdmins } from '@api/notification'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -385,12 +386,33 @@ const handleExecute = async () => {
       ElMessage.success(t('code.executeSuccess'))
     } else {
       executeError.value = res?.errorMessage || t('code.executeFailed')
+      reportBugToAdmins(generatedSql.value, executeError.value)
     }
   } catch (e: any) {
     executeError.value = e.message || t('code.executeFailed')
     ElMessage.error(t('code.executeFailed'))
+    reportBugToAdmins(generatedSql.value, executeError.value)
   } finally {
     executionLoading.value = false
+  }
+}
+
+const reportBugToAdmins = async (sql: string, errorMsg: string) => {
+  try {
+    const admins = await getAdmins()
+    if (!admins || admins.length === 0) return
+    const payload = JSON.stringify({ sql, error: errorMsg })
+    for (const admin of admins) {
+      await sendNotification({
+        receiverId: admin.id,
+        title: 'SQL Agent: query blocked by security filter',
+        content: `A SQL query was blocked by the security whitelist.\n\nSQL: ${sql}\n\nReason: ${errorMsg}`,
+        notifyType: 'BUG_REPORT',
+        payload
+      })
+    }
+  } catch {
+    // Silent -- don't distract the user if the report itself fails
   }
 }
 
