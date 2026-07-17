@@ -267,7 +267,7 @@ public class SystemConfigController {
         if (apiKey == null || apiKey.isBlank()) {
             if (baseUrl != null && baseUrl.contains("11434")) {
                 // Ollama: no API key needed
-                apiKey = "";
+                apiKey = "ollama-no-key";
             } else {
                 apiKey = envOrDotenv("DEEPSEEK_API_KEY");
                 if (apiKey == null || apiKey.isBlank()) apiKey = defaultApiKey;

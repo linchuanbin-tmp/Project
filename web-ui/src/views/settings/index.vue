@@ -497,7 +497,7 @@
             />
             />
           </div>
-          <div class="ai-form-group">
+          <div v-if="aiProviderDraft !== 'ollama'" class="ai-form-group">
             <label class="ai-form-label">{{ $t('settings.apiKey') }}</label>
             <el-input
               v-model="aiProviderApiKey"
@@ -711,6 +711,7 @@ const fetchOllamaModels = async () => {
 
 const selectProvider = (key: string) => {
   aiProviderDraft.value = key
+  aiProviderApiKey.value = ''
   const preset = AI_PROVIDERS.value.find(p => p.key === key)
   if (key === 'custom') {
     aiProviderBaseUrl.value = ''
@@ -729,6 +730,10 @@ const aiTestResultClass = ref('')
 
 const selectedProvider = computed(() =>
   AI_PROVIDERS.value.find(p => p.key === aiProvider.value)
+)
+
+const draftProvider = computed(() =>
+  AI_PROVIDERS.value.find(p => p.key === aiProviderDraft.value)
 )
 
 const currentProviderLabel = computed(() => {
@@ -759,12 +764,12 @@ const testAiConnection = async () => {
   aiTestResultClass.value = ''
   const baseUrl = aiProviderDraft.value === 'custom'
     ? aiProviderBaseUrl.value
-    : (selectedProvider.value?.baseUrl || '')
+    : (draftProvider.value?.baseUrl || '')
 
   try {
     const modelName = aiProviderDraft.value === 'custom'
       ? aiProviderCustomModel.value
-      : (aiProviderCustomModel.value || selectedProvider.value?.model || '')
+      : (aiProviderCustomModel.value || draftProvider.value?.model || '')
     const res: any = await request.post('/user/config/ai-provider/test', {
       baseUrl,
       model: modelName,

@@ -6,11 +6,13 @@ import com.agent.rag.service.EmbeddingRuntimeConfigService;
 import com.agent.rag.service.RagVectorSearchService;
 import com.agent.rag.service.VectorStoreService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RagVectorSearchServiceImpl implements RagVectorSearchService {
@@ -28,9 +30,8 @@ public class RagVectorSearchServiceImpl implements RagVectorSearchService {
             return List.of();
         }
         if (!embeddingConfigService.isActiveIndexReady()) {
-            throw new IllegalStateException("Active embedding profile index is not ready. Current status: "
-                    + embeddingConfigService.getActiveIndexStatus()
-                    + ". Please rebuild the RAG index after switching embedding profiles.");
+            log.warn("RAG index not ready (status: {}). Returning empty results.", embeddingConfigService.getActiveIndexStatus());
+            return List.of();
         }
         int safeTopK = topK == null || topK <= 0 ? 5 : Math.min(topK, 20);
         return embeddingConfigService.withCurrentProfile(
