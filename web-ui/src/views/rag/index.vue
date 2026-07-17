@@ -105,7 +105,7 @@
             </div>
           </div>
 
-          <div class="answer-text">{{ response.answer }}</div>
+          <div class="answer-text" v-html="renderedAnswer"></div>
           <div class="trace-row">
             <span>Trace</span>
             <code>{{ response.traceId }}</code>
@@ -114,6 +114,25 @@
 
         <div v-if="querying" class="loading-state">
           <el-skeleton :rows="5" animated />
+        </div>
+
+        <!-- Empty state: no query performed yet -->
+        <div v-if="!response && !querying && hasAccessibleDocs" class="premium-card review-card">
+          <div class="card-header-simple">
+            <span class="card-title-text">
+              <MessageSquareText :size="16" class="icon-sparkles" />
+              Getting Started
+            </span>
+          </div>
+          <div class="getting-started">
+            <p>Your RAG workspace is ready. Here is how to begin:</p>
+            <ol>
+              <li><strong>Upload documents</strong> in the Documents page -- add PDFs, Word files, or PPTs to the knowledge base.</li>
+              <li><strong>Index documents</strong> -- click the refresh icon next to each uploaded document in the sidebar.</li>
+              <li><strong>Ask a question</strong> above, or click one of the suggested questions to test retrieval and security filtering.</li>
+            </ol>
+            <p class="gs-hint">Documents respect department and clearance-level access rules. Responses will cite source chunks so you can verify the answer.</p>
+          </div>
         </div>
 
         <div v-if="citations.length" class="premium-card review-card">
@@ -373,6 +392,7 @@ import {
   ShieldAlert,
   ShieldCheck
 } from 'lucide-vue-next'
+import { marked } from 'marked'
 import {
   getAccessibleDocuments,
   getRagHealth,
@@ -461,6 +481,12 @@ const paginatedDocs = computed(() => {
 const citations = computed<RagCitation[]>(() => response.value?.citations || [])
 const chunks = computed<RagChunk[]>(() => response.value?.chunks || [])
 const blockedDocumentIds = computed<number[]>(() => response.value?.blockedDocumentIds || [])
+
+const renderedAnswer = computed(() => {
+  const raw = response.value?.answer
+  if (!raw) return ''
+  return marked.parse(raw, { breaks: true }) as string
+})
 
 // ── Query ──
 const handleQuery = async () => {
@@ -1039,10 +1065,53 @@ onMounted(async () => {
 .suggested-question.restricted .suggested-label { color: #b45309; }
 
 .answer-text {
-  white-space: pre-wrap;
   line-height: 1.72;
   font-size: 13.5px;
   color: #1e293b;
+}
+
+.answer-text :deep(h2) { font-size: 16px; font-weight: 700; color: #0f172a; margin: 18px 0 8px; }
+.answer-text :deep(h3) { font-size: 14px; font-weight: 700; color: #1e293b; margin: 14px 0 6px; }
+.answer-text :deep(p) { margin: 0 0 10px; }
+.answer-text :deep(ul), .answer-text :deep(ol) { margin: 0 0 10px; padding-left: 20px; }
+.answer-text :deep(li) { margin-bottom: 4px; }
+.answer-text :deep(li)::marker { color: #64748b; }
+.answer-text :deep(strong) { font-weight: 650; color: #0f172a; }
+.answer-text :deep(code) { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 12px; color: #b45309; }
+.answer-text :deep(em) { color: #475569; }
+.answer-text :deep(blockquote) { border-left: 3px solid #94a3b8; padding-left: 12px; margin: 0 0 10px; color: #475569; }
+.answer-text :deep(a) { color: #1d4ed8; }
+.answer-text :deep(hr) { border: none; border-top: 1px solid #e2e8f0; margin: 14px 0; }
+
+/* ── Getting Started Empty State ── */
+.getting-started {
+  padding-top: 4px;
+}
+
+.getting-started p {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.6;
+  margin: 0 0 12px;
+}
+
+.getting-started ol {
+  padding-left: 20px;
+  margin: 0 0 12px;
+}
+
+.getting-started li {
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+
+.gs-hint {
+  font-size: 12px !important;
+  color: #94a3b8 !important;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 10px;
 }
 
 .trace-row {

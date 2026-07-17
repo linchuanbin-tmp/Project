@@ -219,115 +219,6 @@ CREATE TABLE `sys_document` (
   KEY `idx_dept_id` (`dept_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Department Document Table';
 
-INSERT INTO `sys_document` (id, title, content, dept_id, security_level, create_time) VALUES
-  (7, 'Q1 2025 Credit Assessment Manual', 'Standard operational guidelines for evaluating corporate credit risk in the first quarter of 2025.', 1, 2, '2026-07-03 10:25:48'),
-  (8, 'Confidential Credit Risk Evaluation for Corporate Accounts', 'Secret guidelines for loan limits and credit authorization metrics.', 1, 3, '2026-07-03 10:25:48'),
-  (9, 'Standard Loan Agreement Template', 'Standard legal template for corporate loan agreements.', 1, 1, '2026-07-03 10:25:48'),
-  (10, 'AML Compliance Operational Handbook', 'Detailed procedures for Anti-Money Laundering monitoring and suspicious transaction reporting.', 2, 2, '2026-07-03 10:25:48'),
-  (11, 'Internal Audit Code of Conduct', 'Guiding principles for compliance verification and internal audit schedules.', 2, 1, '2026-07-03 10:25:48'),
-  (12, 'High Risk Client Investigation Guidelines', 'Confidential manual for auditing shell companies and high net worth individuals.', 2, 3, '2026-07-03 10:25:48'),
-  (13, 'BankAgent Platform User Manual', 'Welcome to BankAgent. This guide explains how to use our Tool Agents, Code Agents, and RAG systems. Please keep your account password secure.', NULL, 1, '2026-07-03 10:25:48'),
-  (14, 'Security Operations & Clearance Levels Guide', 'General information about bank security clearance levels. Level-1 is Public, Level-2 is Internal, and Level-3 is Confidential. Escalation requires manager approval.', NULL, 1, '2026-07-03 10:25:48'),
-  (15, 'RBAC & Security Clearance System Design Specification', '# Role-Based Access Control (RBAC) & Security Clearance Design Specification
-
-This document provides a comprehensive overview of the **Role-Based Access Control (RBAC)** and **Security Clearance Level (SCL)** architecture implemented within the BankAgent platform. It serves as a guide for development teams, system auditors, and instructors.
-
----
-
-## 1. Core Architectural Concepts
-
-To guarantee financial security and data confidentiality, the platform combines **Role-Based Permissions (RBAC)** with **Mandatory Attribute-Based Isolation (Department & Clearance Levels)**. 
-
-Every user session is bounded by:
-1. **System Role (Role-based)**: Dictates what functional features the user can invoke (e.g. executing text-to-SQL, auditing schedules, viewing logs).
-2. **Department Allocation (Attribute-based)**: Restricts access to department-specific knowledge assets and databases.
-3. **Security Clearance Level (Clearance-based)**: Determines the maximum confidentiality classification the user can retrieve.
-
----
-
-## 2. Role Definitions & Permissions Matrix
-
-The system pre-defines three major system roles:
-
-| Role Code | Role Name | Allowed Functional Operations | Target Users |
-| :--- | :--- | :--- | :--- |
-| `ROLE_ADMIN` | System Administrator | Full user management, department roster reorganization, system logs auditing, global configuration editing. | System Auditors / IT Admins |
-| `ROLE_DEPT_ADMIN` | Department Administrator | Management of department members, approval of RAG access requests, SQL query audit reviews. | Department Heads / Audit Managers |
-| `ROLE_USER` | Standard Employee | Running standard business flows, querying local vector knowledge databases, asking AI agents questions. | Loan Officers / Compliance Staff |
-
----
-
-## 3. Data Isolation & Security Clearance Levels (SCL)
-
-Documents in the vector database and relational tables are cataloged under three clearance levels:
-
-* **Level-1: Public (L1)**
-  * **Scope**: General banking policies, standard operating templates, user handbooks.
-  * **Access**: Accessible by any authenticated user, regardless of their department allocation.
-* **Level-2: Internal (L2)**
-  * **Scope**: Active project notes, standard department manuals, compliance auditing guidelines.
-  * **Access**: Restricted to employees *within the same department* who possess a clearance level of **Level-2 or above**.
-* **Level-3: Confidential (L3)**
-  * **Scope**: Proprietary risk models, high-risk audit investigations, private client evaluation data.
-  * **Access**: Restricted to senior members *within the same department* with **Clearance Level-3**.
-
-### Multi-Dimensional Access Control Rule (SQL expression):
-```sql
--- Accessible if:
--- 1. Document is global (dept_id IS NULL)
--- 2. OR (User is in the same department AND has sufficient clearance level)
--- 3. OR (User has an approved temporary access bypass token/record)
-SELECT * FROM sys_document
-WHERE (dept_id IS NULL) 
-   OR (dept_id = :user_dept_id AND :user_clearance >= security_level)
-   OR EXISTS (
-       SELECT 1 FROM sys_notification 
-       WHERE notify_type = ''RAG_APPLY'' 
-         AND sender_id = :user_id 
-         AND status = 3 -- Approved
-         AND JSON_EXTRACT(payload, ''$.documentId'') = sys_document.id
-   );
-```
-
----
-
-## 4. Human-in-the-Loop (HITL) Clearance Escalation Workflow
-
-When an employee attempts to retrieve an internal document but has insufficient clearance, the platform implements a **Human-in-the-Loop (HITL)** approval flow to prevent rigid denial of service while maintaining strict auditing:
-
-1. **Submission**: The user requests access, specifying a business justification (e.g., "required for Q3 loan risk report"). This generates a notification with type `RAG_APPLY` and status `2` (Read Pending Approval) routed to the department manager.
-2. **Evaluation**: The department manager reviews the request. They can approve or reject the request, providing an audit comment.
-3. **Activation**: Upon approval, the status changes to `3` (Approved). The document retrieval algorithm detects the approved record, and dynamically grants access to that specific document.', NULL, 1, '2026-07-03 10:25:48');
-
--- ----------------------------
--- Notification Table
--- ----------------------------
-DROP TABLE IF EXISTS `sys_notification`;
-CREATE TABLE `sys_notification` (
-  `id`          bigint       NOT NULL AUTO_INCREMENT,
-  `sender_id`   bigint       NOT NULL,
-  `receiver_id` bigint       NOT NULL,
-  `title`       varchar(150) NOT NULL,
-  `content`     text         NOT NULL,
-  `notify_type` varchar(50)  DEFAULT 'CHAT' COMMENT 'CHAT/RAG_APPLY/SQL_AUDIT/BUG_REPORT',
-  `status`      int          DEFAULT '1'    COMMENT '1=Unread, 2=Read Pending Approval, 3=Approved/Resolved, 4=Rejected/Denied',
-  `payload`     text         DEFAULT NULL   COMMENT 'JSON payload parameters',
-  `opinion`     text         DEFAULT NULL   COMMENT 'Approval review comments',
-  `parent_id`   bigint       DEFAULT NULL   COMMENT 'Parent notification ID',
-  `thread_id`   bigint       DEFAULT NULL   COMMENT 'Root conversation thread ID',
-  `create_time` datetime     DEFAULT CURRENT_TIMESTAMP,
-  `update_time` datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `deleted`     tinyint      NOT NULL DEFAULT 0 COMMENT 'Logical deleted 0=normal 1=deleted',
-  PRIMARY KEY (`id`),
-  KEY `idx_thread_id` (`thread_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='System Notification Table';
-
-INSERT INTO `sys_notification` (`id`, `sender_id`, `receiver_id`, `title`, `content`, `notify_type`, `status`, `payload`, `opinion`, `create_time`, `update_time`, `deleted`) VALUES
-  (1, 3, 2, 'RAG Permission Escalation Request', 'Employee @credit_staff requests temporary access to "Confidential Credit Risk Evaluation for Corporate Accounts" (Security: Level-3).', 'RAG_APPLY', 2, '{"documentId":8,"title":"Confidential Credit Risk Evaluation for Corporate Accounts","clearanceLevel":3,"reason":"Need to review Q2 auditing notes."}', NULL, '2026-07-03 10:25:48', '2026-07-03 10:25:48', 0),
-  (2, 3, 2, 'Warning: Risky SQL Execution Request', 'AI Agent has intercepted a suspicious database deletion command by @credit_staff.', 'SQL_AUDIT', 2, '{"sql":"DELETE FROM bank_ledger WHERE customer_id = 992 AND balance < 100.00;","riskScore":98,"reason":"Unrestricted deletion statement detected without where index."}', NULL, '2026-07-03 10:25:48', '2026-07-03 10:25:48', 0),
-  (3, 5, 4, 'Bug Diagnosis Report: Model Hallucination', 'Automated trace log for abnormal retrieval citation matching score.', 'BUG_REPORT', 1, '{"citationScore":0.31,"prompts":"What is the maximum credit line for high-net-worth clients?","output":"According to Section 4, the maximum credit line is 50 million dollars. [Unverifiable Citation: Section 9]","milvusRetrieval":["Section 4: Credit limits are determined by risk rating...","Section 7: Shell companies are restricted to 1 million..."]}', NULL, '2026-07-03 10:25:48', '2026-07-03 10:25:48', 0);
-
--- ----------------------------
 -- System Configuration Table (dynamic params, e.g. session timeout)
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_config`;
@@ -345,6 +236,7 @@ INSERT INTO `sys_config` (`id`, `param_key`, `param_value`, `description`) VALUE
   (1, 'session_timeout', '30', 'Session inactivity timeout in minutes');
 
 -- ----------------------------
+
 -- Task Record Table
 -- ----------------------------
 CREATE TABLE IF NOT EXISTS `task_record` (
@@ -365,6 +257,7 @@ CREATE TABLE IF NOT EXISTS `task_record` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Task lifecycle record table';
 
 -- ----------------------------
+
 -- RAG Knowledge Base
 -- ----------------------------
 CREATE TABLE IF NOT EXISTS `rag_knowledge_base` (
@@ -493,5 +386,114 @@ CREATE TABLE IF NOT EXISTS `rag_index_task` (
   KEY `idx_task_type` (`task_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RAG indexing task status';
 
+INSERT INTO `sys_document` (id, title, content, dept_id, security_level, create_time) VALUES
+  (7, 'Q1 2025 Credit Assessment Manual', 'Standard operational guidelines for evaluating corporate credit risk in the first quarter of 2025.', 1, 2, '2026-07-03 10:25:48'),
+  (8, 'Confidential Credit Risk Evaluation for Corporate Accounts', 'Secret guidelines for loan limits and credit authorization metrics.', 1, 3, '2026-07-03 10:25:48'),
+  (9, 'Standard Loan Agreement Template', 'Standard legal template for corporate loan agreements.', 1, 1, '2026-07-03 10:25:48'),
+  (10, 'AML Compliance Operational Handbook', 'Detailed procedures for Anti-Money Laundering monitoring and suspicious transaction reporting.', 2, 2, '2026-07-03 10:25:48'),
+  (11, 'Internal Audit Code of Conduct', 'Guiding principles for compliance verification and internal audit schedules.', 2, 1, '2026-07-03 10:25:48'),
+  (12, 'High Risk Client Investigation Guidelines', 'Confidential manual for auditing shell companies and high net worth individuals.', 2, 3, '2026-07-03 10:25:48'),
+  (13, 'BankAgent Platform User Manual', 'Welcome to BankAgent. This guide explains how to use our Tool Agents, Code Agents, and RAG systems. Please keep your account password secure.', NULL, 1, '2026-07-03 10:25:48'),
+  (14, 'Security Operations & Clearance Levels Guide', 'General information about bank security clearance levels. Level-1 is Public, Level-2 is Internal, and Level-3 is Confidential. Escalation requires manager approval.', NULL, 1, '2026-07-03 10:25:48'),
+  (15, 'RBAC & Security Clearance System Design Specification', '# Role-Based Access Control (RBAC) & Security Clearance Design Specification
+
+This document provides a comprehensive overview of the **Role-Based Access Control (RBAC)** and **Security Clearance Level (SCL)** architecture implemented within the BankAgent platform. It serves as a guide for development teams, system auditors, and instructors.
+
+---
+
+## 1. Core Architectural Concepts
+
+To guarantee financial security and data confidentiality, the platform combines **Role-Based Permissions (RBAC)** with **Mandatory Attribute-Based Isolation (Department & Clearance Levels)**. 
+
+Every user session is bounded by:
+1. **System Role (Role-based)**: Dictates what functional features the user can invoke (e.g. executing text-to-SQL, auditing schedules, viewing logs).
+2. **Department Allocation (Attribute-based)**: Restricts access to department-specific knowledge assets and databases.
+3. **Security Clearance Level (Clearance-based)**: Determines the maximum confidentiality classification the user can retrieve.
+
+---
+
+## 2. Role Definitions & Permissions Matrix
+
+The system pre-defines three major system roles:
+
+| Role Code | Role Name | Allowed Functional Operations | Target Users |
+| :--- | :--- | :--- | :--- |
+| `ROLE_ADMIN` | System Administrator | Full user management, department roster reorganization, system logs auditing, global configuration editing. | System Auditors / IT Admins |
+| `ROLE_DEPT_ADMIN` | Department Administrator | Management of department members, approval of RAG access requests, SQL query audit reviews. | Department Heads / Audit Managers |
+| `ROLE_USER` | Standard Employee | Running standard business flows, querying local vector knowledge databases, asking AI agents questions. | Loan Officers / Compliance Staff |
+
+---
+
+## 3. Data Isolation & Security Clearance Levels (SCL)
+
+Documents in the vector database and relational tables are cataloged under three clearance levels:
+
+* **Level-1: Public (L1)**
+  * **Scope**: General banking policies, standard operating templates, user handbooks.
+  * **Access**: Accessible by any authenticated user, regardless of their department allocation.
+* **Level-2: Internal (L2)**
+  * **Scope**: Active project notes, standard department manuals, compliance auditing guidelines.
+  * **Access**: Restricted to employees *within the same department* who possess a clearance level of **Level-2 or above**.
+* **Level-3: Confidential (L3)**
+  * **Scope**: Proprietary risk models, high-risk audit investigations, private client evaluation data.
+  * **Access**: Restricted to senior members *within the same department* with **Clearance Level-3**.
+
+### Multi-Dimensional Access Control Rule (SQL expression):
+```sql
+-- Accessible if:
+-- 1. Document is global (dept_id IS NULL)
+-- 2. OR (User is in the same department AND has sufficient clearance level)
+-- 3. OR (User has an approved temporary access bypass token/record)
+SELECT * FROM sys_document
+WHERE (dept_id IS NULL) 
+   OR (dept_id = :user_dept_id AND :user_clearance >= security_level)
+   OR EXISTS (
+       SELECT 1 FROM sys_notification 
+       WHERE notify_type = ''RAG_APPLY'' 
+         AND sender_id = :user_id 
+         AND status = 3 -- Approved
+         AND JSON_EXTRACT(payload, ''$.documentId'') = sys_document.id
+   );
+```
+
+---
+
+## 4. Human-in-the-Loop (HITL) Clearance Escalation Workflow
+
+When an employee attempts to retrieve an internal document but has insufficient clearance, the platform implements a **Human-in-the-Loop (HITL)** approval flow to prevent rigid denial of service while maintaining strict auditing:
+
+1. **Submission**: The user requests access, specifying a business justification (e.g., "required for Q3 loan risk report"). This generates a notification with type `RAG_APPLY` and status `2` (Read Pending Approval) routed to the department manager.
+2. **Evaluation**: The department manager reviews the request. They can approve or reject the request, providing an audit comment.
+3. **Activation**: Upon approval, the status changes to `3` (Approved). The document retrieval algorithm detects the approved record, and dynamically grants access to that specific document.', NULL, 1, '2026-07-03 10:25:48');
+
+-- ----------------------------
+-- Notification Table
+-- ----------------------------
+DROP TABLE IF EXISTS `sys_notification`;
+CREATE TABLE `sys_notification` (
+  `id`          bigint       NOT NULL AUTO_INCREMENT,
+  `sender_id`   bigint       NOT NULL,
+  `receiver_id` bigint       NOT NULL,
+  `title`       varchar(150) NOT NULL,
+  `content`     text         NOT NULL,
+  `notify_type` varchar(50)  DEFAULT 'CHAT' COMMENT 'CHAT/RAG_APPLY/SQL_AUDIT/BUG_REPORT',
+  `status`      int          DEFAULT '1'    COMMENT '1=Unread, 2=Read Pending Approval, 3=Approved/Resolved, 4=Rejected/Denied',
+  `payload`     text         DEFAULT NULL   COMMENT 'JSON payload parameters',
+  `opinion`     text         DEFAULT NULL   COMMENT 'Approval review comments',
+  `parent_id`   bigint       DEFAULT NULL   COMMENT 'Parent notification ID',
+  `thread_id`   bigint       DEFAULT NULL   COMMENT 'Root conversation thread ID',
+  `create_time` datetime     DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted`     tinyint      NOT NULL DEFAULT 0 COMMENT 'Logical deleted 0=normal 1=deleted',
+  PRIMARY KEY (`id`),
+  KEY `idx_thread_id` (`thread_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='System Notification Table';
+
+INSERT INTO `sys_notification` (`id`, `sender_id`, `receiver_id`, `title`, `content`, `notify_type`, `status`, `payload`, `opinion`, `create_time`, `update_time`, `deleted`) VALUES
+  (1, 3, 2, 'RAG Permission Escalation Request', 'Employee @credit_staff requests temporary access to "Confidential Credit Risk Evaluation for Corporate Accounts" (Security: Level-3).', 'RAG_APPLY', 2, '{"documentId":8,"title":"Confidential Credit Risk Evaluation for Corporate Accounts","clearanceLevel":3,"reason":"Need to review Q2 auditing notes."}', NULL, '2026-07-03 10:25:48', '2026-07-03 10:25:48', 0),
+  (2, 3, 2, 'Warning: Risky SQL Execution Request', 'AI Agent has intercepted a suspicious database deletion command by @credit_staff.', 'SQL_AUDIT', 2, '{"sql":"DELETE FROM bank_ledger WHERE customer_id = 992 AND balance < 100.00;","riskScore":98,"reason":"Unrestricted deletion statement detected without where index."}', NULL, '2026-07-03 10:25:48', '2026-07-03 10:25:48', 0),
+  (3, 5, 4, 'Bug Diagnosis Report: Model Hallucination', 'Automated trace log for abnormal retrieval citation matching score.', 'BUG_REPORT', 1, '{"citationScore":0.31,"prompts":"What is the maximum credit line for high-net-worth clients?","output":"According to Section 4, the maximum credit line is 50 million dollars. [Unverifiable Citation: Section 9]","milvusRetrieval":["Section 4: Credit limits are determined by risk rating...","Section 7: Shell companies are restricted to 1 million..."]}', NULL, '2026-07-03 10:25:48', '2026-07-03 10:25:48', 0);
+
+-- ----------------------------
 SET FOREIGN_KEY_CHECKS = 1;
 

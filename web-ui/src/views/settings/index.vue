@@ -662,9 +662,8 @@ const avatarLetter = computed(() => {
 
 // AI Model Provider
 const AI_PROVIDERS_BASE = [
-  { key: 'xunfei',       i18nKey: 'settings.aiProviderXunfei',     baseUrl: 'https://maas-api.cn-huabei-1.xf-yun.com/v2', model: 'xopdeepseekv32' },
-  { key: 'deepseek-v4',  i18nKey: 'settings.aiProviderDeepseekV4', baseUrl: 'https://api.deepseek.com',                   model: 'deepseek-v4-flash' },
-  { key: 'ollama',       i18nKey: 'settings.aiProviderOllama',     baseUrl: 'http://localhost:11434/v1',                  model: '' },
+  { key: 'deepseek',    i18nKey: 'settings.aiProviderDeepseek',   baseUrl: 'https://api.deepseek.com',                   model: 'deepseek-v4-flash' },
+  { key: 'ollama',      i18nKey: 'settings.aiProviderOllama',     baseUrl: 'http://localhost:11434/v1',                  model: '' },
 ]
 
 const AI_PROVIDERS = computed(() =>
@@ -792,7 +791,7 @@ const loadAiProvider = async () => {
   try {
     const res: any = await request.get('/user/config/ai-provider')
     if (res && res.provider) {
-      aiProvider.value = AI_PROVIDERS.value.some(p => p.key === res.provider) ? res.provider : 'xunfei'
+      aiProvider.value = AI_PROVIDERS.value.some(p => p.key === res.provider) ? res.provider : 'deepseek'
       // If the server returns a custom model (e.g. for ollama), populate it
       if (res.model && AI_PROVIDERS.value.find(p => p.key === res.provider)?.model !== res.model) {
         aiProviderCustomModel.value = res.model
@@ -801,8 +800,8 @@ const loadAiProvider = async () => {
     }
   } catch (_) {}
   // Fallback to localStorage
-  const rawProvider = localStorage.getItem('ai_provider') || 'xunfei'
-  aiProvider.value = AI_PROVIDERS.value.some(p => p.key === rawProvider) ? rawProvider : 'xunfei'
+  const rawProvider = localStorage.getItem('ai_provider') || 'deepseek'
+  aiProvider.value = AI_PROVIDERS.value.some(p => p.key === rawProvider) ? rawProvider : 'deepseek'
   aiProviderCustomModel.value = localStorage.getItem('ai_provider_custom_model') || ''
 }
 

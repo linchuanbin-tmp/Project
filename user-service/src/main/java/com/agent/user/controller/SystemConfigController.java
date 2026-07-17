@@ -185,7 +185,7 @@ public class SystemConfigController {
         if (result.isEmpty()) {
             result.put("provider", "deepseek");
             result.put("baseUrl", "https://api.deepseek.com");
-            result.put("model", "deepseek-chat");
+            result.put("model", "deepseek-v4-flash");
         }
         try {
             stringRedisTemplate.opsForValue().set(REDIS_KEY_AI_PROVIDER, objectMapper.writeValueAsString(result));
@@ -444,9 +444,9 @@ public class SystemConfigController {
             }
         }
         if (map.isEmpty()) {
-            map.put("provider", "xunfei");
-            map.put("baseUrl", "https://maas-api.cn-huabei-1.xf-yun.com/v2");
-            map.put("model", "xopdeepseekv32");
+            map.put("provider", "deepseek");
+            map.put("baseUrl", "https://api.deepseek.com");
+            map.put("model", "deepseek-chat");
         }
         return map;
     }

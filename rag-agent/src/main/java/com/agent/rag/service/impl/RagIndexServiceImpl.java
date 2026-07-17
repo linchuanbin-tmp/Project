@@ -81,7 +81,7 @@ public class RagIndexServiceImpl implements RagIndexService {
 
     @Override
     public RagIndexResponse rebuildAll() {
-        RagIndexTask task = createTask(null, TASK_REBUILD_ALL, STATUS_QUEUED, "Queued full index rebuild.");
+        RagIndexTask task = createTask(null, TASK_REBUILD_ALL, STATUS_QUEUED, "Index rebuild is starting -- this should finish shortly.");
         ragIndexTaskExecutor.execute(() -> runRebuildAll(task.getId()));
         return response(task, 0);
     }
