@@ -220,6 +220,8 @@ services:
         condition: service_healthy
 
   rag-worker:
+    profiles:
+      - rag-worker
     build:
       context: .
       dockerfile: rag-worker/Dockerfile
@@ -322,8 +324,6 @@ services:
         condition: service_healthy
       milvus:
         condition: service_healthy
-      rag-worker:
-        condition: service_healthy
 
   gateway-service:
     build:
@@ -353,7 +353,7 @@ services:
       - rag-agent
 
   # ─────────────────────────────────────────────────────────
-  # Nginx反向代理与前端静态托管
+  # Nginx reverse proxy + static file hosting
   # ─────────────────────────────────────────────────────────
   nginx:
     image: nginx:alpine
@@ -361,31 +361,11 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./web-ui/dist:/usr/share/nginx/html:ro
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - certbot_www:/var/www/certbot:ro
-      - certbot_conf:/etc/letsencrypt:ro
     depends_on:
       - gateway-service
-
-  # ─────────────────────────────────────────────────────────
-  # Certbot — Let's Encrypt SSL certificate auto-renewal
-  # ─────────────────────────────────────────────────────────
-  certbot:
-    image: certbot/certbot:latest
-    container_name: agent_certbot
-    volumes:
-      - certbot_www:/var/www/certbot
-      - certbot_conf:/etc/letsencrypt
-    entrypoint: |
-      /bin/sh -c 'while :; do
-        certbot renew --quiet;
-        echo "certbot renew check done, sleeping 12h...";
-        sleep 12h;
-      done'
-    restart: unless-stopped
 
 volumes:
   mysql_data:
@@ -399,8 +379,4 @@ volumes:
   milvus_data:
     driver: local
   huggingface_cache:
-    driver: local
-  certbot_www:
-    driver: local
-  certbot_conf:
     driver: local

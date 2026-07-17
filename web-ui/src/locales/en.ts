@@ -701,6 +701,11 @@ export default {
     aiProviderDeepseek: 'DeepSeek (deepseek-chat)',
     aiProviderDeepseekV4: 'DeepSeek V4 (deepseek-v4-flash)',
     aiProviderOllama: 'Ollama (local)',
+    fetchModels: 'Fetch',
+    ollamaNotRunning: 'Cannot connect to Ollama. Make sure ollama serve is running on your machine.',
+    ollamaFetchFailed: 'Failed to fetch models from Ollama service.',
+    ollamaFetchTimeout: 'Ollama did not respond in time. The service may be overloaded.',
+    ollamaNoModels: 'No models found in Ollama. Pull a model first (e.g. ollama pull gemma4).',
   },
 
   // Admin - User Management

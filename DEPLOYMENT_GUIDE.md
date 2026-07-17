@@ -141,6 +141,26 @@ After logging in as `admin`, the sidebar provides access to:
 
 ---
 
+### Switching Embedding Providers
+
+The platform defaults to Qwen DashScope (`text-embedding-v4`) for document embeddings, which requires no local setup. Two other profiles are available from the RAG Agent settings page:
+
+| Profile | Description | Additional Setup |
+|---------|-------------|-----------------|
+| `qwen-v4` (default) | Qwen DashScope cloud API | None |
+| `local-bge-m3` | Local BGE-M3 model, 1024-dim | Start rag-worker first (see below) |
+| `mock` | Random vectors (development only) | None |
+
+To switch to local BGE-M3 embeddings:
+
+```bash
+docker compose --profile rag-worker up -d
+```
+
+The rag-worker container will download BGE-M3 (~2 GB) on first start. Once the health check passes, select `local-bge-m3` from the RAG settings page and rebuild the index. Switching profiles preserves both indices -- you can switch back at any time.
+
+---
+
 ## Managing the Platform
 
 ```bash
@@ -191,16 +211,6 @@ sleep 10
 docker compose restart milvus
 ```
 
-### RAG Worker model download fails
-
-If Hugging Face is inaccessible, the embedding worker will fail. Edit `.env` to switch to the Qwen Cloud API or mock mode:
-```env
-RAG_EMBEDDING_ACTIVE_PROFILE=qwen-v4   # Qwen DashScope cloud API (requires API key)
-# or
-RAG_EMBEDDING_ACTIVE_PROFILE=mock      # Random vectors (functional but low-quality retrieval)
-```
-Then restart: `docker compose up -d`
-
 ### Not enough RAM
 
-If your machine has less than 16 GB RAM, reduce the footprint by commenting out `rag-worker` and `milvus` services in `docker-compose.yml`, and set `RAG_EMBEDDING_ACTIVE_PROFILE=mock` in `.env`. The rest of the platform will run without vector search capabilities.
+If your machine has less than 16 GB RAM, reduce the footprint by commenting out `milvus` and `etcd` services in `docker-compose.yml`, and set `RAG_EMBEDDING_ACTIVE_PROFILE=mock` in `.env`. The rest of the platform will run without vector search capabilities.

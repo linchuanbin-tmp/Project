@@ -460,8 +460,31 @@
           </div>
           <div class="ai-form-group">
             <label class="ai-form-label">Model</label>
+            <template v-if="aiProviderDraft === 'ollama'">
+              <div style="display:flex; gap:8px; align-items:center;">
+                <el-select
+                  v-model="aiProviderCustomModel"
+                  filterable
+                  allow-create
+                  placeholder="Select a model..."
+                  style="flex:1"
+                  size="small"
+                  :loading="ollamaModelsLoading"
+                >
+                  <el-option
+                    v-for="m in ollamaModels"
+                    :key="m"
+                    :label="m"
+                    :value="m"
+                  />
+                </el-select>
+                <el-button size="small" @click="fetchOllamaModels" :loading="ollamaModelsLoading" :icon="Refresh">
+                  {{ $t('settings.fetchModels') }}
+                </el-button>
+              </div>
+            </template>
             <el-input
-              v-if="aiProviderDraft === 'ollama' || aiProviderDraft === 'custom'"
+              v-else-if="aiProviderDraft === 'custom'"
               v-model="aiProviderCustomModel"
               placeholder="e.g. llama3, qwen2"
               size="small"
@@ -471,6 +494,7 @@
               :model-value="selectedProvider?.model || ''"
               disabled
               size="small"
+            />
             />
           </div>
           <div class="ai-form-group">
@@ -594,7 +618,7 @@ import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@stores/modules/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe, AlertCircle, Info, Timer, Cpu, Loader, HardDrive, Database, Cloud } from 'lucide-vue-next'
+import { User, Lock, Shield, Key, ShieldCheck, Check, X, Globe, AlertCircle, Info, Timer, Cpu, Loader, HardDrive, Database, Cloud, RefreshCw } from 'lucide-vue-next'
 import request from '@utils/request'
 import {
   activateRagEmbeddingProfile,
@@ -652,6 +676,39 @@ const aiProvider = ref('')
 const aiProviderDraft = ref('')
 const aiProviderBaseUrl = ref('')
 const aiProviderCustomModel = ref('')
+const ollamaModels = ref<string[]>([])
+const ollamaModelsLoading = ref(false)
+
+const fetchOllamaModels = async () => {
+  ollamaModelsLoading.value = true
+  ollamaModels.value = []
+  try {
+    const baseUrl = aiProviderBaseUrl.value || 'http://localhost:11434/v1'
+    const res = await fetch(`${baseUrl}/models`, { signal: AbortSignal.timeout(5000) })
+    if (!res.ok) {
+      ElMessage.error(t('settings.ollamaFetchFailed'))
+      return
+    }
+    const data = await res.json()
+    const models = (data.data || []).map((m: any) => m.id)
+    if (models.length === 0) {
+      ElMessage.warning(t('settings.ollamaNoModels'))
+    } else {
+      ollamaModels.value = models
+      if (!aiProviderCustomModel.value || !models.includes(aiProviderCustomModel.value)) {
+        aiProviderCustomModel.value = models[0]
+      }
+    }
+  } catch (e: any) {
+    if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
+      ElMessage.error(t('settings.ollamaFetchTimeout'))
+    } else {
+      ElMessage.error(t('settings.ollamaNotRunning'))
+    }
+  } finally {
+    ollamaModelsLoading.value = false
+  }
+}
 
 const selectProvider = (key: string) => {
   aiProviderDraft.value = key
@@ -691,6 +748,10 @@ const openAiProviderDialog = () => {
     aiProviderCustomModel.value = preset.model
   }
   aiDialogVisible.value = true
+  if (aiProviderDraft.value === 'ollama') {
+    ollamaModels.value = []
+    fetchOllamaModels()
+  }
 }
 
 const testAiConnection = async () => {
