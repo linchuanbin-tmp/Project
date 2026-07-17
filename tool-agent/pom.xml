@@ -22,21 +22,14 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- LangChain4j: Tool编排和Agent链式调用（文档2.3.2指定0.24+） -->
+        <!-- LangChain4j: Tool orchestration and agent chain calls -->
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-spring-boot-starter</artifactId>
             <version>0.24.0</version>
         </dependency>
 
-        <!-- LangChain4j本地嵌入模型（工具描述向量化，可选） -->
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
-            <version>0.24.0</version>
-        </dependency>
-
-        <!-- 工具元数据持久化（会议室表、日程表） -->
+        <!-- Tool metadata persistence (meeting rooms, schedules) -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-boot-starter</artifactId>

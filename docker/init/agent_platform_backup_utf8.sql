@@ -1,6 +1,6 @@
 -- =====================================================
--- agent_platform 数据库初始化脚本（UTF-8 干净版）
--- 由 Docker 容器首次启动时自动执行
+-- agent_platform database initialization script
+-- Automatically executed on first Docker container startup
 -- =====================================================
 
 SET NAMES utf8mb4;
@@ -8,17 +8,17 @@ SET FOREIGN_KEY_CHECKS = 0;
 SET TIME_ZONE = '+08:00';
 
 -- ----------------------------
--- 会议室表
+-- Meeting Room Table
 -- ----------------------------
 DROP TABLE IF EXISTS `meeting_room`;
 CREATE TABLE `meeting_room` (
   `id`          bigint      NOT NULL AUTO_INCREMENT,
-  `room_name`   varchar(50) NOT NULL           COMMENT '会议室名称',
-  `building`    varchar(100) DEFAULT NULL      COMMENT '楼宇',
-  `floor`       varchar(20) NOT NULL           COMMENT '楼层',
-  `capacity`    int         NOT NULL           COMMENT '容纳人数',
-  `facilities`  varchar(200) DEFAULT NULL      COMMENT '设备（投影仪/白板等）',
-  `status`      int          DEFAULT '1'       COMMENT '1可用 0维护中',
+  `room_name`   varchar(50) NOT NULL           COMMENT 'Meeting room name',
+  `building`    varchar(100) DEFAULT NULL      COMMENT 'Building',
+  `floor`       varchar(20) NOT NULL           COMMENT 'Floor',
+  `capacity`    int         NOT NULL           COMMENT 'Capacity',
+  `facilities`  varchar(200) DEFAULT NULL      COMMENT 'Equipment (projector/whiteboard etc.)',
+  `status`      int          DEFAULT '1'       COMMENT '1=Available 0=Maintenance',
   `create_time` datetime     DEFAULT CURRENT_TIMESTAMP,
   `update_time` datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted`     int          DEFAULT '0',
@@ -26,7 +26,7 @@ CREATE TABLE `meeting_room` (
 ) ENGINE=InnoDB AUTO_INCREMENT=5
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci
-  COMMENT='会议室表';
+  COMMENT='Meeting Room Table';
 
 INSERT INTO `meeting_room` VALUES
   (1, 'Room 301', 'Building A', '3', 10, 'Projector,Whiteboard',              1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
@@ -35,17 +35,17 @@ INSERT INTO `meeting_room` VALUES
   (4, 'Room 501 (Large)', 'Building B', '5', 50, 'Projector,Audio,Video Conference', 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
 
 -- ----------------------------
--- 会议/日程预约表
+-- Meeting / Schedule Table
 -- ----------------------------
 DROP TABLE IF EXISTS `meeting_schedule`;
 CREATE TABLE `meeting_schedule` (
   `id`         bigint       NOT NULL AUTO_INCREMENT,
-  `room_id`    bigint       NOT NULL           COMMENT '会议室ID（0=个人日程）',
-  `booker`     varchar(50)  NOT NULL           COMMENT '预约人',
-  `start_time` datetime     NOT NULL           COMMENT '开始时间',
-  `end_time`   datetime     NOT NULL           COMMENT '结束时间',
-  `topic`      varchar(200) DEFAULT NULL       COMMENT '主题',
-  `status`     int          DEFAULT '1'        COMMENT '1有效 0取消',
+  `room_id`    bigint       NOT NULL           COMMENT 'Meeting room ID (0=personal schedule)',
+  `booker`     varchar(50)  NOT NULL           COMMENT 'Booker',
+  `start_time` datetime     NOT NULL           COMMENT 'Start time',
+  `end_time`   datetime     NOT NULL           COMMENT 'End time',
+  `topic`      varchar(200) DEFAULT NULL       COMMENT 'Topic',
+  `status`     int          DEFAULT '1'        COMMENT '1=Valid 0=Cancelled',
   `create_time` datetime    DEFAULT CURRENT_TIMESTAMP,
   `update_time` datetime    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted`    int          DEFAULT '0',
@@ -53,32 +53,32 @@ CREATE TABLE `meeting_schedule` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci
-  COMMENT='会议/日程预约表';
+  COMMENT='Meeting / Schedule Table';
 
 -- ----------------------------
--- 用户表
+-- User Table
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_user`;
 CREATE TABLE `sys_user` (
   `id`              bigint      NOT NULL AUTO_INCREMENT,
-  `username`        varchar(50) NOT NULL           COMMENT '登录用户名',
-  `password`        varchar(100) NOT NULL          COMMENT 'BCrypt 加密密码',
-  `real_name`       varchar(50)  DEFAULT NULL      COMMENT '真实姓名',
-  `role`            varchar(20)  DEFAULT 'user'    COMMENT '角色描述',
-  `status`          int          DEFAULT '1'       COMMENT '1启用 0禁用',
+  `username`        varchar(50) NOT NULL           COMMENT 'Login username',
+  `password`        varchar(100) NOT NULL          COMMENT 'BCrypt encrypted password',
+  `real_name`       varchar(50)  DEFAULT NULL      COMMENT 'Real name',
+  `role`            varchar(20)  DEFAULT 'user'    COMMENT 'Role description',
+  `status`          int          DEFAULT '1'       COMMENT '1=Enabled 0=Disabled',
   `dept_id`         bigint       DEFAULT NULL      COMMENT 'Belongs to Department ID',
   `clearance_level` tinyint      NOT NULL DEFAULT 1 COMMENT 'Clearance level: 1=Public, 2=Internal, 3=Confidential',
   `create_time`     datetime     DEFAULT CURRENT_TIMESTAMP,
   `update_time`     datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `deleted`         tinyint      NOT NULL DEFAULT 0 COMMENT '逻辑删除 0=正常 1=已删除',
+  `deleted`         tinyint      NOT NULL DEFAULT 0 COMMENT 'Logical deleted 0=normal 1=deleted',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_username` (`username`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci
-  COMMENT='系统用户表';
+  COMMENT='System User Table';
 
--- 默认账号密码均为 123456
+-- Default account passwords are all 123456
 INSERT INTO `sys_user` VALUES
   (1, 'admin', '$2a$10$bdMiyhFCbgwNNG54h69C5OswCHC4458VEMYcLJ/GI8iR/O7bxxFdy', 'Administrator', 'admin', 1, NULL, 3, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
   (2, 'credit_mgr', '$2a$10$bdMiyhFCbgwNNG54h69C5OswCHC4458VEMYcLJ/GI8iR/O7bxxFdy', 'Credit Manager', 'dept_admin', 1, 1, 2, '2026-07-03 10:25:48', '2026-07-03 10:25:48', 0),
@@ -87,24 +87,24 @@ INSERT INTO `sys_user` VALUES
   (5, 'compliance_staff', '$2a$10$bdMiyhFCbgwNNG54h69C5OswCHC4458VEMYcLJ/GI8iR/O7bxxFdy', 'Compliance Staff', 'user', 1, 2, 1, '2026-07-03 10:25:48', '2026-07-03 10:25:48', 0);
 
 -- ----------------------------
--- 角色表
+-- Role Table
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_role`;
 CREATE TABLE `sys_role` (
   `id`          bigint      NOT NULL AUTO_INCREMENT,
-  `role_code`   varchar(50) NOT NULL           COMMENT '角色编码',
-  `role_name`   varchar(50) NOT NULL           COMMENT '角色名称',
-  `description` varchar(250) DEFAULT NULL      COMMENT '角色描述',
-  `status`      int          DEFAULT '1'       COMMENT '1启用 0禁用',
+  `role_code`   varchar(50) NOT NULL           COMMENT 'Role code',
+  `role_name`   varchar(50) NOT NULL           COMMENT 'Role name',
+  `description` varchar(250) DEFAULT NULL      COMMENT 'Role description',
+  `status`      int          DEFAULT '1'       COMMENT '1=Enabled 0=Disabled',
   `create_time` datetime     DEFAULT CURRENT_TIMESTAMP,
   `update_time` datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `deleted`     tinyint      NOT NULL DEFAULT 0 COMMENT '逻辑删除 0=正常 1=已删除',
+  `deleted`     tinyint      NOT NULL DEFAULT 0 COMMENT 'Logical deleted 0=normal 1=deleted',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_role_code` (`role_code`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci
-  COMMENT='系统角色表';
+  COMMENT='System Role Table';
 
 INSERT INTO `sys_role` VALUES
   (1, 'ROLE_ADMIN', 'System Administrator', 'Has all system management privileges', 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
@@ -112,26 +112,26 @@ INSERT INTO `sys_role` VALUES
   (3, 'ROLE_DEPT_ADMIN', 'Department Administrator', 'Manages department members and reviews RAG audits', 1, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
 
 -- ----------------------------
--- 权限表
+-- Permission Table
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_permission`;
 CREATE TABLE `sys_permission` (
   `id`            bigint       NOT NULL AUTO_INCREMENT,
-  `perm_code`     varchar(100) NOT NULL          COMMENT '权限编码 (如 user:view)',
-  `perm_name`     varchar(100) NOT NULL          COMMENT '权限名称',
-  `resource_path` varchar(200) DEFAULT NULL      COMMENT '请求接口路径',
-  `method`        varchar(10)  DEFAULT '*'       COMMENT '请求方法 (GET/POST/PUT/DELETE/*)',
-  `type`          tinyint      DEFAULT '1'       COMMENT '1菜单/目录 2接口/按钮',
-  `parent_id`     bigint       DEFAULT '0'       COMMENT '父级权限ID',
+  `perm_code`     varchar(100) NOT NULL          COMMENT 'Permission code (e.g. user:view)',
+  `perm_name`     varchar(100) NOT NULL          COMMENT 'Permission name',
+  `resource_path` varchar(200) DEFAULT NULL      COMMENT 'Request API path',
+  `method`        varchar(10)  DEFAULT '*'       COMMENT 'Request method (GET/POST/PUT/DELETE/*)',
+  `type`          tinyint      DEFAULT '1'       COMMENT '1=Menu/Directory 2=API/Button',
+  `parent_id`     bigint       DEFAULT '0'       COMMENT 'Parent permission ID',
   `create_time`   datetime     DEFAULT CURRENT_TIMESTAMP,
   `update_time`   datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `deleted`       tinyint      NOT NULL DEFAULT 0 COMMENT '逻辑删除 0=正常 1=已删除',
+  `deleted`       tinyint      NOT NULL DEFAULT 0 COMMENT 'Logical deleted 0=normal 1=deleted',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_perm_code` (`perm_code`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci
-  COMMENT='系统权限表';
+  COMMENT='System Permission Table';
 
 INSERT INTO `sys_permission` VALUES
   (1, 'user:view',   'View Employee List',   '/admin/users',       'GET',  2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0),
@@ -142,16 +142,16 @@ INSERT INTO `sys_permission` VALUES
   (6, 'task:query',  'Query Agent Task',  '/task/**',           'GET',  2, 0, '2026-06-05 15:51:24', '2026-06-05 15:51:24', 0);
 
 -- ----------------------------
--- 用户与角色关联表
+-- User-Role Association Table
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_user_role`;
 CREATE TABLE `sys_user_role` (
-  `user_id` bigint NOT NULL COMMENT '用户ID',
-  `role_id` bigint NOT NULL COMMENT '角色ID',
+  `user_id` bigint NOT NULL COMMENT 'User ID',
+  `role_id` bigint NOT NULL COMMENT 'Role ID',
   PRIMARY KEY (`user_id`,`role_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户角色关联表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='User-Role Association Table';
 
--- admin 账号默认分配 ROLE_ADMIN 角色
+-- Admin account is assigned ROLE_ADMIN by default
 INSERT INTO `sys_user_role` VALUES 
   (1, 1),
   (2, 3),
@@ -160,37 +160,37 @@ INSERT INTO `sys_user_role` VALUES
   (5, 2);
 
 -- ----------------------------
--- 角色与权限关联表
+-- Role-Permission Association Table
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_role_permission`;
 CREATE TABLE `sys_role_permission` (
-  `role_id` bigint NOT NULL COMMENT '角色ID',
-  `perm_id` bigint NOT NULL COMMENT '权限ID',
+  `role_id` bigint NOT NULL COMMENT 'Role ID',
+  `perm_id` bigint NOT NULL COMMENT 'Permission ID',
   PRIMARY KEY (`role_id`,`perm_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色权限关联表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Role-Permission Association Table';
 
--- 系统管理员拥有全部权限
+-- System administrator has all permissions
 INSERT INTO `sys_role_permission` VALUES
   (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6);
 
--- 普通员工及部门管理员仅拥有提交和查询 Agent 任务权限
+-- Regular staff and department admins only have agent task submission and query permissions
 INSERT INTO `sys_role_permission` VALUES
   (2, 5), (2, 6),
   (3, 5), (3, 6);
 
 -- ----------------------------
--- 部门表
+-- Department Table
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_department`;
 CREATE TABLE `sys_department` (
   `id`          bigint       NOT NULL AUTO_INCREMENT,
-  `dept_name`   varchar(100) NOT NULL           COMMENT '部门名称',
-  `description` varchar(250) DEFAULT NULL      COMMENT '部门描述',
-  `parent_id`   bigint       DEFAULT 0          COMMENT '上级部门ID',
-  `status`      int          DEFAULT 1          COMMENT '部门状态: 1启用, 0禁用',
+  `dept_name`   varchar(100) NOT NULL           COMMENT 'Department name',
+  `description` varchar(250) DEFAULT NULL      COMMENT 'Department description',
+  `parent_id`   bigint       DEFAULT 0          COMMENT 'Parent department ID',
+  `status`      int          DEFAULT 1          COMMENT 'Department status: 1=enabled, 0=disabled',
   `create_time` datetime     DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='部门表';
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Department Table';
 
 INSERT INTO `sys_department` VALUES
   (1, 'Credit Department', 'Handles credit assessment, loan authorization, and corporate risk analysis.', 0, 1, '2026-07-03 10:25:48'),
@@ -201,7 +201,7 @@ INSERT INTO `sys_department` VALUES
   (6, 'Risk Control Department', 'Analyzes market risk thresholds and sets financial liquidity hazards parameters.', 0, 1, '2026-07-03 10:25:48');
 
 -- ----------------------------
--- 部门文档表
+-- Department Document Table
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_document`;
 CREATE TABLE `sys_document` (
@@ -212,14 +212,14 @@ CREATE TABLE `sys_document` (
   `security_level` tinyint      NOT NULL DEFAULT 1 COMMENT '1=Public, 2=Internal, 3=Confidential',
   `create_time`       datetime     DEFAULT CURRENT_TIMESTAMP,
   `file_type`         varchar(20)  DEFAULT 'MARKDOWN' COMMENT 'MARKDOWN/PDF/DOCX/PPT',
-  `file_size`         bigint       DEFAULT NULL COMMENT '原文件大小(bytes), MARKDOWN为NULL',
-  `minio_object_key`  varchar(500) DEFAULT NULL COMMENT 'MinIO object key, MARKDOWN为NULL',
-  `parse_status`      varchar(20)  DEFAULT NULL COMMENT 'PENDING/DONE/FAILED, MARKDOWN为NULL',
+  `file_size`         bigint       DEFAULT NULL COMMENT 'Original file size (bytes), NULL for MARKDOWN',
+  `minio_object_key`  varchar(500) DEFAULT NULL COMMENT 'MinIO object key, NULL for MARKDOWN',
+  `parse_status`      varchar(20)  DEFAULT NULL COMMENT 'PENDING/DONE/FAILED, NULL for MARKDOWN',
   PRIMARY KEY (`id`),
   KEY `idx_dept_id` (`dept_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='部门文档表';
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Department Document Table';
 
-INSERT INTO `sys_document` VALUES
+INSERT INTO `sys_document` (id, title, content, dept_id, security_level, create_time) VALUES
   (7, 'Q1 2025 Credit Assessment Manual', 'Standard operational guidelines for evaluating corporate credit risk in the first quarter of 2025.', 1, 2, '2026-07-03 10:25:48'),
   (8, 'Confidential Credit Risk Evaluation for Corporate Accounts', 'Secret guidelines for loan limits and credit authorization metrics.', 1, 3, '2026-07-03 10:25:48'),
   (9, 'Standard Loan Agreement Template', 'Standard legal template for corporate loan agreements.', 1, 1, '2026-07-03 10:25:48'),
@@ -300,7 +300,7 @@ When an employee attempts to retrieve an internal document but has insufficient 
 3. **Activation**: Upon approval, the status changes to `3` (Approved). The document retrieval algorithm detects the approved record, and dynamically grants access to that specific document.', NULL, 1, '2026-07-03 10:25:48');
 
 -- ----------------------------
--- 消息通知表
+-- Notification Table
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_notification`;
 CREATE TABLE `sys_notification` (
@@ -317,10 +317,10 @@ CREATE TABLE `sys_notification` (
   `thread_id`   bigint       DEFAULT NULL   COMMENT 'Root conversation thread ID',
   `create_time` datetime     DEFAULT CURRENT_TIMESTAMP,
   `update_time` datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `deleted`     tinyint      NOT NULL DEFAULT 0 COMMENT '逻辑删除 0=正常 1=已删除',
+  `deleted`     tinyint      NOT NULL DEFAULT 0 COMMENT 'Logical deleted 0=normal 1=deleted',
   PRIMARY KEY (`id`),
   KEY `idx_thread_id` (`thread_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统通知表';
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='System Notification Table';
 
 INSERT INTO `sys_notification` (`id`, `sender_id`, `receiver_id`, `title`, `content`, `notify_type`, `status`, `payload`, `opinion`, `create_time`, `update_time`, `deleted`) VALUES
   (1, 3, 2, 'RAG Permission Escalation Request', 'Employee @credit_staff requests temporary access to "Confidential Credit Risk Evaluation for Corporate Accounts" (Security: Level-3).', 'RAG_APPLY', 2, '{"documentId":8,"title":"Confidential Credit Risk Evaluation for Corporate Accounts","clearanceLevel":3,"reason":"Need to review Q2 auditing notes."}', NULL, '2026-07-03 10:25:48', '2026-07-03 10:25:48', 0),
@@ -345,25 +345,153 @@ INSERT INTO `sys_config` (`id`, `param_key`, `param_value`, `description`) VALUE
   (1, 'session_timeout', '30', 'Session inactivity timeout in minutes');
 
 -- ----------------------------
--- 创建任务记录表 task_record
+-- Task Record Table
 -- ----------------------------
-DROP TABLE IF EXISTS `task_record`;
-CREATE TABLE `task_record` (
-  `id`            bigint       NOT NULL AUTO_INCREMENT          COMMENT '全局任务唯一ID',
-  `task_type`     varchar(20)  NOT NULL                         COMMENT '任务类型: CODE, RAG, TOOL',
-  `status`        varchar(20)  NOT NULL DEFAULT 'INIT'          COMMENT '状态: INIT, RUNNING, SUCCESS, FAIL',
-  `user_id`       bigint       NOT NULL                         COMMENT '提交人用户ID',
-  `input`         text         NOT NULL                         COMMENT '用户的自然语言输入 (Prompt)',
-  `output`        text         DEFAULT NULL                     COMMENT 'AI 最终输出结果',
-  `error_msg`     text         DEFAULT NULL                     COMMENT '失败时的错误详细描述',
-  `attempt_count` int          NOT NULL DEFAULT 0               COMMENT '重试次数',
-  `elapsed_time`  int          DEFAULT 0                        COMMENT '任务执行耗时 (毫秒)',
+CREATE TABLE IF NOT EXISTS `task_record` (
+  `id`            bigint       NOT NULL AUTO_INCREMENT          COMMENT 'Global task unique ID',
+  `task_type`     varchar(20)  NOT NULL                         COMMENT 'Task type: CODE, RAG, TOOL',
+  `status`        varchar(20)  NOT NULL DEFAULT 'INIT'          COMMENT 'Status: INIT, RUNNING, SUCCESS, FAIL',
+  `user_id`       bigint       NOT NULL                         COMMENT 'Submitter user ID',
+  `input`         text         NOT NULL                         COMMENT 'User natural language input (Prompt)',
+  `output`        text         DEFAULT NULL                     COMMENT 'AI final output',
+  `error_msg`     text         DEFAULT NULL                     COMMENT 'Error details on failure',
+  `attempt_count` int          NOT NULL DEFAULT 0               COMMENT 'Retry count',
+  `elapsed_time`  int          DEFAULT 0                        COMMENT 'Task execution time (milliseconds)',
   `created_at`    datetime     DEFAULT CURRENT_TIMESTAMP,
   `updated_at`    datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='任务生命周期记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Task lifecycle record table';
+
+-- ----------------------------
+-- RAG Knowledge Base
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `rag_knowledge_base` (
+  `id`              bigint       NOT NULL AUTO_INCREMENT,
+  `name`            varchar(120) NOT NULL COMMENT 'Knowledge base display name',
+  `description`     varchar(500) DEFAULT NULL,
+  `owner_username`  varchar(100) DEFAULT NULL,
+  `dept_id`         bigint       DEFAULT NULL COMMENT 'Department scope; null = platform-wide',
+  `visibility`      varchar(30)  NOT NULL DEFAULT 'DEPARTMENT' COMMENT 'PRIVATE, DEPARTMENT, GLOBAL',
+  `security_level`  tinyint      NOT NULL DEFAULT 1,
+  `status`          varchar(30)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE, ARCHIVED, DELETED',
+  `document_count`  int          NOT NULL DEFAULT 0,
+  `chunk_count`     int          NOT NULL DEFAULT 0,
+  `create_time`     datetime     DEFAULT CURRENT_TIMESTAMP,
+  `update_time`     datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_kb_status` (`status`),
+  KEY `idx_kb_dept_status` (`dept_id`, `status`),
+  KEY `idx_kb_owner` (`owner_username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RAG knowledge base metadata';
+
+-- ----------------------------
+-- RAG Source Document
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `rag_source_document` (
+  `id`                 bigint       NOT NULL AUTO_INCREMENT,
+  `kb_id`              bigint       NOT NULL,
+  `sys_document_id`    bigint       DEFAULT NULL,
+  `title`              varchar(200) NOT NULL,
+  `original_file_name` varchar(255) NOT NULL,
+  `file_type`          varchar(32)  DEFAULT NULL,
+  `mime_type`          varchar(120) DEFAULT NULL,
+  `file_size`          bigint       DEFAULT NULL,
+  `storage_provider`   varchar(30)  NOT NULL DEFAULT 'minio',
+  `storage_bucket`     varchar(120) DEFAULT NULL,
+  `storage_object_key` varchar(500) DEFAULT NULL,
+  `content_hash`       varchar(64)  DEFAULT NULL COMMENT 'SHA-256 of original file',
+  `parsed_text`        longtext     DEFAULT NULL,
+  `status`             varchar(30)  NOT NULL DEFAULT 'ACTIVE',
+  `parser_status`      varchar(30)  NOT NULL DEFAULT 'UPLOADED' COMMENT 'UPLOADED, PARSED, PARSE_PENDING, PARSE_FAIL',
+  `index_status`       varchar(30)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING, INDEXED, INDEX_FAIL',
+  `chunk_count`        int          NOT NULL DEFAULT 0,
+  `security_level`     tinyint      NOT NULL DEFAULT 1,
+  `dept_id`            bigint       DEFAULT NULL,
+  `uploaded_by`        varchar(100) DEFAULT NULL,
+  `error_message`      varchar(1000) DEFAULT NULL,
+  `create_time`        datetime     DEFAULT CURRENT_TIMESTAMP,
+  `update_time`        datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_source_kb` (`kb_id`),
+  KEY `idx_source_sys_document` (`sys_document_id`),
+  KEY `idx_source_status` (`status`, `parser_status`, `index_status`),
+  KEY `idx_source_dept_security` (`dept_id`, `security_level`),
+  KEY `idx_source_hash` (`content_hash`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RAG uploaded source document metadata';
+
+-- ----------------------------
+-- RAG Document Chunk
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `rag_document_chunk` (
+  `id`                bigint       NOT NULL AUTO_INCREMENT,
+  `document_id`       bigint       NOT NULL,
+  `chunk_index`       int          NOT NULL,
+  `chunk_text`        mediumtext   NOT NULL,
+  `token_count`       int          DEFAULT 0,
+  `vector_id`         varchar(128) NOT NULL,
+  `embedding_profile` varchar(64)  NOT NULL DEFAULT 'local-bge-m3',
+  `embedding_model`   varchar(120) DEFAULT NULL,
+  `vector_collection` varchar(120) DEFAULT NULL,
+  `index_status`      varchar(30)  NOT NULL DEFAULT 'SUCCESS' COMMENT 'RUNNING, SUCCESS, FAIL',
+  `security_level`    tinyint      NOT NULL DEFAULT 1,
+  `dept_id`           bigint       DEFAULT NULL,
+  `content_hash`      varchar(64)  DEFAULT NULL,
+  `create_time`       datetime     DEFAULT CURRENT_TIMESTAMP,
+  `update_time`       datetime     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted`           tinyint      NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_vector_id` (`vector_id`),
+  KEY `idx_document_id` (`document_id`),
+  KEY `idx_chunk_profile_document` (`embedding_profile`, `document_id`),
+  KEY `idx_dept_security` (`dept_id`, `security_level`),
+  KEY `idx_content_hash` (`content_hash`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RAG document chunk metadata';
+
+-- ----------------------------
+-- RAG Query Log
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `rag_query_log` (
+  `id`                bigint       NOT NULL AUTO_INCREMENT,
+  `user_id`           bigint       NOT NULL,
+  `username`          varchar(100) NOT NULL,
+  `question`          text         NOT NULL,
+  `answer`            mediumtext   DEFAULT NULL,
+  `retrieved_doc_ids` varchar(500) DEFAULT NULL,
+  `blocked_doc_ids`   varchar(500) DEFAULT NULL,
+  `embedding_profile` varchar(64)  DEFAULT NULL,
+  `embedding_model`   varchar(120) DEFAULT NULL,
+  `vector_collection` varchar(120) DEFAULT NULL,
+  `top_k`             int          DEFAULT 5,
+  `latency_ms`        int          DEFAULT 0,
+  `status`            varchar(30)  NOT NULL DEFAULT 'INIT',
+  `error_msg`         text         DEFAULT NULL,
+  `create_time`       datetime     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_username` (`username`),
+  KEY `idx_query_embedding_profile` (`embedding_profile`),
+  KEY `idx_status` (`status`),
+  KEY `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RAG query audit log';
+
+-- ----------------------------
+-- RAG Index Task
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `rag_index_task` (
+  `id`          bigint      NOT NULL AUTO_INCREMENT,
+  `document_id` bigint      DEFAULT NULL,
+  `task_type`   varchar(30) NOT NULL COMMENT 'REBUILD_ALL, INDEX_DOCUMENT, DELETE_DOCUMENT',
+  `status`      varchar(30) NOT NULL DEFAULT 'INIT' COMMENT 'INIT, RUNNING, SUCCESS, FAIL',
+  `message`     text        DEFAULT NULL,
+  `create_time` datetime    DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_document_id` (`document_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_task_type` (`task_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RAG indexing task status';
 
 SET FOREIGN_KEY_CHECKS = 1;
 
