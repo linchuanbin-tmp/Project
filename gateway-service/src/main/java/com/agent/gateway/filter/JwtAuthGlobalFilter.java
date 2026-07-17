@@ -41,6 +41,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             "/api/user/send-code",
             "/api/user/config/ai-provider",
             "/api/user/config/ai-provider/test",
+            "/api/dashboard/route",
             "/ws"
     );
 

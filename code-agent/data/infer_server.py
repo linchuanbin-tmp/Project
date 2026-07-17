@@ -476,11 +476,11 @@ def route_intent():
         })
 
     if not DEEPSEEK_API_KEY:
-        log.warning("⚠️ API Key not set, fallback to simple keyword routing")
+        log.warning("API Key not set, fallback to simple keyword routing")
         intent = "RAG"
         if any(w in q_lower for w in ["select", "show", "table", "查询", "统计", "余额", "账单", "交易", "账户"]):
             intent = "CODE"
-        elif any(w in q_lower for w in ["会议室", "预订", "日程", "时间冲突", "发邮件", "安排"]):
+        elif any(w in q_lower for w in ["会议", "开会", "预订", "预定", "日程", "时间冲突", "发邮件", "安排", "meeting", "book", "schedule", "reserve"]):
             # Booking intent detected — check for route keywords
             has_route = any(w in q_lower for w in ["从", "到", "路线", "地图", "规划路线", "驾车", "公交", "步行", "起点", "终点"])
             if not has_route:
@@ -522,13 +522,16 @@ def route_intent():
             base_url=DEEPSEEK_BASE_URL,
         )
 
-        system_prompt = """你是智能意图分类器。只输出一个单词：CODE/TOOL/RAG/SETTINGS/CLARIFY/CHAT。
-- CODE: 查询数据库、生成SQL、统计数据。
-- TOOL: 用户想订会议室（提到时间、人数、会议室等）或做日程冲突检测或做路径规划（提到起点/终点、路线、驾车等）。如果用户说要"预订会议室"或者给了时间和人数，并且没有问到路线相关词（从/到/路线/地图/规划/起点/终点/出行/交通），就判定为TOOL。
-- RAG: 问规章制度、文档、概念定义、政策、指南。
-- SETTINGS: 改密码、个人资料、系统配置。
-- CLARIFY: 用户表达了使用会议室/路线服务的意图（有"预订""会议室""日程""路线""规划""出行""交通""地图"等词），但缺少必要参数。会议室需要时间和人数；路线需要起点和终点。如果信息完整直接判TOOL。
-- CHAT: 打招呼、闲聊。如果用户要求讲笑话、写诗、讲故事、角色扮演等非银行办公相关的内容，也归为CHAT（由CHAT安全防护层处理拒绝）。"""
+        system_prompt = """You are an intent classifier for a banking enterprise agent platform. Output exactly one word: CODE/TOOL/RAG/SETTINGS/CLARIFY/CHAT.
+
+- CODE: SQL queries, database statistics, data retrieval.
+- TOOL: The user has a COMPLETE booking or route request. Meeting booking requires time AND attendee count. Route planning requires origin AND destination. Only classify as TOOL if all required parameters are present.
+- RAG: Questions about policies, regulations, documents, concepts, definitions, guides -- "what is", "how does", "explain", "define". This is a knowledge base lookup, NOT for action-oriented requests.
+- SETTINGS: Password changes, profile updates, system configuration.
+- CLARIFY: The user wants to book a meeting, schedule something, reserve a room, or plan a route, but is MISSING required parameters (time, attendee count, origin/destination). Use CLARIFY when the intent is clearly TOOL but the information is incomplete. Also use CLARIFY for vague meeting-related intentions like "I want to have a meeting", "schedule a meeting", "book something", "我要开会", "安排会议", "安排日程" without enough detail.
+- CHAT: Greetings, small talk, non-banking requests.
+
+CRITICAL: If a user expresses any action intent (booking, scheduling, routing, meeting), classify as TOOL or CLARIFY -- NEVER as RAG or CHAT. RAG is only for document/knowledge questions."""
 
         response = client.chat.completions.create(
             model=ROUTE_CLASSIFY_MODEL,
@@ -674,7 +677,7 @@ def health():
 
 @app.route("/schema")
 def get_schema():
-    """查看当前使用的 schema 上下文（调试用）"""
+    """Returns the current schema context (for debugging)."""
     return jsonify({"schema": SCHEMA_CONTEXT, "length": len(SCHEMA_CONTEXT)})
 
 
