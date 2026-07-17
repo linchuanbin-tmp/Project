@@ -71,6 +71,26 @@
               <span class="topk-value">{{ topK }}</span>
             </div>
           </div>
+
+          <div class="suggested-question-block">
+            <div class="suggested-question-head">
+              <span>Suggested Questions</span>
+              <small>Click one to test retrieval, citations, and permission filtering</small>
+            </div>
+            <div class="suggested-question-list">
+              <button
+                v-for="item in suggestedQuestions"
+                :key="item.question"
+                class="suggested-question"
+                :class="item.tone"
+                :disabled="querying"
+                @click="handleSuggestedQuestion(item.question)"
+              >
+                <span class="suggested-label">{{ item.label }}</span>
+                <span class="suggested-text">{{ item.question }}</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div v-if="response" class="premium-card review-card">
@@ -397,6 +417,34 @@ const documentStatusMap = ref<Record<number, RagDocumentIndexStatus>>({})
 const indexTasks = ref<RagIndexTask[]>([])
 const health = ref<RagHealthResponse | null>(null)
 
+const suggestedQuestions = [
+  {
+    label: 'Public',
+    tone: 'public',
+    question: 'What are the main functions of the BankAgent platform?'
+  },
+  {
+    label: 'Security',
+    tone: 'security',
+    question: 'How are security clearance levels defined in this system?'
+  },
+  {
+    label: 'Credit',
+    tone: 'credit',
+    question: 'What clauses are included in the standard loan agreement template?'
+  },
+  {
+    label: 'Compliance',
+    tone: 'compliance',
+    question: 'What are the AML monitoring and suspicious transaction reporting procedures?'
+  },
+  {
+    label: 'Restricted',
+    tone: 'restricted',
+    question: 'What are the confidential credit risk evaluation rules for corporate accounts?'
+  }
+]
+
 // ── Document list display ──
 const MAX_VISIBLE_DOCS = 4
 const docsDialogVisible = ref(false)
@@ -433,6 +481,11 @@ const handleQuery = async () => {
   } finally {
     querying.value = false
   }
+}
+
+const handleSuggestedQuestion = async (text: string) => {
+  question.value = text
+  await handleQuery()
 }
 
 const loadAccessibleDocuments = async () => {
@@ -908,6 +961,83 @@ onMounted(async () => {
 }
 
 /* ── Answer ── */
+.suggested-question-block {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.suggested-question-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.suggested-question-head span {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.suggested-question-head small {
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: right;
+}
+
+.suggested-question-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.suggested-question {
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #fff;
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+
+.suggested-question:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.suggested-question:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
+}
+
+.suggested-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #64748b;
+}
+
+.suggested-text {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #1e293b;
+}
+
+.suggested-question.public .suggested-label { color: #15803d; }
+.suggested-question.security .suggested-label { color: #4f46e5; }
+.suggested-question.credit .suggested-label { color: #1d4ed8; }
+.suggested-question.compliance .suggested-label { color: #0f766e; }
+.suggested-question.restricted .suggested-label { color: #b45309; }
+
 .answer-text {
   white-space: pre-wrap;
   line-height: 1.72;
@@ -1115,6 +1245,13 @@ onMounted(async () => {
 @media (max-width: 960px) {
   .workspace-grid { grid-template-columns: 1fr; }
   .rag-page { padding: 12px; }
+  .suggested-question-list { grid-template-columns: 1fr; }
+  .suggested-question-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+  }
+  .suggested-question-head small { text-align: left; }
 }
 
 .health-status-row {
