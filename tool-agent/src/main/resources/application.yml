@@ -24,17 +24,17 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     map-underscore-to-camel-case: true
 
-# LLM API configuration (overridden by AI_DEEPSEEK_* env vars in Docker)
+# LLM API configuration (overridden by environment variables in Docker)
 ai:
   deepseek:
-    api-key: ${AI_DEEPSEEK_API_KEY:2a62ecda76e5be506cbf442160539507:OWVkYWYzZTE2NDBkNmNjOThjNzNmMzYx}
+    api-key: ${AI_DEEPSEEK_API_KEY:}
     base-url: ${AI_DEEPSEEK_BASE_URL:https://maas-api.cn-huabei-1.xf-yun.com/v2}
     model: ${AI_DEEPSEEK_MODEL:xopdeepseekv32}
     timeout: 6000
 
 # AMap (overridden by AMAP_KEY env var in Docker)
 amap:
-  key: ${AMAP_KEY:f5a3d5e1af9c992f925692aae7b04115}
+  key: ${AMAP_KEY:}
 
 logging:
   level:
