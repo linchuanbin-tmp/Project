@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -26,7 +27,14 @@ public class AmapService {
 
     private final ObjectMapper objectMapper;
     private final DeepSeekService deepSeekService;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = createRestTemplate();
+
+    private static RestTemplate createRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10000);
+        factory.setReadTimeout(30000);
+        return new RestTemplate(factory);
+    }
 
     public Map<String, Object> planDrivingRoute(String from, String to, int strategy) {
         log.info("规划路线: {} -> {}", from, to);
@@ -90,11 +98,8 @@ public class AmapService {
             result.put("to", to);
             result.put("source", "amap");
 
-            try {
-                translateRouteResultToEnglish(result);
-            } catch (Exception e) {
-                log.warn("Failed to translate route instructions using AI", e);
-            }
+            // Skip AI translation — too slow for routes with many steps
+            // translateRouteResultToEnglish(result);
 
             return result;
 
@@ -156,11 +161,8 @@ public class AmapService {
             result.put("to", to);
             result.put("source", "amap");
 
-            try {
-                translateRouteResultToEnglish(result);
-            } catch (Exception e) {
-                log.warn("Failed to translate walking route instructions using AI", e);
-            }
+            // Skip AI translation — too slow for routes with many steps
+            // translateRouteResultToEnglish(result);
 
             return result;
 
@@ -272,11 +274,8 @@ public class AmapService {
             result.put("to", to);
             result.put("source", "amap");
 
-            try {
-                translateRouteResultToEnglish(result);
-            } catch (Exception e) {
-                log.warn("Failed to translate transit route instructions using AI", e);
-            }
+            // Skip AI translation — too slow for routes with many steps
+            // translateRouteResultToEnglish(result);
 
             return result;
 
@@ -465,11 +464,15 @@ public class AmapService {
             Map<String, Object> translationPayload = new HashMap<>();
             translationPayload.put("trafficStatus", result.get("trafficStatus"));
             translationPayload.put("toll", result.get("toll"));
-            
+
             List<Map<String, String>> steps = (List<Map<String, String>>) result.get("steps");
             List<String> instructions = new ArrayList<>();
-            for (Map<String, String> step : steps) {
-                instructions.add(step.get("instruction"));
+            int maxSteps = Math.min(steps != null ? steps.size() : 0, 20);
+            for (int i = 0; i < maxSteps; i++) {
+                instructions.add(steps.get(i).get("instruction"));
+            }
+            if (steps != null && steps.size() > 20) {
+                instructions.add("... and " + (steps.size() - 20) + " more steps (truncated)");
             }
             translationPayload.put("instructions", instructions);
 

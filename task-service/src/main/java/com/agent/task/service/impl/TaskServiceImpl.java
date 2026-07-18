@@ -53,8 +53,8 @@ public class TaskServiceImpl implements TaskService {
         this.jdbcTemplate = jdbcTemplate;
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000);
-        factory.setReadTimeout(30000);
+        factory.setConnectTimeout(10000);
+        factory.setReadTimeout(120000);
         this.restTemplate = new RestTemplate(factory);
         
         String codeUri = System.getenv("CODE_SERVICE_URI");

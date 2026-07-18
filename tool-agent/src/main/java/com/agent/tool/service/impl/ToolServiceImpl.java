@@ -69,10 +69,16 @@ public class ToolServiceImpl implements ToolService {
             response.setMessage("执行成功");
 
         } catch (Exception e) {
-            log.error("Tool执行失败, 降级到Mock; type={}", request.getToolType(), e);
+            log.error("Tool执行失败; type={}, error={}", request.getToolType(), e.getMessage());
+            String errorMsg = e.getMessage() != null ? e.getMessage() : "unknown error";
+            // Provide user-friendly error for timeouts vs general failures
+            if (errorMsg.contains("Read timed out") || errorMsg.contains("timeout") || errorMsg.contains("Timeout")) {
+                response.setMessage("The service is taking longer than expected. Please try again with a more specific query (e.g. full address instead of abbreviations like 'HKG').");
+            } else {
+                response.setMessage("Service temporarily unavailable: " + errorMsg);
+            }
             response.setData(fallbackMock(request.getToolType()));
-            response.setSuccess(true);
-            response.setMessage("AI服务异常，返回演示数据");
+            response.setSuccess(false);
         }
 
         return response;
