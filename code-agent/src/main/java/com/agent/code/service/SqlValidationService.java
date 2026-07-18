@@ -246,27 +246,52 @@ public class SqlValidationService {
         return sql.replaceAll("\\s+", " ").trim();
     }
 
+    /** Recognized SQL function names that wrap column references */
+    private static final Set<String> SQL_FUNCTIONS = Set.of(
+        "COUNT", "SUM", "AVG", "MAX", "MIN",
+        "DISTINCT", "CAST", "COALESCE", "IFNULL", "NULLIF",
+        "CONCAT", "GROUP_CONCAT", "LOWER", "UPPER", "TRIM",
+        "LENGTH", "SUBSTR", "SUBSTRING", "REPLACE",
+        "ROUND", "FLOOR", "CEIL", "CEILING", "ABS",
+        "DATE", "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND",
+        "NOW", "CURDATE", "CURTIME", "DATE_FORMAT"
+    );
+
     /**
-     * Extract column names from the SELECT column list
+     * Extract column names from the SELECT column list.
+     * Skips SQL function calls like AVG(balance) and literal expressions.
      */
     private Set<String> extractColumnNames(String columnsPart) {
         Set<String> columns = new HashSet<>();
-        // Split by comma
         String[] parts = columnsPart.split(",");
         for (String part : parts) {
             part = part.trim();
-            // Extract the last word as column name (handle "t.col" -> "col", "col AS alias" -> "col")
+
             // Handle table.column format first
             if (part.contains(".")) {
                 part = part.substring(part.lastIndexOf('.') + 1);
             }
-            // Extract the first word (skip aggregate functions)
+
             String[] words = part.split("\\s+");
-            if (words.length > 0) {
-                String col = words[0].replaceAll("[^a-zA-Z0-9_]", "");
-                if (!col.isEmpty()) {
-                    columns.add(col);
+            if (words.length == 0) continue;
+
+            String firstToken = words[0];
+
+            // Skip SQL function calls: e.g. AVG(balance) → extract "balance" and skip (already handled below)
+            if (firstToken.contains("(")) {
+                String funcName = firstToken.substring(0, firstToken.indexOf('(')).trim().toUpperCase();
+                if (SQL_FUNCTIONS.contains(funcName)) {
+                    // For aggregate functions like AVG(balance), the inner column is already a reference;
+                    // we don't need to validate AVG itself as a "column".
+                    // Also skip literal expressions like COUNT(1), COUNT(*)
+                    continue;
                 }
+            }
+
+            // Strip non-identifier chars (parentheses, commas, etc.)
+            String col = firstToken.replaceAll("[^a-zA-Z0-9_]", "");
+            if (!col.isEmpty()) {
+                columns.add(col);
             }
         }
         return columns;
