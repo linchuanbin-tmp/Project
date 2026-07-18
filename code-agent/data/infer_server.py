@@ -475,30 +475,34 @@ def route_intent():
             }
         })
 
-    if not DEEPSEEK_API_KEY:
-        log.warning("API Key not set, fallback to simple keyword routing")
-        intent = "RAG"
-        if any(w in q_lower for w in ["select", "show", "table", "查询", "统计", "余额", "账单", "交易", "账户"]):
-            intent = "CODE"
-        elif any(w in q_lower for w in ["会议", "开会", "预订", "预定", "日程", "时间冲突", "发邮件", "安排", "meeting", "book", "schedule", "reserve"]):
-            # Booking intent detected — check for route keywords
-            has_route = any(w in q_lower for w in ["从", "到", "路线", "地图", "规划路线", "驾车", "公交", "步行", "起点", "终点"])
-            if not has_route:
-                # It's a booking request — check if time and capacity are present
-                has_date = any(w in q_lower for w in ["今", "明", "后", "下午", "上午", "点", "分", "time", "date", "today", "tomorrow", "pm", "am"])
-                has_capacity = any(w in q_lower for w in ["人", "个", "位", "pax", "capacity", "people"])
-                if not (has_date and has_capacity):
-                    clarify = {'zh-Hant': '好的，請問您需要預定哪一天的會議室？預計有多少人參加？',
-                               'zh-Hans': '好的，请问您需要预定哪一天的会议室？预计有多少人参加？',
-                               'en': 'Sure, which date and time would you like to book the meeting room for? And how many attendees?'}
-                    return jsonify({
-                        "code": 200, "message": "success",
-                        "data": {"intent": "CLARIFY", "reply": clarify.get(lang, clarify['en']), "method": "KEYWORD_CLARIFY"}
-                    })
-            intent = "TOOL"
-        elif any(w in q_lower for w in ["规划", "路线", "地图", "驾车", "公交", "步行"]):
-            # Route planning intent
-            if "从" not in q_lower or "到" not in q_lower:
+    # ── Keyword pre-filter (runs before LLM for strong-action inputs) ──
+    # When the user clearly expresses an ACTION intent (meeting/booking/route/settings),
+    # keyword matching is fast, deterministic, and avoids LLM misclassification.
+    # LLM is only consulted for truly ambiguous or knowledge-related inputs.
+    HAS_ACTION_KEYWORD = any(w in q_lower for w in [
+        "会议", "开会", "预订", "预定", "日程", "时间冲突", "安排",
+        "meeting", "book", "schedule", "reserve",
+        "规划", "路线", "地图", "驾车", "公交", "步行", "导航",
+        "从", "起点", "终点", "出行", "route", "drive", "direction", "navigate",
+    ])
+    HAS_ROUTE_KEYWORD = any(w in q_lower for w in [
+        "从", "到", "路线", "地图", "规划", "规划路线", "驾车", "公交", "步行",
+        "起点", "终点", "出行", "route", "drive", "direction", "navigate",
+        "行驶", "交通", "开车",
+    ])
+    HAS_BOOKING_KEYWORD = any(w in q_lower for w in [
+        "会议", "开会", "预订", "预定", "日程", "时间冲突", "安排", "发邮件",
+        "meeting", "book", "schedule", "reserve",
+    ])
+
+    if HAS_ACTION_KEYWORD:
+        # Distinguish route vs booking intent
+        if HAS_ROUTE_KEYWORD and not HAS_BOOKING_KEYWORD:
+            # Route intent — check if origin AND destination are present
+            has_origin = any(w in q_lower for w in ["从", "起点", "from", "origin"])
+            has_destination = any(w in q_lower for w in ["到", "终点", "to", "destination"])
+            has_direction_marker = any(w in q_lower for w in ["从", "起点", "到", "终点", "from", "to", "origin", "destination"])
+            if has_direction_marker and not (has_origin and has_destination):
                 route_clarify = {'zh-Hant': '請提供您的路線起點和終點（例如：從香港大學到香港國際機場）。',
                                   'zh-Hans': '请提供您的路线起点和终点（例如：从香港大学到香港国际机场）。',
                                   'en': 'Please provide your starting point and destination (e.g., from HKU to Hong Kong International Airport).'}
@@ -507,14 +511,54 @@ def route_intent():
                     "data": {"intent": "CLARIFY", "reply": route_clarify.get(lang, route_clarify['en']), "method": "KEYWORD_CLARIFY"}
                 })
             intent = "TOOL"
-        elif any(w in q_lower for w in ["设置", "settings", "个人中心", "密码", "password", "profile"]):
-            intent = "SETTINGS"
+        elif HAS_BOOKING_KEYWORD and not HAS_ROUTE_KEYWORD:
+            # Booking intent — check if time and capacity are present
+            has_date = any(w in q_lower for w in ["今", "明", "后", "下午", "上午", "点", "分", "time", "date", "today", "tomorrow", "pm", "am"])
+            has_capacity = any(w in q_lower for w in ["人", "个", "位", "pax", "capacity", "people"])
+            if not (has_date and has_capacity):
+                clarify = {'zh-Hant': '好的，請問您需要預定哪一天的會議室？預計有多少人參加？',
+                           'zh-Hans': '好的，请问您需要预定哪一天的会议室？预计有多少人参加？',
+                           'en': 'Sure, which date and time would you like to book the meeting room for? And how many attendees?'}
+                return jsonify({
+                    "code": 200, "message": "success",
+                    "data": {"intent": "CLARIFY", "reply": clarify.get(lang, clarify['en']), "method": "KEYWORD_CLARIFY"}
+                })
+            intent = "TOOL"
+        else:
+            # Mixed or ambiguous action keywords — let LLM decide
+            intent = "TOOL"  # still prefer TOOL for any action keyword
         return jsonify({
             "code": 200,
             "message": "success",
-            "data": {"intent": intent, "method": "KEYWORD"}
+            "data": {"intent": intent, "method": "KEYWORD_PREFILTER"}
         })
 
+    # Settings keyword detection (also pre-filtered — no need for LLM)
+    if any(w in q_lower for w in ["设置", "settings", "个人中心", "密码", "password", "profile", "修改密码", "change password"]):
+        return jsonify({
+            "code": 200,
+            "message": "success",
+            "data": {"intent": "SETTINGS", "method": "KEYWORD_PREFILTER"}
+        })
+
+    # SQL/CODE keyword detection (pre-filter strong signals)
+    if any(w in q_lower for w in ["select", "show tables", "查询", "统计", "余额", "账单", "交易", "账户", "sql"]):
+        return jsonify({
+            "code": 200,
+            "message": "success",
+            "data": {"intent": "CODE", "method": "KEYWORD_PREFILTER"}
+        })
+
+    # No API key → everything else defaults to RAG (document search)
+    if not DEEPSEEK_API_KEY:
+        log.warning("API Key not set, defaulting ambiguous input to RAG")
+        return jsonify({
+            "code": 200,
+            "message": "success",
+            "data": {"intent": "RAG", "method": "KEYWORD"}
+        })
+
+    # ── LLM classification: only for truly ambiguous or knowledge-oriented inputs ──
     try:
         from openai import OpenAI
         client = OpenAI(
@@ -543,7 +587,9 @@ CRITICAL: If a user expresses any action intent (booking, scheduling, routing, m
             temperature=0.1,
         )
 
-        intent = response.choices[0].message.content.strip().upper()
+        raw_result = response.choices[0].message.content.strip().upper()
+        log.info("LLM raw intent classifier response: '%s'", raw_result)
+        intent = raw_result
         if "CODE" in intent:
             intent = "CODE"
         elif "TOOL" in intent:
@@ -555,7 +601,8 @@ CRITICAL: If a user expresses any action intent (booking, scheduling, routing, m
         elif "CHAT" in intent:
             intent = "CHAT"
         else:
-            intent = "RAG"
+            intent = "CLARIFY"
+            log.warning("LLM returned unrecognized intent '%s', fallback to CLARIFY", raw_result)
 
         log.info("✅ 意图分类结果: %s", intent)
 
@@ -627,7 +674,7 @@ CRITICAL: If a user expresses any action intent (booking, scheduling, routing, m
 
     except Exception as e:
         log.error("❌ 意图分类失败: %s", e)
-        intent = "RAG"
+        intent = "CLARIFY"
         clarify_fb = {'zh-Hant': '好的，請問您需要預定哪一天的會議室？預計有多少人參加？',
                        'zh-Hans': '好的，请问您需要预定哪一天的会议室？预计有多少人参加？',
                        'en': 'Sure, which date and time would you like to book the meeting room for? And how many attendees?'}
@@ -636,7 +683,7 @@ CRITICAL: If a user expresses any action intent (booking, scheduling, routing, m
                              'en': 'Please provide your starting point and destination (e.g., from HKU to Hong Kong International Airport).'}
         if any(w in q_lower for w in ["select", "show", "table", "查询", "统计", "余额", "账单", "交易", "账户"]):
             intent = "CODE"
-        elif any(w in q_lower for w in ["会议室", "预订", "日程", "时间冲突", "发邮件", "安排"]):
+        elif any(w in q_lower for w in ["会议", "开会", "会议室", "预订", "预定", "日程", "时间冲突", "发邮件", "安排", "meeting", "book", "schedule", "reserve"]):
             has_route = any(w in q_lower for w in ["从", "到", "路线", "地图", "规划路线", "驾车", "公交", "步行", "起点", "终点"])
             if not has_route:
                 has_date = any(w in q_lower for w in ["今", "明", "后", "下午", "上午", "点", "分", "time", "date", "today", "tomorrow", "pm", "am"])
