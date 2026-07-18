@@ -515,6 +515,218 @@ INSERT INTO `sys_notification` (`id`, `sender_id`, `receiver_id`, `title`, `cont
 (14, 1, 5, 'Welcome to BankAgent platform',                              'Your account has been set up as Compliance Staff (Level 1). You can use Tool Agent, Code Agent, and RAG Agent.',        'CHAT', 1, NULL, NULL, '2026-06-15 09:00:00', '2026-06-15 09:00:00', 0),
 (15, 2, 5, 'Cross-department collaboration request',                     'Credit Department invites Compliance to review the updated loan agreement template for regulatory alignment.',          'CHAT', 1, '{"documentId":9,"deptFrom":"Credit"}', NULL, '2026-07-02 13:00:00', '2026-07-02 13:00:00', 0);
 
+-- ============================================================
+-- ============================================================
+-- Banking Business Data Tables
+-- (DDL matches the hardcoded schema in code-agent/data/infer_server.py)
+-- These tables support the Code Agent SQL-generation preset prompts.
+-- ============================================================
+
+-- ----------------------------
+-- Bank Customer Table
+-- ----------------------------
+DROP TABLE IF EXISTS `bank_customer`;
+CREATE TABLE `bank_customer` (
+  `id`          bigint      NOT NULL AUTO_INCREMENT,
+  `customer_no` varchar(20) NOT NULL           COMMENT 'Unique customer identifier',
+  `name`        varchar(50) NOT NULL           COMMENT 'Full legal name',
+  `id_card`     varchar(18) DEFAULT NULL       COMMENT 'Government-issued ID number',
+  `phone`       varchar(15) DEFAULT NULL       COMMENT 'Primary contact phone',
+  `risk_level`  varchar(10) DEFAULT 'LOW'      COMMENT 'AML risk classification: LOW / MEDIUM / HIGH',
+  `status`      int         DEFAULT '1'        COMMENT '1 = Active, 0 = Inactive',
+  `create_time` datetime    DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted`     int         DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_customer_no` (`customer_no`),
+  KEY `idx_risk_level` (`risk_level`)
+) ENGINE=InnoDB AUTO_INCREMENT=11
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+  COMMENT='Retail and corporate banking customers';
+
+INSERT INTO `bank_customer` VALUES
+(1,  'CUST001', 'James Anderson',   'ID-440301-9001', '555-0101', 'LOW',    1, '2025-06-01 09:00:00', '2026-01-15 14:30:00', 0),
+(2,  'CUST002', 'Emily Richardson', 'ID-440301-8502', '555-0102', 'MEDIUM', 1, '2025-06-15 10:00:00', '2026-03-20 11:00:00', 0),
+(3,  'CUST003', 'Michael Thornton', 'ID-440301-9203', '555-0103', 'HIGH',   1, '2025-07-01 11:00:00', '2026-05-10 09:00:00', 0),
+(4,  'CUST004', 'Sarah Williams',   'ID-440301-8804', '555-0104', 'LOW',    1, '2025-08-01 14:00:00', '2026-06-01 16:00:00', 0),
+(5,  'CUST005', 'David Chen',       'ID-440301-9505', '555-0105', 'HIGH',   1, '2025-09-01 16:00:00', '2026-07-01 10:00:00', 0),
+(6,  'CUST006', 'Jessica Miller',   'ID-310101-8706', '555-0201', 'MEDIUM', 1, '2025-10-01 08:00:00', '2026-04-15 13:00:00', 0),
+(7,  'CUST007', 'Robert Martinez',  'ID-310101-9407', '555-0202', 'LOW',    1, '2025-11-01 09:30:00', '2026-02-20 15:00:00', 0),
+(8,  'CUST008', 'Amanda Johnson',   'ID-440101-9008', '555-0301', 'HIGH',   0, '2025-12-01 10:30:00', '2026-05-25 17:00:00', 0),
+(9,  'CUST009', 'Daniel Thompson',  'ID-440101-9509', '555-0302', 'LOW',    1, '2026-01-01 11:00:00', '2026-06-10 08:00:00', 0),
+(10, 'CUST010', 'Olivia Davis',     'ID-500101-8810', '555-0401', 'MEDIUM', 1, '2026-02-01 13:00:00', '2026-07-05 12:00:00', 0);
+
+-- ----------------------------
+-- Bank Department Table
+-- ----------------------------
+DROP TABLE IF EXISTS `bank_department`;
+CREATE TABLE `bank_department` (
+  `id`          bigint      NOT NULL AUTO_INCREMENT,
+  `dept_name`   varchar(50) NOT NULL           COMMENT 'Department display name',
+  `manager_id`  bigint      DEFAULT NULL       COMMENT 'FK → bank_employee.id (department head)',
+  `floor`       int         DEFAULT NULL       COMMENT 'Office floor number',
+  `create_time` datetime    DEFAULT CURRENT_TIMESTAMP,
+  `deleted`     int         DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+  COMMENT='Bank internal department directory';
+
+INSERT INTO `bank_department` VALUES
+(1, 'Credit & Lending',       1,  3, '2025-01-01 09:00:00', 0),
+(2, 'Compliance & Audit',     4,  5, '2025-01-01 09:00:00', 0),
+(3, 'Retail Banking',         6,  2, '2025-01-01 09:00:00', 0),
+(4, 'Risk Management',        8,  7, '2025-01-01 09:00:00', 0),
+(5, 'IT & Infrastructure',   10,  9, '2025-01-01 09:00:00', 0);
+
+-- ----------------------------
+-- Bank Employee Table
+-- ----------------------------
+DROP TABLE IF EXISTS `bank_employee`;
+CREATE TABLE `bank_employee` (
+  `id`          bigint        NOT NULL AUTO_INCREMENT,
+  `emp_no`      varchar(20)   NOT NULL           COMMENT 'Employee payroll number',
+  `name`        varchar(50)   NOT NULL           COMMENT 'Full name',
+  `dept_id`     bigint        NOT NULL           COMMENT 'FK → bank_department.id',
+  `position`    varchar(50)   DEFAULT NULL       COMMENT 'Job title',
+  `salary`      decimal(12,2) DEFAULT NULL       COMMENT 'Monthly base salary',
+  `hire_date`   date          DEFAULT NULL       COMMENT 'Date of joining',
+  `phone`       varchar(15)   DEFAULT NULL       COMMENT 'Internal extension',
+  `status`      int           DEFAULT '1'        COMMENT '1 = Active, 0 = Resigned',
+  `create_time` datetime      DEFAULT CURRENT_TIMESTAMP,
+  `deleted`     int           DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_emp_no` (`emp_no`),
+  KEY `idx_dept_id` (`dept_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=13
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+  COMMENT='Bank employee roster';
+
+INSERT INTO `bank_employee` VALUES
+(1,  'EMP001', 'Michael Chen',     1, 'Credit Manager',           25000.00, '2020-03-01', 'x3101', 1, '2025-01-01 09:00:00', 0),
+(2,  'EMP002', 'Laura Bennett',    1, 'Credit Analyst',           12000.00, '2022-07-15', 'x3102', 1, '2025-01-01 09:00:00', 0),
+(3,  'EMP003', 'Kevin Park',       1, 'Credit Analyst',           11000.00, '2023-01-10', 'x3103', 1, '2025-01-01 09:00:00', 0),
+(4,  'EMP004', 'Rachel Adams',     2, 'Compliance Manager',       28000.00, '2019-06-01', 'x5201', 1, '2025-01-01 09:00:00', 0),
+(5,  'EMP005', 'Brian Foster',     2, 'Compliance Officer',       13000.00, '2022-09-01', 'x5202', 1, '2025-01-01 09:00:00', 0),
+(6,  'EMP006', 'Stephanie Lee',    3, 'Retail Banking Manager',   26000.00, '2020-01-15', 'x2201', 1, '2025-01-01 09:00:00', 0),
+(7,  'EMP007', 'Andrew Nguyen',    3, 'Personal Banker',          10000.00, '2023-03-20', 'x2202', 1, '2025-01-01 09:00:00', 0),
+(8,  'EMP008', 'Catherine Wong',   4, 'Risk Manager',             30000.00, '2018-11-01', 'x7301', 1, '2025-01-01 09:00:00', 0),
+(9,  'EMP009', 'Nathan Scott',     4, 'Risk Analyst',             15000.00, '2021-05-10', 'x7302', 1, '2025-01-01 09:00:00', 0),
+(10, 'EMP010', 'Gregory Hall',     5, 'IT Manager',               32000.00, '2018-03-15', 'x9201', 1, '2025-01-01 09:00:00', 0),
+(11, 'EMP011', 'Sophia Wright',    5, 'Senior Software Engineer', 20000.00, '2020-08-01', 'x9202', 1, '2025-01-01 09:00:00', 0),
+(12, 'EMP012', 'Patrick Evans',    5, 'Software Engineer',        14000.00, '2022-04-01', 'x9203', 1, '2025-01-01 09:00:00', 0);
+
+-- ----------------------------
+-- Bank Account Table
+-- ----------------------------
+DROP TABLE IF EXISTS `bank_account`;
+CREATE TABLE `bank_account` (
+  `id`           bigint        NOT NULL AUTO_INCREMENT,
+  `account_no`   varchar(30)   NOT NULL           COMMENT 'Account number (IBAN-format compatible)',
+  `customer_id`  bigint        NOT NULL           COMMENT 'FK → bank_customer.id',
+  `account_type` varchar(20)   DEFAULT 'SAVINGS'  COMMENT 'SAVINGS / CHECKING / FIXED',
+  `balance`      decimal(18,2) DEFAULT 0.00       COMMENT 'Current ledger balance',
+  `currency`     varchar(5)    DEFAULT 'CNY'      COMMENT 'ISO 4217 currency code',
+  `open_date`    date          DEFAULT NULL       COMMENT 'Account opening date',
+  `status`       int           DEFAULT '1'        COMMENT '1 = Active, 0 = Closed',
+  `create_time`  datetime      DEFAULT CURRENT_TIMESTAMP,
+  `deleted`      int           DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_account_no` (`account_no`),
+  KEY `idx_customer_id` (`customer_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=13
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+  COMMENT='Customer deposit and checking accounts';
+
+INSERT INTO `bank_account` VALUES
+(1,  '6222021001000001', 1,  'SAVINGS',  150000.50, 'CNY', '2025-06-15', 1, '2025-06-15 09:00:00', 0),
+(2,  '6222021001000002', 1,  'CHECKING',  85000.00, 'CNY', '2025-08-01', 1, '2025-08-01 10:00:00', 0),
+(3,  '6222021001000003', 2,  'SAVINGS',   32000.75, 'CNY', '2025-07-01', 1, '2025-07-01 11:00:00', 0),
+(4,  '6222021001000004', 2,  'FIXED',    200000.00, 'CNY', '2025-09-01', 1, '2025-09-01 14:00:00', 0),
+(5,  '6222021001000005', 3,  'SAVINGS',    5000.00, 'CNY', '2025-08-15', 1, '2025-08-15 16:00:00', 0),
+(6,  '6222021001000006', 4,  'CHECKING',  45000.00, 'CNY', '2025-10-01', 1, '2025-10-01 08:00:00', 0),
+(7,  '6222021001000007', 5,  'SAVINGS',    2800.30, 'CNY', '2025-11-01', 1, '2025-11-01 09:30:00', 0),
+(8,  '6222021001000008', 6,  'SAVINGS',   98000.00, 'CNY', '2025-12-01', 1, '2025-12-01 10:30:00', 0),
+(9,  '6222021001000009', 7,  'CHECKING',  12000.00, 'CNY', '2026-01-01', 1, '2026-01-01 11:00:00', 0),
+(10, '6222021001000010', 8,  'SAVINGS',     350.00, 'CNY', '2026-02-01', 0, '2026-02-01 13:00:00', 0),
+(11, '6222021001000011', 9,  'FIXED',    500000.00, 'CNY', '2026-03-01', 1, '2026-03-01 08:00:00', 0),
+(12, '6222021001000012', 10, 'SAVINGS',   76500.00, 'CNY', '2026-04-01', 1, '2026-04-01 09:00:00', 0);
+
+-- ----------------------------
+-- Bank Transaction Table
+-- ----------------------------
+DROP TABLE IF EXISTS `bank_transaction`;
+CREATE TABLE `bank_transaction` (
+  `id`                   bigint        NOT NULL AUTO_INCREMENT,
+  `txn_no`               varchar(40)   NOT NULL           COMMENT 'Unique transaction reference number',
+  `account_id`           bigint        NOT NULL           COMMENT 'FK → bank_account.id',
+  `txn_type`             varchar(20)   NOT NULL           COMMENT 'DEPOSIT / WITHDRAWAL / TRANSFER',
+  `amount`               decimal(18,2) NOT NULL           COMMENT 'Transaction amount (positive)',
+  `balance_after`        decimal(18,2) DEFAULT 0.00       COMMENT 'Account balance after this transaction',
+  `counterparty_account` varchar(30)   DEFAULT NULL       COMMENT 'Counterparty account number (for TRANSFER)',
+  `remark`               varchar(100)  DEFAULT NULL       COMMENT 'Transaction memo / description',
+  `txn_time`             datetime      NOT NULL           COMMENT 'Timestamp when transaction occurred',
+  `create_time`          datetime      DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_txn_no` (`txn_no`),
+  KEY `idx_account_id` (`account_id`),
+  KEY `idx_txn_time` (`txn_time`)
+) ENGINE=InnoDB AUTO_INCREMENT=14
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+  COMMENT='Customer transaction ledger';
+
+INSERT INTO `bank_transaction` VALUES
+(1,  'TXN20260115001', 1,  'DEPOSIT',    50000.00, 200000.50, NULL,                  'Salary credit — Jan 2026',         '2026-01-15 10:30:00', '2026-01-15 10:30:00'),
+(2,  'TXN20260120001', 1,  'WITHDRAWAL',  5000.00, 195000.50, NULL,                  'ATM withdrawal',                   '2026-01-20 14:00:00', '2026-01-20 14:00:00'),
+(3,  'TXN20260210001', 2,  'TRANSFER',   20000.00,  65000.00, '6222021001000003',    'Transfer to E. Richardson savings','2026-02-10 09:15:00', '2026-02-10 09:15:00'),
+(4,  'TXN20260305001', 3,  'DEPOSIT',    15000.00,  47000.75, NULL,                  'Cash deposit — counter',           '2026-03-05 11:00:00', '2026-03-05 11:00:00'),
+(5,  'TXN20260315001', 4,  'DEPOSIT',   100000.00, 300000.00, NULL,                  'Fixed deposit renewal',            '2026-03-15 15:30:00', '2026-03-15 15:30:00'),
+(6,  'TXN20260401001', 6,  'WITHDRAWAL', 15000.00,  30000.00, NULL,                  'Over-the-counter withdrawal',      '2026-04-01 10:00:00', '2026-04-01 10:00:00'),
+(7,  'TXN20260410001', 8,  'TRANSFER',   30000.00,  68000.00, '6222021001000001',    'Transfer to J. Anderson',          '2026-04-10 13:45:00', '2026-04-10 13:45:00'),
+(8,  'TXN20260501001', 11, 'DEPOSIT',   200000.00, 700000.00, NULL,                  'Large-value fixed deposit',        '2026-05-01 09:00:00', '2026-05-01 09:00:00'),
+(9,  'TXN20260515001', 1,  'TRANSFER',   30000.00, 165000.50, '6222021001000012',    'Transfer to O. Davis',             '2026-05-15 16:20:00', '2026-05-15 16:20:00'),
+(10, 'TXN20260601001', 12, 'DEPOSIT',    25000.00, 101500.00, NULL,                  'Salary credit — Jun 2026',         '2026-06-01 10:30:00', '2026-06-01 10:30:00'),
+(11, 'TXN20260615001', 1,  'WITHDRAWAL', 20000.00, 145000.50, NULL,                  'Large-value withdrawal',           '2026-06-15 11:00:00', '2026-06-15 11:00:00'),
+(12, 'TXN20260701001', 2,  'DEPOSIT',    12000.00,  77000.00, NULL,                  'Cash deposit — ATM',               '2026-07-01 08:30:00', '2026-07-01 08:30:00'),
+(13, 'TXN20260710001', 6,  'TRANSFER',   18000.00,  12000.00, '6222021001000005',    'Transfer to M. Thornton',          '2026-07-10 14:00:00', '2026-07-10 14:00:00');
+
+-- ----------------------------
+-- Bank Loan Table
+-- ----------------------------
+DROP TABLE IF EXISTS `bank_loan`;
+CREATE TABLE `bank_loan` (
+  `id`            bigint        NOT NULL AUTO_INCREMENT,
+  `loan_no`       varchar(30)   NOT NULL           COMMENT 'Unique loan contract number',
+  `customer_id`   bigint        NOT NULL           COMMENT 'FK → bank_customer.id',
+  `emp_id`        bigint        DEFAULT NULL       COMMENT 'FK → bank_employee.id (loan officer)',
+  `loan_type`     varchar(30)   DEFAULT NULL       COMMENT 'MORTGAGE / CREDIT / AUTO',
+  `amount`        decimal(14,2) NOT NULL           COMMENT 'Original principal amount',
+  `interest_rate` decimal(5,2)  DEFAULT NULL       COMMENT 'Annual interest rate (percent)',
+  `term_months`   int           DEFAULT NULL       COMMENT 'Loan term in months',
+  `start_date`    date          DEFAULT NULL       COMMENT 'Loan disbursement date',
+  `status`        varchar(20)   DEFAULT 'ACTIVE'   COMMENT 'ACTIVE / CLOSED / DEFAULT',
+  `create_time`   datetime      DEFAULT CURRENT_TIMESTAMP,
+  `deleted`       int           DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_loan_no` (`loan_no`),
+  KEY `idx_customer_id` (`customer_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+  COMMENT='Customer loan contracts';
+
+INSERT INTO `bank_loan` VALUES
+(1, 'LOAN2025001', 2,  2, 'MORTGAGE', 1500000.00, 3.85, 240, '2025-06-01', 'ACTIVE',  '2025-06-01 09:00:00', 0),
+(2, 'LOAN2025002', 5,  3, 'CREDIT',     80000.00, 5.60,  36, '2025-08-15', 'ACTIVE',  '2025-08-15 10:00:00', 0),
+(3, 'LOAN2025003', 6,  2, 'AUTO',      250000.00, 4.20,  60, '2025-10-01', 'ACTIVE',  '2025-10-01 11:00:00', 0),
+(4, 'LOAN2026001', 3,  2, 'CREDIT',    120000.00, 6.00,  24, '2026-01-10', 'DEFAULT', '2026-01-10 14:00:00', 0),
+(5, 'LOAN2026002', 10, 3, 'MORTGAGE', 2200000.00, 3.65, 300, '2026-03-01', 'ACTIVE',  '2026-03-01 09:00:00', 0);
+
 -- ----------------------------
 SET FOREIGN_KEY_CHECKS = 1;
 
