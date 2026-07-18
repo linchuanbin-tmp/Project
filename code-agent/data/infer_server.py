@@ -475,90 +475,18 @@ def route_intent():
             }
         })
 
-    # ── Keyword pre-filter (runs before LLM for strong-action inputs) ──
-    # When the user clearly expresses an ACTION intent (meeting/booking/route/settings),
-    # keyword matching is fast, deterministic, and avoids LLM misclassification.
-    # LLM is only consulted for truly ambiguous or knowledge-related inputs.
-    HAS_ACTION_KEYWORD = any(w in q_lower for w in [
-        "会议", "开会", "预订", "预定", "日程", "时间冲突", "安排",
-        "meeting", "book", "schedule", "reserve",
-        "规划", "路线", "地图", "驾车", "公交", "步行", "导航",
-        "从", "起点", "终点", "出行", "route", "drive", "direction", "navigate",
-    ])
-    HAS_ROUTE_KEYWORD = any(w in q_lower for w in [
-        "从", "到", "路线", "地图", "规划", "规划路线", "驾车", "公交", "步行",
-        "起点", "终点", "出行", "route", "drive", "direction", "navigate",
-        "行驶", "交通", "开车",
-    ])
-    HAS_BOOKING_KEYWORD = any(w in q_lower for w in [
-        "会议", "开会", "预订", "预定", "日程", "时间冲突", "安排", "发邮件",
-        "meeting", "book", "schedule", "reserve",
-    ])
-
-    if HAS_ACTION_KEYWORD:
-        # Distinguish route vs booking intent
-        if HAS_ROUTE_KEYWORD and not HAS_BOOKING_KEYWORD:
-            # Route intent — check if origin AND destination are present
-            has_origin = any(w in q_lower for w in ["从", "起点", "from", "origin"])
-            has_destination = any(w in q_lower for w in ["到", "终点", "to", "destination"])
-            has_direction_marker = any(w in q_lower for w in ["从", "起点", "到", "终点", "from", "to", "origin", "destination"])
-            if has_direction_marker and not (has_origin and has_destination):
-                route_clarify = {'zh-Hant': '請提供您的路線起點和終點（例如：從香港大學到香港國際機場）。',
-                                  'zh-Hans': '请提供您的路线起点和终点（例如：从香港大学到香港国际机场）。',
-                                  'en': 'Please provide your starting point and destination (e.g., from HKU to Hong Kong International Airport).'}
-                return jsonify({
-                    "code": 200, "message": "success",
-                    "data": {"intent": "CLARIFY", "reply": route_clarify.get(lang, route_clarify['en']), "method": "KEYWORD_CLARIFY"}
-                })
-            intent = "TOOL"
-        elif HAS_BOOKING_KEYWORD and not HAS_ROUTE_KEYWORD:
-            # Booking intent — check if time and capacity are present
-            has_date = any(w in q_lower for w in ["今", "明", "后", "下午", "上午", "点", "分", "time", "date", "today", "tomorrow", "pm", "am"])
-            has_capacity = any(w in q_lower for w in ["人", "个", "位", "pax", "capacity", "people"])
-            if not (has_date and has_capacity):
-                clarify = {'zh-Hant': '好的，請問您需要預定哪一天的會議室？預計有多少人參加？',
-                           'zh-Hans': '好的，请问您需要预定哪一天的会议室？预计有多少人参加？',
-                           'en': 'Sure, which date and time would you like to book the meeting room for? And how many attendees?'}
-                return jsonify({
-                    "code": 200, "message": "success",
-                    "data": {"intent": "CLARIFY", "reply": clarify.get(lang, clarify['en']), "method": "KEYWORD_CLARIFY"}
-                })
-            intent = "TOOL"
-        else:
-            # Mixed or ambiguous action keywords — let LLM decide
-            intent = "TOOL"  # still prefer TOOL for any action keyword
-        return jsonify({
-            "code": 200,
-            "message": "success",
-            "data": {"intent": intent, "method": "KEYWORD_PREFILTER"}
-        })
-
-    # Settings keyword detection (also pre-filtered — no need for LLM)
-    if any(w in q_lower for w in ["设置", "settings", "个人中心", "密码", "password", "profile", "修改密码", "change password"]):
-        return jsonify({
-            "code": 200,
-            "message": "success",
-            "data": {"intent": "SETTINGS", "method": "KEYWORD_PREFILTER"}
-        })
-
-    # SQL/CODE keyword detection (pre-filter strong signals)
-    if any(w in q_lower for w in ["select", "show tables", "查询", "统计", "余额", "账单", "交易", "账户", "sql"]):
-        return jsonify({
-            "code": 200,
-            "message": "success",
-            "data": {"intent": "CODE", "method": "KEYWORD_PREFILTER"}
-        })
-
-    # No API key → everything else defaults to RAG (document search)
+    # ── LLM-based intent classification (JSON-constrained) ──
+    # No keyword pre-filter — LLM handles all semantic distinctions, including
+    # "会议室预约规定" (knowledge query) vs "我要订会议室" (action intent).
+    # JSON output format prevents the empty-response / misparse issues.
     if not DEEPSEEK_API_KEY:
-        log.warning("API Key not set, defaulting ambiguous input to RAG")
+        log.warning("API Key not set, defaulting to RAG")
         return jsonify({
             "code": 200,
             "message": "success",
             "data": {"intent": "RAG", "method": "KEYWORD"}
         })
 
-    # ── LLM classification: only for truly ambiguous or knowledge-oriented inputs ──
     try:
         from openai import OpenAI
         client = OpenAI(
@@ -566,16 +494,64 @@ def route_intent():
             base_url=DEEPSEEK_BASE_URL,
         )
 
-        system_prompt = """You are an intent classifier for a banking enterprise agent platform. Output exactly one word: CODE/TOOL/RAG/SETTINGS/CLARIFY/CHAT.
+        system_prompt = """You are an intent classifier for a banking enterprise agent platform.
 
-- CODE: SQL queries, database statistics, data retrieval.
-- TOOL: The user has a COMPLETE booking or route request. Meeting booking requires time AND attendee count. Route planning requires origin AND destination. Only classify as TOOL if all required parameters are present.
-- RAG: Questions about policies, regulations, documents, concepts, definitions, guides -- "what is", "how does", "explain", "define". This is a knowledge base lookup, NOT for action-oriented requests.
-- SETTINGS: Password changes, profile updates, system configuration.
-- CLARIFY: The user wants to book a meeting, schedule something, reserve a room, or plan a route, but is MISSING required parameters (time, attendee count, origin/destination). Use CLARIFY when the intent is clearly TOOL but the information is incomplete. Also use CLARIFY for vague meeting-related intentions like "I want to have a meeting", "schedule a meeting", "book something", "我要开会", "安排会议", "安排日程" without enough detail.
-- CHAT: Greetings, small talk, non-banking requests.
+OUTPUT ONLY THIS EXACT JSON — NO OTHER TEXT:
+{"intent":"RAG"}
 
-CRITICAL: If a user expresses any action intent (booking, scheduling, routing, meeting), classify as TOOL or CLARIFY -- NEVER as RAG or CHAT. RAG is only for document/knowledge questions."""
+Replace RAG with: CODE, TOOL, RAG, SETTINGS, CLARIFY, or CHAT.
+
+INTENT DEFINITIONS WITH EXAMPLES:
+
+CODE — SQL queries, database lookups, statistics:
+"查一下上个月的交易记录" → CODE
+"上个季度所有逾期贷款" → CODE
+"统计一下各分行的存款余额" → CODE
+Any request to query/retrieve/analyze DATA from the database → CODE
+
+TOOL — User wants to PERFORM an action AND has ALL required parameters:
+"帮我订个明天下午三点的会议室，五个人" → TOOL (has time + capacity)
+"从香港大学到铜锣湾怎么坐车" → TOOL (has origin + destination)
+"从尖沙咀打车到旺角要多久" → TOOL (has origin + destination)
+"plan driving route from HKU to Hong Kong Airport" → TOOL
+
+RAG — Knowledge/document questions (policies, regulations, definitions, how-to, concepts):
+"不良贷款的五级分类标准" → RAG
+"会议室预约规定" → RAG
+"公司会议室管理制度" → RAG
+"怎么使用路线规划功能" → RAG
+"贷款审批流程是什么" → RAG
+"什么是KYC" → RAG
+"介绍一下银行的风控体系" → RAG
+Any question about what something IS or HOW something works → RAG
+
+SETTINGS — Account/profile/password changes:
+"我要修改个人信息" → SETTINGS
+"我想修改登录密码" → SETTINGS
+"怎么重置密码" → SETTINGS
+
+CLARIFY — User wants to PERFORM an action but parameters are MISSING:
+"我要开会" → CLARIFY (missing time + capacity)
+"I want to have a meeting" → CLARIFY (missing time + capacity)
+"帮我订个会议室" → CLARIFY (missing time + capacity)
+"帮我导航去中环" → CLARIFY (missing origin)
+"怎么去机场" → CLARIFY (missing origin)
+"九龙塘附近有没有空的会议室" → CLARIFY (querying availability, missing preference details)
+"帮我看看明天有没有空的房间" → CLARIFY (looking for room availability)
+"帮我安排一个下周一的会议" → CLARIFY (has date but missing time + capacity)
+"我想取消预约" → CLARIFY (action intent, missing details)
+
+CHAT — Greetings, small talk, chitchat:
+"你好" → CHAT
+"你叫什么名字" → CHAT
+"今天是几号" → CHAT
+
+CRITICAL RULES:
+1. If the user asks ABOUT a policy/document/procedure → RAG. If the user asks TO DO something → TOOL/CLARIFY.
+2. If the user asks to DO something AND has from+to or time+capacity → TOOL.
+3. If the user asks to DO something but is MISSING parameters → CLARIFY.
+4. "空的房间", "空的会议室", "有没有会议室" → CLARIFY (action intent, need more info).
+5. Password/reset/password/profile changes → SETTINGS."""
 
         response = client.chat.completions.create(
             model=ROUTE_CLASSIFY_MODEL,
@@ -583,26 +559,55 @@ CRITICAL: If a user expresses any action intent (booking, scheduling, routing, m
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": question},
             ],
-            max_tokens=10,
-            temperature=0.1,
+            max_tokens=100,
+            temperature=0.0,
         )
 
-        raw_result = response.choices[0].message.content.strip().upper()
-        log.info("LLM raw intent classifier response: '%s'", raw_result)
-        intent = raw_result
-        if "CODE" in intent:
-            intent = "CODE"
-        elif "TOOL" in intent:
-            intent = "TOOL"
-        elif "SETTINGS" in intent:
-            intent = "SETTINGS"
-        elif "CLARIFY" in intent:
-            intent = "CLARIFY"
-        elif "CHAT" in intent:
-            intent = "CHAT"
-        else:
-            intent = "CLARIFY"
-            log.warning("LLM returned unrecognized intent '%s', fallback to CLARIFY", raw_result)
+        raw_result = response.choices[0].message.content.strip()
+        log.info("LLM raw intent classifier response: '%s'", raw_result[:200])
+
+        # Parse JSON, with one retry on failure
+        def parse_intent(text: str):
+            try:
+                parsed = json.loads(text)
+                intent = parsed.get("intent", "").strip().upper()
+                VALID_INTENTS = {"CODE", "TOOL", "RAG", "SETTINGS", "CLARIFY", "CHAT"}
+                if intent in VALID_INTENTS:
+                    return intent
+                log.warning("LLM returned invalid intent '%s'", intent)
+            except json.JSONDecodeError:
+                log.warning("LLM returned non-JSON: '%s'", text[:200])
+            return None
+
+        intent = parse_intent(raw_result)
+
+        if intent is None:
+            # Retry with stricter prompt
+            log.info("🔄 First attempt failed, retrying with stricter prompt...")
+            retry_prompt = """CRITICAL: Your previous response was empty or invalid.
+You MUST output valid JSON. Output ONLY:
+{"intent": "RAG"}
+Replace RAG with the correct intent: CODE, TOOL, RAG, SETTINGS, CLARIFY, or CHAT.
+NO other text. NO explanation. JUST the JSON."""
+            try:
+                response2 = client.chat.completions.create(
+                    model=ROUTE_CLASSIFY_MODEL,
+                    messages=[
+                        {"role": "system", "content": retry_prompt},
+                        {"role": "user", "content": question},
+                    ],
+                    max_tokens=100,
+                    temperature=0.0,
+                )
+                raw2 = response2.choices[0].message.content.strip()
+                log.info("LLM retry response: '%s'", raw2[:200])
+                intent = parse_intent(raw2)
+            except Exception as retry_err:
+                log.error("Retry failed: %s", retry_err)
+
+        if intent is None:
+            log.warning("Both attempts failed, fallback to RAG")
+            intent = "RAG"
 
         log.info("✅ 意图分类结果: %s", intent)
 
@@ -673,40 +678,11 @@ CRITICAL: If a user expresses any action intent (booking, scheduling, routing, m
         })
 
     except Exception as e:
-        log.error("❌ 意图分类失败: %s", e)
-        intent = "CLARIFY"
-        clarify_fb = {'zh-Hant': '好的，請問您需要預定哪一天的會議室？預計有多少人參加？',
-                       'zh-Hans': '好的，请问您需要预定哪一天的会议室？预计有多少人参加？',
-                       'en': 'Sure, which date and time would you like to book the meeting room for? And how many attendees?'}
-        route_clarify_fb = {'zh-Hant': '請提供您的路線起點和終點（例如：從香港大學到香港國際機場）。',
-                             'zh-Hans': '请提供您的路线起点和终点（例如：从香港大学到香港国际机场）。',
-                             'en': 'Please provide your starting point and destination (e.g., from HKU to Hong Kong International Airport).'}
-        if any(w in q_lower for w in ["select", "show", "table", "查询", "统计", "余额", "账单", "交易", "账户"]):
-            intent = "CODE"
-        elif any(w in q_lower for w in ["会议", "开会", "会议室", "预订", "预定", "日程", "时间冲突", "发邮件", "安排", "meeting", "book", "schedule", "reserve"]):
-            has_route = any(w in q_lower for w in ["从", "到", "路线", "地图", "规划路线", "驾车", "公交", "步行", "起点", "终点"])
-            if not has_route:
-                has_date = any(w in q_lower for w in ["今", "明", "后", "下午", "上午", "点", "分", "time", "date", "today", "tomorrow", "pm", "am"])
-                has_capacity = any(w in q_lower for w in ["人", "个", "位", "pax", "capacity", "people"])
-                if not (has_date and has_capacity):
-                    return jsonify({
-                        "code": 200, "message": "success",
-                        "data": {"intent": "CLARIFY", "reply": clarify_fb.get(lang, clarify_fb['en']), "method": "FALLBACK_CLARIFY"}
-                    })
-            intent = "TOOL"
-        elif any(w in q_lower for w in ["规划", "路线", "地图", "驾车", "公交", "步行"]):
-            if "从" not in q_lower or "到" not in q_lower:
-                return jsonify({
-                    "code": 200, "message": "success",
-                    "data": {"intent": "CLARIFY", "reply": route_clarify_fb.get(lang, route_clarify_fb['en']), "method": "FALLBACK_CLARIFY"}
-                })
-            intent = "TOOL"
-        elif any(w in q_lower for w in ["设置", "settings", "个人中心", "密码", "password", "profile"]):
-            intent = "SETTINGS"
+        log.error("❌ 意图分类 failed: %s", e)
         return jsonify({
             "code": 200,
             "message": "success",
-            "data": {"intent": intent, "method": "FALLBACK", "error": str(e)}
+            "data": {"intent": "RAG", "method": "FALLBACK", "error": str(e)}
         })
 
 
